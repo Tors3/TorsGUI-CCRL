@@ -179,7 +179,7 @@ impl Os for LinuxOs {
         let _ = c.child.wait();
     }
 
-    fn placement(&self, c: &Confined, expected: Option<&CpuSet>) -> Placement {
+    fn placement(&self, c: &Confined, expected: Option<&CpuSet>) -> PlacementCheck {
         let cpus = pid_affinity(c.pid).unwrap_or_default();
         // processes in the group
         let mut n = 0;
@@ -202,7 +202,7 @@ impl Os for LinuxOs {
             }
             None => true,
         };
-        Placement {
+        PlacementCheck {
             detail: format!("affinity {:?}", super::super::util::compact_list(&cpus)),
             cpus,
             group: None,

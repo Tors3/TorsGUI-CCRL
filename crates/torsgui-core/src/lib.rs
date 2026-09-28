@@ -2,6 +2,7 @@
 //! and the detached runner are thin shells around this crate.
 
 pub mod analysis;
+pub mod api;
 pub mod assets;
 pub mod bench;
 pub mod ccrl;

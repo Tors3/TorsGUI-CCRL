@@ -235,8 +235,8 @@ impl Os for WindowsOs {
         let _ = c.child.wait();
     }
 
-    fn placement(&self, c: &Confined, expected: Option<&CpuSet>) -> Placement {
-        let mut p = Placement::default();
+    fn placement(&self, c: &Confined, expected: Option<&CpuSet>) -> PlacementCheck {
+        let mut p = PlacementCheck::default();
         let Some(j) = &c.job else {
             p.detail = "no job object".into();
             p.ok = expected.is_none();

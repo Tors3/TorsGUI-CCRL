@@ -41,7 +41,7 @@ pub struct LaneStatus {
     pub log_file: Option<String>,
     pub pgn_file: String,
     pub cpuset: Option<String>,
-    pub placement: Option<platform::Placement>,
+    pub placement: Option<platform::PlacementCheck>,
     pub games_played: u32,
     pub failures: u32,
 }

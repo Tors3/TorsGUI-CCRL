@@ -17,7 +17,7 @@ args: string,
 /**
  * UCI options. `${THREADS}` and `${HASH}` are substituted at launch.
  */
-options: { [key in string]: string }, role: Role, engine_id: bigint | null, has_syzygy: boolean, uci_id: string | null, 
+options: { [key in string]: string }, role: Role, engine_id: number | null, has_syzygy: boolean, uci_id: string | null, 
 /**
  * CCRL list rating used for ordering and statistics.
  */

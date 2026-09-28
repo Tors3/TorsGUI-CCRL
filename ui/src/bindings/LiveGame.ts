@@ -6,4 +6,4 @@ export type LiveGame = { white: string, black: string, fen: string, start_fen: s
 /**
  * clocks in ms at the last `go`
  */
-wtime: number | null, btime: number | null, thinking: string | null, engines: Array<EngineLive>, evals: Array<EvalPoint>, log_bytes: bigint, };
+wtime: number | null, btime: number | null, thinking: string | null, engines: Array<EngineLive>, evals: Array<EvalPoint>, log_bytes: number, };

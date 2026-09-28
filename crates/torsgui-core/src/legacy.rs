@@ -4,7 +4,7 @@
 //! `results/gauntlets/<name>/all_games.pgn`).
 
 use crate::model::*;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
@@ -195,9 +195,6 @@ pub fn read(tournament_dir: &Path, results_dir: Option<&Path>) -> Result<LegacyT
             }
         }
         reference_export = crate::pgn::list_pgns(r).into_iter().find(|p| p.file_name().map(|n| n.to_string_lossy().starts_with('[')).unwrap_or(false));
-    }
-    if pgns.is_empty() {
-        bail!("no PGN found for {name}");
     }
     Ok(LegacyTournament { name, config, pgns, reference_export })
 }

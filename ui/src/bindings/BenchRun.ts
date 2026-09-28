@@ -2,4 +2,4 @@
 import type { BenchLevel } from "./BenchLevel";
 import type { PowerInfo } from "./PowerInfo";
 
-export type BenchRun = { host: string, cpu: string, os: string, created_at: string, engine: string, builds: Array<string>, levels: Array<BenchLevel>, signature: Array<bigint>, signature_ok: boolean, cpu_load_before: number, power: PowerInfo, warnings: Array<string>, valid: boolean, invalid_reason: string | null, ref_ms: number, source: string, };
+export type BenchRun = { host: string, cpu: string, os: string, created_at: string, engine: string, builds: Array<string>, levels: Array<BenchLevel>, signature: Array<number>, signature_ok: boolean, cpu_load_before: number, power: PowerInfo, warnings: Array<string>, valid: boolean, invalid_reason: string | null, ref_ms: number, source: string, };

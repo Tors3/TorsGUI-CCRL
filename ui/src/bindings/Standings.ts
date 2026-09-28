@@ -13,4 +13,4 @@ rows: Array<Row>, total: Row, white: Row, black: Row,
 /**
  * Every engine (useful for round robins).
  */
-general: Array<Row>, terminations: Array<Termination>, termination_totals: { [key in string]: number }, incomplete_pairs: Array<PairIssue>, avg_duration_s: number | null, min_duration_s: bigint | null, max_duration_s: bigint | null, decisive: Array<DecisiveGame>, performance: number | null, avg_opponent_rating: number | null, elo: Array<EloEstimate>, };
+general: Array<Row>, terminations: Array<Termination>, termination_totals: { [key in string]: number }, incomplete_pairs: Array<PairIssue>, avg_duration_s: number | null, min_duration_s: number | null, max_duration_s: number | null, decisive: Array<DecisiveGame>, performance: number | null, avg_opponent_rating: number | null, elo: Array<EloEstimate>, };

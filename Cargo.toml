@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/torsgui-core", "crates/torsgui-runner", "crates/mock-uci"]
+members = ["crates/torsgui-core", "crates/torsgui-runner", "crates/mock-uci", "crates/torsgui-server"]
 
 [workspace.package]
 version = "0.1.0"

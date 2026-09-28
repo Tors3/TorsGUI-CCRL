@@ -166,7 +166,7 @@ pub struct Confined {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
 #[ts(export)]
-pub struct Placement {
+pub struct PlacementCheck {
     /// Logical CPUs the process may run on (as reported by the OS).
     pub cpus: Vec<u32>,
     pub group: Option<u16>,
@@ -186,7 +186,7 @@ pub trait Os: Send + Sync {
     /// Kills the process and every child (engines).
     fn kill_tree(&self, c: &mut Confined);
     /// Placement actually in force for a running game.
-    fn placement(&self, c: &Confined, expected: Option<&CpuSet>) -> Placement;
+    fn placement(&self, c: &Confined, expected: Option<&CpuSet>) -> PlacementCheck;
     /// Starts a process that survives the caller (new session / no job).
     fn spawn_detached(&self, program: &Path, args: &[String], log: &Path) -> std::io::Result<u32>;
     fn pid_alive(&self, pid: u32) -> bool;

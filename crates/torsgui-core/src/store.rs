@@ -125,10 +125,11 @@ impl Default for Settings {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(export)]
 pub enum TState {
+    #[default]
     Draft,
     Queued,
     Running,
@@ -688,8 +689,14 @@ impl Store {
 /// Random-enough id: `<yyyymmdd-HHMMSS>-<4 hex>`.
 pub fn new_id(name: &str) -> String {
     let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos();
-    let slug: String = crate::pgn::slug(name).chars().take(40).collect();
-    format!("{}_{}_{:04x}", chrono::Local::now().format("%Y-%m-%d"), slug.trim_matches('_'), n & 0xffff)
+    let slug: String = crate::pgn::slug(name).chars().take(48).collect();
+    let slug = slug.trim_matches('_');
+    let dated = regex::Regex::new(r"^\d{4}-\d{2}-\d{2}").unwrap().is_match(slug);
+    if dated {
+        format!("{}_{:04x}", slug, n & 0xffff)
+    } else {
+        format!("{}_{}_{:04x}", chrono::Local::now().format("%Y-%m-%d"), slug, n & 0xffff)
+    }
 }
 
 impl TournamentRecord {
