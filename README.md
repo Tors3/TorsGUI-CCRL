@@ -115,6 +115,24 @@ the bench test a 64-bit Stockfish 10 (`SF10`). Missing inputs skip those tests w
 - [Progress checklist](docs/PROGRESS.md) and [final report](docs/FINAL_REPORT.md)
 - [Changelog](CHANGELOG.md)
 
+## Acknowledgements
+
+- [Rust Chess GUI](https://github.com/Bastiball21/Rust-Chess-GUI) by **Bastiball21**, the
+  project that inspired TorsGUI (rebuilt from scratch around fastchess).
+- [fastchess](https://github.com/Disservin/fastchess) by **Disservin** and contributors, which
+  plays every game.
+- The [CCRL](https://computerchess.org.uk/ccrl/) team and testers, whose rules and workflow
+  TorsGUI follows.
+- [Stockfish](https://github.com/official-stockfish/Stockfish) (the SF10 bench used to
+  calibrate time controls).
+- [chessground](https://github.com/lichess-org/chessground) and the
+  [lichess](https://github.com/lichess-org/lila) project for the board, and
+  [sharechess](https://github.com/sharechess/sharechess) for the piece-set collection; every
+  piece set's author and licence is listed in
+  [ui/public/pieces/README.md](ui/public/pieces/README.md).
+- [Tauri](https://tauri.app), [cozy-chess](https://github.com/analog-hors/cozy-chess),
+  [uPlot](https://github.com/leeoniya/uPlot) and the other open-source libraries TorsGUI uses.
+
 ## License
 
 GPL-3.0-or-later (see [LICENSE](LICENSE)). fastchess, Stockfish and the engines keep their own licenses.
