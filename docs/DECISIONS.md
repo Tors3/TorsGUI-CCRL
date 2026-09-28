@@ -120,7 +120,7 @@ ambiguous points in the way that best matches the CCRL workflow of CCRL_ScirptsT
 
 ## Repository
 
-- The work lives in its own repository, `Tors3/TorsGUI-CCRL-`; CCRL_ScirptsTests is only read
+- The work lives in its own repository, `Tors3/TorsGUI-CCRL`; CCRL_ScirptsTests is only read
   (reference data for the verification tests, checked out by CI).
 - **Releases**: pushing a `v*` tag publishes a GitHub release with the bundles; the same can
   be started from *Actions → CI → Run workflow* with a `release` tag name (the tag is created

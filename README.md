@@ -52,7 +52,7 @@ illustrative sample (the site was not reachable from the build machine), not rea
 ## Quick start
 
 1. Download the installer (`TorsGUI_x.y.z_x64-setup.exe`), the MSI or the portable zip from the
-   [releases](https://github.com/Tors3/TorsGUI-CCRL-/releases). Linux: AppImage or `.deb`.
+   [releases](https://github.com/Tors3/TorsGUI-CCRL/releases). Linux: AppImage or `.deb`.
 2. **Settings** → your name and site; press **Download** to install the pinned fastchess
    (or point to your own binary). Point the paths to your engines, books and tablebases.
 3. **Bench** → *Get official SF10* → run 1 and N parallel instances with the machine idle →

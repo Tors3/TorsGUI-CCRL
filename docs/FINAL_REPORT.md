@@ -3,7 +3,7 @@
 ## What was built
 
 A desktop application (Tauri 2 + Rust + React/TypeScript) for CCRL testers, in the
-repository `Tors3/TorsGUI-CCRL-`:
+repository `Tors3/TorsGUI-CCRL`:
 
 - **torsgui-core** (Rust): scheduler, runner, NUMA placement (Windows and Linux behind the
   `Os` trait), fastchess integration, PGN (python-compatible splitting, incremental index,
