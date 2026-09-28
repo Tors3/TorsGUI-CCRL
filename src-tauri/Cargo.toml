@@ -1,0 +1,18 @@
+[package]
+name = "torsgui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "TorsGUI: tournament manager for CCRL testers"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+serde_json = "1"
+anyhow = "1"
+torsgui-core = { path = "../crates/torsgui-core" }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

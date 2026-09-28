@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "TorsGUI",
+  "version": "0.1.0",
+  "identifier": "io.github.tors3.torsgui",
+  "build": {
+    "frontendDist": "../ui/dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm --prefix ../ui run dev",
+    "beforeBuildCommand": "npm --prefix ../ui run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "TorsGUI",
+        "width": 1600,
+        "height": 960,
+        "minWidth": 1280,
+        "minHeight": 800,
+        "theme": "Dark"
+      }
+    ],
+    "security": { "csp": null }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi", "appimage", "deb"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "externalBin": ["binaries/torsgui-runner"],
+    "category": "Utility",
+    "shortDescription": "Tournament manager for CCRL testers",
+    "longDescription": "TorsGUI orchestrates fastchess for CCRL rating-list testers: NUMA-aware gauntlets that survive the GUI, CCRL exports and forum posts.",
+    "license": "GPL-3.0-or-later",
+    "publisher": "TorsGUI contributors",
+    "windows": { "nsis": { "installMode": "currentUser" } }
+  }
+}

@@ -12,8 +12,11 @@ fn reference() -> Option<PathBuf> {
             return Some(p);
         }
     }
+    // a CCRL_ScirptsTests checkout next to the TorsGUI repository (or above it)
     let here = Path::new(env!("CARGO_MANIFEST_DIR"));
-    here.ancestors().find(|a| a.join("tournaments").is_dir() && a.join("results/gauntlets").is_dir()).map(|p| p.to_path_buf())
+    here.ancestors()
+        .flat_map(|a| [a.to_path_buf(), a.join("CCRL_ScirptsTests")])
+        .find(|a| a.join("tournaments").is_dir() && a.join("results/gauntlets").is_dir())
 }
 
 macro_rules! need_ref {

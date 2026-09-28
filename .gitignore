@@ -7,3 +7,4 @@ crates/*/bindings/
 *.log
 /src-tauri/target
 /src-tauri/gen
+/src-tauri/binaries/

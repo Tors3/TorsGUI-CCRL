@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["crates/torsgui-core", "crates/torsgui-runner", "crates/mock-uci", "crates/torsgui-server"]
+members = ["crates/torsgui-core", "crates/torsgui-runner", "crates/torsgui-server", "crates/mock-uci", "src-tauri"]
+# the desktop shell needs the WebView toolchain: build it with `npm run tauri build`
+default-members = ["crates/torsgui-core", "crates/torsgui-runner", "crates/torsgui-server", "crates/mock-uci"]
 
 [workspace.package]
 version = "0.1.0"
