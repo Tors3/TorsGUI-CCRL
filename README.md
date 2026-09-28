@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/brand/logo.svg" width="112" alt="TorsGUI logo"></p>
+
 # TorsGUI — tournament manager for CCRL testers
 
 TorsGUI is a desktop application for chess-engine testers who play games for the
