@@ -6,6 +6,11 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Publish a GitHub release with this tag (e.g. v0.1.0) from the selected branch; empty = tests and bundles only"
+        required: false
+        default: ""
 
 env:
   CARGO_TERM_COLOR: always
@@ -162,7 +167,7 @@ jobs:
 
   release:
     name: GitHub release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release != '')
     needs: [bundle]
     runs-on: ubuntu-latest
     permissions:
@@ -179,5 +184,8 @@ jobs:
         run: |
           find dist -type f \( -name "*.exe" -o -name "*.msi" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.zip" \) > files.txt
           cat files.txt
+          tag="${{ inputs.release }}"
+          tag="${tag:-$GITHUB_REF_NAME}"
           notes=$(awk '/^## \[/{n++} n==1' CHANGELOG.md)
-          gh release create "${GITHUB_REF_NAME}" --title "TorsGUI ${GITHUB_REF_NAME}" --notes "$notes" $(cat files.txt)
+          # creates the tag on this commit when it does not exist yet (manual release)
+          gh release create "$tag" --target "$GITHUB_SHA" --title "TorsGUI $tag" --notes "$notes" $(cat files.txt)
