@@ -220,6 +220,7 @@ pub(crate) mod tests {
             name: name.into(),
             cmd: format!("/engines/{name}"),
             dir: "/engines".into(),
+            args: String::new(),
             options: BTreeMap::new(),
             role,
             engine_id: None,

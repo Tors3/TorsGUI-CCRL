@@ -34,6 +34,9 @@ pub struct Participant {
     pub name: String,
     pub cmd: String,
     pub dir: String,
+    /// Extra command-line arguments for the engine (fastchess `args=`).
+    #[serde(default)]
+    pub args: String,
     /// UCI options. `${THREADS}` and `${HASH}` are substituted at launch.
     pub options: BTreeMap<String, String>,
     pub role: Role,

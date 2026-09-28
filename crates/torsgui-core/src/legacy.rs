@@ -81,6 +81,7 @@ fn participant(v: &serde_json::Value, role: Role) -> Participant {
         name: v["name"].as_str().unwrap_or("").to_string(),
         cmd: v["cmd"].as_str().unwrap_or("").to_string(),
         dir: v["dir"].as_str().unwrap_or("").to_string(),
+        args: String::new(),
         options,
         role,
         engine_id: None,

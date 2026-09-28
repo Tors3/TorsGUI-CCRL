@@ -59,6 +59,9 @@ fn supports(p: &Participant, opt: &str) -> bool {
 /// `-engine cmd=... name=... dir=... option.K=V...` (run_node.py `engine_args`).
 pub fn engine_args(p: &Participant, cfg: &TournamentConfig) -> Vec<String> {
     let mut a = vec!["-engine".into(), format!("cmd={}", p.cmd), format!("name={}", p.name), format!("dir={}", p.dir)];
+    if !p.args.is_empty() {
+        a.push(format!("args={}", p.args));
+    }
     for (k, v) in &p.options {
         let v = v.replace("${THREADS}", &cfg.threads.to_string()).replace("${HASH}", &cfg.hash_mb.to_string());
         a.push(format!("option.{k}={v}"));

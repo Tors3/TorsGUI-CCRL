@@ -691,3 +691,29 @@ pub fn new_id(name: &str) -> String {
     let slug: String = crate::pgn::slug(name).chars().take(40).collect();
     format!("{}_{}_{:04x}", chrono::Local::now().format("%Y-%m-%d"), slug.trim_matches('_'), n & 0xffff)
 }
+
+impl TournamentRecord {
+    /// A new draft record for `config` (id derived from the name).
+    pub fn new(config: TournamentConfig) -> TournamentRecord {
+        let expected = crate::scheduler::expected_games(&config) as u32;
+        TournamentRecord {
+            id: new_id(&config.name),
+            name: config.name.clone(),
+            state: TState::Draft,
+            desired: Desired::Run,
+            config,
+            created_at: now(),
+            started_at: None,
+            finished_at: None,
+            queue_pos: None,
+            retries: 0,
+            runner_pid: None,
+            heartbeat: None,
+            expected_games: expected,
+            done_games: 0,
+            last_error: None,
+            imported: false,
+            status: None,
+        }
+    }
+}

@@ -14,6 +14,7 @@ pub mod model;
 pub mod names;
 pub mod pgn;
 pub mod platform;
+pub mod runner;
 pub mod scheduler;
 pub mod stats;
 pub mod store;

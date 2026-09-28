@@ -449,6 +449,11 @@ impl PgnIndex {
         Ok(n)
     }
 
+    /// Games indexed so far for one file (in file order).
+    pub fn file_games(&self, p: &Path) -> &[IndexedGame] {
+        self.files.get(p).map(|f| f.games.as_slice()).unwrap_or(&[])
+    }
+
     pub fn games(&self) -> impl Iterator<Item = &IndexedGame> {
         let mut keys: Vec<&PathBuf> = self.files.keys().collect();
         keys.sort();

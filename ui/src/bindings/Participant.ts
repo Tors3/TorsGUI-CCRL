@@ -11,6 +11,10 @@ export type Participant = {
  */
 name: string, cmd: string, dir: string, 
 /**
+ * Extra command-line arguments for the engine (fastchess `args=`).
+ */
+args: string, 
+/**
  * UCI options. `${THREADS}` and `${HASH}` are substituted at launch.
  */
 options: { [key in string]: string }, role: Role, engine_id: bigint | null, has_syzygy: boolean, uci_id: string | null, 
