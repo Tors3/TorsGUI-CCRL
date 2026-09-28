@@ -4,4 +4,8 @@ export type AssetVerdict = { name: string, accepted: boolean,
 /**
  * Lower is better (0 = pure AVX2).
  */
-tier: number, build: string, flagged: boolean, reason: string, is_archive: boolean, is_network: boolean, };
+tier: number, build: string, flagged: boolean, reason: string, is_archive: boolean, is_network: boolean, 
+/**
+ * Allowed by the CCRL rules (false for AVX-512 builds accepted as a personal option).
+ */
+ccrl_ok: boolean, };

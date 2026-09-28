@@ -28,7 +28,53 @@ test("imported Triumviratus gauntlet matches the reference numbers", async ({ pa
   await page.getByRole("tab", { name: "Games" }).click();
   await page.getByTestId("games-table").locator("tbody tr").first().click();
   await expect(page.getByTestId("move-list")).toBeVisible();
+  await expect(page.getByTestId("eval-bar")).toBeVisible();
   await page.keyboard.press("Escape");
+});
+
+test("game archive: tournaments and an external PGN folder, viewer with autoplay", async ({ page }) => {
+  await page.goto("/#/games");
+  const sources = page.getByTestId("archive-source");
+  await expect(sources.first()).toBeVisible();
+  // the Caissa export folder of the reference repository was added as an archive path
+  const ext = sources.filter({ hasText: "Caissa 2.0 64-bit 4CPU" });
+  if (await ext.count()) {
+    await ext.first().click();
+    await expect(page.getByTestId("games-table").locator("tbody tr")).toHaveCount(380);
+  }
+  await page.getByTestId("games-table").locator("tbody tr").first().click();
+  await expect(page.getByTestId("move-list")).toBeVisible();
+  await page.keyboard.press("Home");
+  await page.getByTestId("autoplay").click();
+  await page.waitForTimeout(2300);
+  await expect(page.getByTestId("move-list").locator("button.active")).toHaveCount(1);
+  await page.keyboard.press("Escape");
+});
+
+test("tournament file: tolerant names, preview, save as draft", async ({ page }) => {
+  await page.goto("/#/tournaments");
+  await page.getByTestId("tfile-open").click();
+  await page.getByTestId("tfile-text").fill('kind = "gauntlet"\nseed = "mock alpha"\nopponents = ["Mock Bravo 2.1"]\ngames_per_opponent = 4\ntc = "10+0.1"\nafter_import = "draft"\n');
+  await expect(page.getByTestId("tfile-total")).toHaveText("4");
+  await expect(page.getByTestId("tfile-result")).toContainText("Mock Alpha 1.0");
+  await page.getByRole("button", { name: "Save as draft" }).click();
+  await expect(page.getByRole("heading", { name: /Blitz gauntlet Mock Alpha 1\.0 1CPU/ })).toBeVisible();
+  // a name that is not in the library is reported with suggestions
+  await page.goto("/#/tournaments");
+  await page.getByTestId("tfile-open").click();
+  await page.getByTestId("tfile-text").fill('seed = "Mock Alpha 1.0"\nopponents = ["Mock Brovo 9"]\n');
+  await expect(page.getByTestId("tfile-errors")).toContainText("Mock Brovo 9");
+});
+
+test("board appearance is applied and remembered", async ({ page }) => {
+  await page.goto("/#/settings");
+  await page.getByTestId("theme-marble").click();
+  await page.getByTestId("pieces-fantasy").click();
+  await page.reload();
+  await expect(page.locator(".board-box").first()).toHaveClass(/board-theme-marble/);
+  await expect(page.locator(".board-box").first()).toHaveClass(/pieces-fantasy/);
+  await page.getByTestId("theme-walnut").click();
+  await page.getByTestId("pieces-merida").click();
 });
 
 test("wizard computes the total number of games", async ({ page }) => {
@@ -77,7 +123,7 @@ test("TC calculator reproduces the reference Blitz TC", async ({ page }) => {
 test("every screen renders without errors", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  for (const p of ["/", "/tournaments", "/live", "/engines", "/ccrl", "/bench", "/export", "/settings", "/logs"]) {
+  for (const p of ["/", "/tournaments", "/live", "/games", "/engines", "/ccrl", "/bench", "/export", "/settings", "/logs"]) {
     await page.goto(`/#${p}`);
     await page.waitForTimeout(600);
   }

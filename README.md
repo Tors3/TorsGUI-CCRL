@@ -12,12 +12,18 @@ Python scripts, `.bat` files and scheduled tasks with one elegant, dense tool th
   that pin their own threads cannot escape);
 - **chains** tournaments: B starts only when A has *all* its games and ended cleanly;
 - manages an **engine library** from official GitHub releases with the CCRL asset rules
-  (AVX2, never AVX-512/VNNI/v4/32-bit), UCI verification and a report;
+  (AVX2, never AVX-512/VNNI/v4/32-bit — AVX-512 only as a flagged *personal* option; you can
+  always pick another build yourself), UCI verification and a report;
 - imports the **CCRL lists**, matches names, suggests opponents and estimates missing ratings;
 - calibrates the machine with the **Stockfish 10 bench** and turns CCRL time controls into local ones;
 - builds the **CCRL submission** (PGN + zip, byte-compatible with `export_ccrl.py`) and a
   short **BBCode forum post**;
-- shows everything **live**: mini boards per lane, clocks, evaluations, PV, games/hour, ETA.
+- shows everything **live**: mini boards per lane, ticking clocks, evaluation bar, PV arrows,
+  games/hour, ETA;
+- replays archived games on an elegant, animated board (7 board themes, 6 piece sets,
+  autoplay, theater mode), from its tournaments or any PGN file or folder;
+- imports **tournament files**: describe a tournament in a few TOML lines (or ask Claude to),
+  import it, review, queue or start ([docs/TOURNAMENT_FILE.md](docs/TOURNAMENT_FILE.md)).
 
 It is open source (GPL-3.0-or-later) and nothing is specific to one machine.
 
@@ -33,6 +39,8 @@ It is open source (GPL-3.0-or-later) and nothing is specific to one machine.
 | ![Bench](docs/screenshots/11-bench.png) Bench history (the 32-bit runs of 2026-09-22 are flagged invalid) and TC calculator | ![Export](docs/screenshots/12-export.png) CCRL export and forum post |
 | ![Settings](docs/screenshots/13-settings.png) Settings, topology, housekeeping | ![Logs](docs/screenshots/14-logs.png) Logs |
 | ![Palette](docs/screenshots/15-command-palette.png) Command palette (Ctrl K) | ![Light](docs/screenshots/16-dashboard-light.png) Light theme |
+| ![Theater](docs/screenshots/18-pgn-viewer-theater.png) Game viewer, theater mode | ![Games](docs/screenshots/19-games-archive.png) Game archive: tournaments and external PGN files |
+| ![Board](docs/screenshots/20-board-appearance.png) Board themes and piece sets | ![Tournament file](docs/screenshots/21-tournament-file.png) Importing a tournament file written by Claude |
 
 The screenshots are produced by `npm run screenshots` (Playwright) on a demo workspace: the
 three tournaments of [CCRL_ScirptsTests](https://github.com/Tors3/CCRL_ScirptsTests) imported

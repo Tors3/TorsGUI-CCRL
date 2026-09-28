@@ -92,3 +92,11 @@ Legend: [x] done and tested · [~] done, verified only partially (see FINAL_REPO
 - [x] Stockfish 19 8CPU partial: imported, incomplete (298/380)
 - [x] Exports of Triumviratus and Caissa identical in content to the reference PGNs (and same file and zip names)
 - [x] Library rebuilt from REPORT.md + uci_options; the selector picks the report's asset for each engine
+
+## Additions requested after the brief
+- [x] AVX-512 builds as a personal option: settings + per-download toggle, preference by CPU support (AVX-512F/BW, VNNI), "not CCRL" flag, wizard warning (unit test `personal_avx512`)
+- [x] Manual choice of the build to install (the installed asset's own verdict is recorded)
+- [x] Game archive with external PGN files/folders (path guard extended to archive paths; Playwright)
+- [x] Elegant board: themes, piece sets, animation, eval bar, material, check, arrows, autoplay, theater mode, move sound, ticking live clocks (Vitest + Playwright)
+- [x] Tournament files (TOML/JSON): parse, tolerant engine matching, wizard defaults, review dialog, draft/queue/start, inbox, export, template for Claude (unit tests incl. round trip; Playwright)
+- [x] Error boundary: one failing screen no longer blanks the app

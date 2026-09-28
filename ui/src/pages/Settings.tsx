@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import type { Housekeeping } from "../bindings/Housekeeping";
 import type { Settings } from "../bindings/Settings";
 import type { Topology } from "../bindings/Topology";
+import { BoardAppearance } from "../components/BoardSettings";
 import { ErrorBox, Field, PageHeader, Panel, Spinner } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { bytes } from "../lib/format";
@@ -13,7 +14,7 @@ function TopologyView({ t }: { t: Topology }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="text-[12px]">
-        <b>{t.cpu_model}</b> · {t.sockets} socket(s) · {t.physical_cores} cores / {t.logical_cpus} threads · {t.groups} processor group(s) · AVX2 {t.has_avx2 ? "yes" : "no"} · AVX-512 {t.has_avx512 ? "yes (not used for CCRL)" : "no"}
+        <b>{t.cpu_model}</b> · {t.sockets} socket(s) · {t.physical_cores} cores / {t.logical_cpus} threads · {t.groups} processor group(s) · AVX2 {t.has_avx2 ? "yes" : "no"} · AVX-512 {t.has_avx512 ? "yes (never for CCRL)" : "no"}
         <span className="muted"> · source: {t.source}</span>
       </div>
       <div className="flex gap-3 flex-wrap">
@@ -176,6 +177,27 @@ export function SettingsPage() {
         </Panel>
       </div>
       <Panel title="CPU topology">{topo ? <TopologyView t={topo} /> : <Spinner />}</Panel>
+      <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)" }}>
+        <Panel title="Board appearance" actions={<span className="muted text-[11.5px]">saved on this computer, applied immediately</span>}>
+          <BoardAppearance />
+        </Panel>
+        <Panel title="Engine builds">
+          <div className="flex flex-col gap-2.5 text-[12.5px]">
+            <p className="muted">
+              CCRL rule: the <b>AVX2</b> build, never AVX-512/VNNI/x86-64-v4. For your own tests you can allow AVX-512 builds: they are always marked <span className="chip chip-personal">not CCRL</span>, and the wizard warns when a tournament uses them.
+            </p>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={s.allow_avx512} onChange={(e) => setS({ ...s, allow_avx512: e.target.checked, prefer_avx512: e.target.checked && s.prefer_avx512 })} data-testid="allow-avx512" /> Allow AVX-512 builds (personal use)
+            </label>
+            <label className="flex items-center gap-2" style={{ opacity: s.allow_avx512 ? 1 : 0.5 }}>
+              <input type="checkbox" disabled={!s.allow_avx512} checked={s.prefer_avx512} onChange={(e) => set("prefer_avx512", e.target.checked)} /> Prefer them when this CPU supports AVX-512
+            </label>
+            <div className="muted text-[11.5px]">
+              This CPU: AVX-512 {topo ? (topo.has_avx512 ? "yes" : "no") : "…"}. Default for new downloads; the <i>Add from GitHub</i> dialog can switch it per engine.
+            </div>
+          </div>
+        </Panel>
+      </div>
       <div className="grid grid-cols-3 gap-3">
         <Panel title="Default adjudication">
           <div className="grid grid-cols-3 gap-2 text-[12.5px]">

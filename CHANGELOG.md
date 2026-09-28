@@ -33,6 +33,15 @@ First release.
   graphs) from incrementally tailed fastchess engine logs; PGN viewer with engine info.
 - Dashboard with health panel and ETA timeline, command palette, keyboard shortcuts, toasts,
   tray icon, light theme; settings, housekeeping, log rotation, git sync, logs viewer.
+- Tournament files: a TOML description (engines by library name, tolerant matching, wizard
+  defaults), import dialog with review → draft / queue / start, inbox folder, export of any
+  tournament as a file, and a template for assistants such as Claude.
+- Game archive (tournaments + external PGN files/folders) and a new game viewer: evaluation
+  bar, captured material, clocks, next-move arrow, check highlight, autoplay, theater mode,
+  move list with evaluations; live board with ticking clocks and PV arrows; 7 board themes
+  and 6 GPL-compatible piece sets, animation speed, coordinates, optional move sound.
+- AVX-512 / VNNI / x86-64-v4 builds as a personal option (flagged "not valid for CCRL",
+  optionally preferred when the CPU supports them); manual choice of the build to install.
 - Import of the CCRL_ScirptsTests tournaments; §9 verification tests; mock UCI engine;
   integration tests with the real fastchess; Playwright smoke tests and screenshots; CI on
   Linux and Windows with bundles (NSIS, MSI, portable zip, AppImage, deb).

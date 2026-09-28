@@ -1,7 +1,9 @@
 //! Release asset selection following the CCRL rules:
 //!
 //! * choose the Windows **AVX2** build (x86-64-v3 counts as the AVX2 level);
-//! * **never** AVX-512, VNNI, `avx512`, `x86-64-v4` (even when the CPU has them);
+//! * **never** AVX-512, VNNI, `avx512`, `x86-64-v4` for CCRL (even when the CPU has them);
+//!   they can be enabled as a *personal* option ([`AssetPolicy`]): then they are accepted,
+//!   always flagged "not valid for CCRL", and optionally preferred when the CPU supports them;
 //! * if only a `bmi2`/`pext`, popcnt or generic x86-64 build exists, take it but flag it;
 //! * never 32-bit, ARM, macOS, Android;
 //! * never compile: when nothing fits, report it and skip.
@@ -42,6 +44,45 @@ pub struct AssetVerdict {
     pub reason: String,
     pub is_archive: bool,
     pub is_network: bool,
+    /// Allowed by the CCRL rules (false for AVX-512 builds accepted as a personal option).
+    pub ccrl_ok: bool,
+}
+
+/// Which builds are acceptable beyond the CCRL rules.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
+pub struct AssetPolicy {
+    /// Accept AVX-512 / VNNI / x86-64-v4 builds (personal testing, never for CCRL).
+    pub allow_avx512: bool,
+    /// Rank them first when this CPU supports them.
+    pub prefer_avx512: bool,
+    pub cpu_avx512: bool,
+    pub cpu_vnni: bool,
+}
+
+impl AssetPolicy {
+    /// The CCRL policy: AVX-512 never accepted.
+    pub fn ccrl() -> AssetPolicy {
+        AssetPolicy::default()
+    }
+    /// The personal policy with the capabilities of this CPU.
+    pub fn personal(prefer: bool) -> AssetPolicy {
+        let (cpu_avx512, cpu_vnni) = cpu_avx512();
+        AssetPolicy { allow_avx512: true, prefer_avx512: prefer, cpu_avx512, cpu_vnni }
+    }
+}
+
+/// (AVX-512F+BW, AVX-512 VNNI) support of the running CPU.
+pub fn cpu_avx512() -> (bool, bool) {
+    #[cfg(target_arch = "x86_64")]
+    {
+        let f = std::arch::is_x86_feature_detected!("avx512f") && std::arch::is_x86_feature_detected!("avx512bw");
+        (f, f && std::arch::is_x86_feature_detected!("avx512vnni"))
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        (false, false)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
@@ -50,6 +91,7 @@ pub struct Selection {
     pub chosen: Option<String>,
     pub build: String,
     pub flagged: bool,
+    pub ccrl_ok: bool,
     pub reason: String,
     /// Extra files to download with the binary (networks shipped separately).
     pub extra: Vec<String>,
@@ -70,8 +112,13 @@ pub fn is_network(name: &str) -> bool {
     NETWORK.is_match(name)
 }
 
-/// Classifies one asset name.
+/// Classifies one asset name with the CCRL policy.
 pub fn classify(name: &str, os: TargetOs) -> AssetVerdict {
+    classify_with(name, os, AssetPolicy::ccrl())
+}
+
+/// Classifies one asset name.
+pub fn classify_with(name: &str, os: TargetOs, policy: AssetPolicy) -> AssetVerdict {
     let n = name.to_lowercase();
     let mut v = AssetVerdict {
         name: name.to_string(),
@@ -82,6 +129,7 @@ pub fn classify(name: &str, os: TargetOs) -> AssetVerdict {
         reason: String::new(),
         is_archive: is_archive(&n),
         is_network: is_network(&n),
+        ccrl_ok: true,
     };
     let reject = |mut v: AssetVerdict, why: &str| {
         v.reason = why.to_string();
@@ -96,9 +144,9 @@ pub fn classify(name: &str, os: TargetOs) -> AssetVerdict {
     if has(r"(?i)(source|src)[-_.]|^source|\.src\.", &n) || n == "source code" {
         return reject(v, "source archive (TorsGUI never compiles engines)");
     }
-    if has(r"(?i)(avx-?512|avx512|vnni|x86[-_]?64[-_]v4|(^|[-_.])v4([-_.]|$)|zen4|zen5|icelake|sapphire|cascadelake|skylake-?x)", &n)
-        || has(r"(?i)[-_]512([-_.]|$)", &n)
-    {
+    let avx512 = has(r"(?i)(avx-?512|avx512|vnni|x86[-_]?64[-_]v4|(^|[-_.])v4([-_.]|$)|zen4|zen5|icelake|sapphire|cascadelake|skylake-?x)", &n)
+        || has(r"(?i)[-_]512([-_.]|$)", &n);
+    if avx512 && !policy.allow_avx512 {
         return reject(v, "AVX-512/VNNI/x86-64-v4 build: never used for CCRL");
     }
     if has(r"(?i)(aarch64|arm64|armv\d|[-_]arm[-_.]|neon|apple|macos|darwin|osx|android|riscv|ppc|wasm)", &n) {
@@ -126,6 +174,26 @@ pub fn classify(name: &str, os: TargetOs) -> AssetVerdict {
                 return reject(v, "Windows build");
             }
         }
+    }
+    if avx512 {
+        let vnni = has(r"(?i)vnni", &n);
+        v.accepted = true;
+        v.flagged = true;
+        v.ccrl_ok = false;
+        v.tier = if vnni { 8 } else if has(r"(?i)avx-?512|[-_]512([-_.]|$)", &n) { 9 } else { 10 };
+        v.build = if vnni { "avx512-vnni".into() } else if v.tier == 9 { "avx512".into() } else { "x86-64-v4".into() };
+        let cpu_ok = if vnni { policy.cpu_vnni } else { policy.cpu_avx512 };
+        v.reason = if cpu_ok {
+            "AVX-512 build: personal use only, not valid for CCRL".into()
+        } else if vnni {
+            "AVX-512 VNNI build: personal use only, not valid for CCRL; this CPU has no AVX-512 VNNI (the engine would crash here)".into()
+        } else {
+            "AVX-512 build: personal use only, not valid for CCRL; this CPU has no AVX-512 (the engine would crash here)".into()
+        };
+        if v.is_archive {
+            v.reason.push_str(" (archive: contents are checked after extraction)");
+        }
+        return v;
     }
     // ISA tiers
     let avx2 = has(r"(?i)(avx2|haswell)", &n);
@@ -180,12 +248,22 @@ pub fn classify(name: &str, os: TargetOs) -> AssetVerdict {
     v
 }
 
-/// Picks the best asset. Archives rank just after bare executables of the same tier.
+/// Picks the best asset with the CCRL policy.
 pub fn select(names: &[String], os: TargetOs) -> Selection {
-    let verdicts: Vec<AssetVerdict> = names.iter().map(|n| classify(n, os)).collect();
+    select_with(names, os, AssetPolicy::ccrl())
+}
+
+/// Picks the best asset. Archives rank just after bare executables of the same tier.
+/// AVX-512 builds (personal policy only) come last unless preferred and supported by the CPU.
+pub fn select_with(names: &[String], os: TargetOs, policy: AssetPolicy) -> Selection {
+    let verdicts: Vec<AssetVerdict> = names.iter().map(|n| classify_with(n, os, policy)).collect();
     let mut acc: Vec<&AssetVerdict> = verdicts.iter().filter(|v| v.accepted).collect();
+    let preferred = |v: &AssetVerdict| -> bool {
+        !v.ccrl_ok && policy.prefer_avx512 && if v.build == "avx512-vnni" { policy.cpu_vnni } else { policy.cpu_avx512 }
+    };
     acc.sort_by_key(|v| {
         (
+            !preferred(v),
             v.tier,
             v.is_archive as u8,
             has(r"(?i)(debug|dbg|symbols|pdb)", &v.name) as u8,
@@ -204,6 +282,7 @@ pub fn select(names: &[String], os: TargetOs) -> Selection {
                 chosen: Some(best.name.clone()),
                 build: best.build.clone(),
                 flagged: best.flagged,
+                ccrl_ok: best.ccrl_ok,
                 reason,
                 extra,
                 verdicts,
@@ -213,6 +292,7 @@ pub fn select(names: &[String], os: TargetOs) -> Selection {
             chosen: None,
             build: String::new(),
             flagged: true,
+            ccrl_ok: true,
             reason: "no suitable prebuilt binary: skipped (TorsGUI does not compile engines)".into(),
             extra,
             verdicts,
@@ -308,5 +388,33 @@ mod tests {
         // linux target (development)
         let s = select(&["e-linux-avx2".to_string(), "e-windows-avx2.exe".to_string()], TargetOs::Linux);
         assert_eq!(s.chosen.as_deref(), Some("e-linux-avx2"));
+    }
+
+    #[test]
+    fn personal_avx512() {
+        let names: Vec<String> = ["e-avx2.exe", "e-avx512.exe", "e-avx512vnni.exe", "e-x86-64-v4.exe", "e-win32.exe"].iter().map(|s| s.to_string()).collect();
+        let cpu = |f, vnni| AssetPolicy { allow_avx512: true, prefer_avx512: false, cpu_avx512: f, cpu_vnni: vnni };
+        // allowed but not preferred: the CCRL choice stays, AVX-512 builds become selectable
+        let s = select_with(&names, TargetOs::Windows, cpu(true, true));
+        assert_eq!(s.chosen.as_deref(), Some("e-avx2.exe"));
+        assert!(s.ccrl_ok && !s.flagged);
+        let v = s.verdicts.iter().find(|v| v.name == "e-avx512.exe").unwrap();
+        assert!(v.accepted && v.flagged && !v.ccrl_ok && v.reason.contains("not valid for CCRL"), "{v:?}");
+        assert!(!s.verdicts.iter().find(|v| v.name == "e-win32.exe").unwrap().accepted);
+        // preferred: VNNI when the CPU has it, plain AVX-512 otherwise, AVX2 without AVX-512
+        let pref = |f, vnni| AssetPolicy { prefer_avx512: true, ..cpu(f, vnni) };
+        let s = select_with(&names, TargetOs::Windows, pref(true, true));
+        assert_eq!(s.chosen.as_deref(), Some("e-avx512vnni.exe"));
+        assert!(!s.ccrl_ok && s.flagged);
+        assert_eq!(select_with(&names, TargetOs::Windows, pref(true, false)).chosen.as_deref(), Some("e-avx512.exe"));
+        assert_eq!(select_with(&names, TargetOs::Windows, pref(false, false)).chosen.as_deref(), Some("e-avx2.exe"));
+        let v = classify_with("e-avx512.exe", TargetOs::Windows, pref(false, false));
+        assert!(v.reason.contains("would crash"));
+        // only AVX-512 published: taken (flagged) with the personal policy, skipped for CCRL
+        let only: Vec<String> = vec!["e-avx512.exe".into()];
+        assert_eq!(select_with(&only, TargetOs::Windows, cpu(true, false)).chosen.as_deref(), Some("e-avx512.exe"));
+        assert!(select(&only, TargetOs::Windows).chosen.is_none());
+        assert_eq!(classify_with("Obsidian160-vnni512.exe", TargetOs::Windows, cpu(true, true)).build, "avx512-vnni");
+        assert_eq!(classify_with("coda-0.9.3-windows-x86-64-v4.exe", TargetOs::Windows, cpu(true, true)).build, "x86-64-v4");
     }
 }

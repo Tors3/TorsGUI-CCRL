@@ -1,14 +1,16 @@
 import { CheckCircle2, Copy, FileText, FolderOpen, Pencil, PackagePlus, RefreshCw, Trash2, XCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import type { AssetPolicy } from "../bindings/AssetPolicy";
 import type { EngineEntry } from "../bindings/EngineEntry";
+import type { Settings } from "../bindings/Settings";
 import type { Release } from "../bindings/Release";
 import type { RepoRef } from "../bindings/RepoRef";
 import type { Selection } from "../bindings/Selection";
 import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, Spinner, Tip } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 
-type ReleasesResp = { repo: RepoRef; latest_stable: string | null; releases: { release: Release; selection: Selection }[] };
+type ReleasesResp = { repo: RepoRef; latest_stable: string | null; releases: { release: Release; selection: Selection }[]; policy: AssetPolicy };
 
 function GithubDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: boolean) => void; onDone: () => void }) {
   const [url, setUrl] = useState("");
@@ -17,11 +19,20 @@ function GithubDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
   const [asset, setAsset] = useState<string>();
   const [busy, setBusy] = useState<"list" | "install" | null>(null);
   const [error, setError] = useState<string>();
+  const [personal, setPersonal] = useState<{ allow: boolean; prefer: boolean } | null>(null);
+  useEffect(() => {
+    if (open && !personal) call<Settings>("settings_get").then((s) => setPersonal({ allow: s.allow_avx512, prefer: s.prefer_avx512 })).catch(() => setPersonal({ allow: false, prefer: false }));
+  }, [open, personal]);
+  const policyArgs = { allow_avx512: personal?.allow ?? false, prefer_avx512: personal?.prefer ?? false };
+  useEffect(() => {
+    if (data) list();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [personal?.allow, personal?.prefer]);
   const list = async () => {
     setBusy("list");
     setError(undefined);
     try {
-      const d = await call<ReleasesResp>("github_releases", { url });
+      const d = await call<ReleasesResp>("github_releases", { url, ...policyArgs });
       setData(d);
       const t = d.repo.tag ?? d.latest_stable ?? d.releases[0]?.release.tag;
       setTag(t ?? undefined);
@@ -37,7 +48,7 @@ function GithubDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
     setBusy("install");
     setError(undefined);
     try {
-      const r = await call<{ engine: EngineEntry; verify: { ok: boolean; error: string | null } }>("github_install", { url, tag, asset });
+      const r = await call<{ engine: EngineEntry; verify: { ok: boolean; error: string | null } }>("github_install", { url, tag, asset, ...policyArgs });
       toast[r.verify.ok ? "success" : "warning"](`${r.engine.display_name}: ${r.engine.verify_status}`);
       onDone();
       setOpen(false);
@@ -72,8 +83,18 @@ function GithubDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
           </button>
         </div>
         <p className="muted text-[12px]">
-          Official releases only. Rule: the Windows <b>AVX2</b> build (x86-64-v3 counts as AVX2); never AVX-512, VNNI or x86-64-v4; bmi2 or generic builds are taken but flagged; never 32-bit; nothing is compiled. When the API is rate-limited TorsGUI falls back to the <span className="mono">releases/latest</span> redirect and the HTML asset listing.
+          Official releases only. TorsGUI proposes a build and explains why; <b>click another row to choose it yourself</b>. CCRL rule: the Windows <b>AVX2</b> build (x86-64-v3 counts as AVX2); never AVX-512, VNNI or x86-64-v4; bmi2 or generic builds are taken but flagged; never 32-bit; nothing is compiled. When the API is rate-limited TorsGUI falls back to the <span className="mono">releases/latest</span> redirect and the HTML asset listing.
         </p>
+        <div className="flex items-center gap-4 text-[12.5px] rounded-md px-3 py-2" style={{ background: "var(--bg-2)" }}>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={personal?.allow ?? false} onChange={(e) => setPersonal({ allow: e.target.checked, prefer: e.target.checked && (personal?.prefer ?? false) })} data-testid="gh-allow-avx512" />
+            Allow AVX-512 builds <span className="chip chip-personal">personal, not CCRL</span>
+          </label>
+          <label className="flex items-center gap-2" style={{ opacity: personal?.allow ? 1 : 0.5 }}>
+            <input type="checkbox" disabled={!personal?.allow} checked={personal?.prefer ?? false} onChange={(e) => setPersonal({ allow: true, prefer: e.target.checked })} /> Prefer them
+            {data?.policy && personal?.allow && <span className="muted">(this CPU: AVX-512 {data.policy.cpu_avx512 ? "yes" : "no"}, VNNI {data.policy.cpu_vnni ? "yes" : "no"})</span>}
+          </label>
+        </div>
         <ErrorBox error={error} />
         {data && (
           <div className="grid gap-3" style={{ gridTemplateColumns: "220px 1fr" }}>
@@ -91,8 +112,9 @@ function GithubDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
             {cur && (
               <div className="flex flex-col gap-2 min-w-0">
                 <div className={`rounded-md px-3 py-2 text-[12.5px]`} style={{ background: cur.selection.flagged ? "var(--warn-bg)" : "var(--win-bg)", color: cur.selection.flagged ? "var(--warn)" : "var(--win)" }}>
-                  {cur.selection.reason}
+                  <b>Proposed:</b> {cur.selection.reason}
                 </div>
+                {asset && asset !== cur.selection.chosen && <div className="text-[12px]" style={{ color: "var(--accent-2)" }}>You chose <span className="mono">{asset}</span> instead of the proposed build.</div>}
                 <div className="panel overflow-auto max-h-[320px]">
                   <table className="tbl">
                     <tbody>
@@ -100,8 +122,10 @@ function GithubDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
                         <tr key={v.name} className={v.accepted ? "clickable" : ""} onClick={() => v.accepted && setAsset(v.name)}>
                           <td>{v.accepted ? <input type="radio" checked={asset === v.name} readOnly aria-label={v.name} /> : <XCircle size={14} className="l" />}</td>
                           <td className="mono">{v.name}</td>
-                          <td className="mono muted">{v.build}</td>
-                          <td className="text-[12px]" style={{ color: v.accepted ? (v.flagged ? "var(--warn)" : "var(--win)") : "var(--muted)" }}>
+                          <td className="mono muted">
+                            {v.build} {v.accepted && !v.ccrl_ok && <span className="chip chip-personal">not CCRL</span>}
+                          </td>
+                          <td className="text-[12px]" style={{ color: v.accepted ? (!v.ccrl_ok ? "#b48cff" : v.flagged ? "var(--warn)" : "var(--win)") : "var(--muted)" }}>
                             {v.reason}
                           </td>
                         </tr>
@@ -298,7 +322,7 @@ export function Engines() {
                     <td className="max-w-[260px]">
                       <div className="flex flex-wrap gap-1">
                         {e.flags.map((f) => (
-                          <span key={f} className="chip chip-warn" title={f}>
+                          <span key={f} className={`chip ${f.startsWith("AVX-512 build: personal") ? "chip-personal" : "chip-warn"}`} title={f}>
                             {f.length > 34 ? f.slice(0, 32) + "…" : f}
                           </span>
                         ))}

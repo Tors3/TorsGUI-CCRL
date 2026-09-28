@@ -88,6 +88,18 @@ pub struct Settings {
     pub post_template_announcement: String,
     pub post_template_progress: String,
     pub log_retention_days: u32,
+    /// Personal option: accept AVX-512 / VNNI / x86-64-v4 builds (never for CCRL).
+    pub allow_avx512: bool,
+    /// Personal option: pick them first when the CPU supports them.
+    pub prefer_avx512: bool,
+    /// PGN files or folders outside the workspace shown in the game archive.
+    pub archive_paths: Vec<String>,
+}
+
+impl Settings {
+    pub fn asset_policy(&self) -> crate::assets::AssetPolicy {
+        if self.allow_avx512 { crate::assets::AssetPolicy::personal(self.prefer_avx512) } else { crate::assets::AssetPolicy::ccrl() }
+    }
 }
 
 impl Default for Settings {
@@ -121,6 +133,9 @@ impl Default for Settings {
             post_template_announcement: crate::forum::TEMPLATE_ANNOUNCEMENT.into(),
             post_template_progress: crate::forum::TEMPLATE_PROGRESS.into(),
             log_retention_days: 30,
+            allow_avx512: false,
+            prefer_avx512: false,
+            archive_paths: Vec::new(),
         }
     }
 }

@@ -3,6 +3,7 @@ import { Command } from "cmdk";
 import {
   Activity,
   BarChart3,
+  Crown,
   Cpu,
   Download,
   Gauge,
@@ -24,12 +25,14 @@ import { Toaster, toast } from "sonner";
 import type { EventRecord } from "./bindings/EventRecord";
 import type { Health } from "./bindings/Health";
 import type { TournamentSummary } from "./bindings/TournamentSummary";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { call, usePoll } from "./lib/api";
 import { Bench } from "./pages/Bench";
 import { CcrlLists } from "./pages/CcrlLists";
 import { Dashboard } from "./pages/Dashboard";
 import { Engines } from "./pages/Engines";
 import { ExportPage } from "./pages/Export";
+import { Games } from "./pages/Games";
 import { Live } from "./pages/Live";
 import { Logs } from "./pages/Logs";
 import { SettingsPage } from "./pages/Settings";
@@ -41,6 +44,7 @@ const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, key: "d" },
   { to: "/tournaments", label: "Tournaments", icon: Trophy, key: "t" },
   { to: "/live", label: "Live", icon: Activity, key: "l" },
+  { to: "/games", label: "Games", icon: Crown, key: "a" },
   { to: "/engines", label: "Engines", icon: Cpu, key: "e" },
   { to: "/ccrl", label: "CCRL Lists", icon: ListOrdered, key: "c" },
   { to: "/bench", label: "Bench", icon: Gauge, key: "b" },
@@ -210,6 +214,8 @@ function Shortcuts({ setPalette, toggleTheme }: { setPalette: (o: boolean) => vo
       }
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // an open dialog (game viewer, live board…) owns the single-key shortcuts
+      if (document.querySelector('[role="dialog"]')) return;
       if (Date.now() - pending.current < 1200) {
         pending.current = 0;
         const item = NAV.find((n) => n.key === e.key);
@@ -278,12 +284,14 @@ function Layout() {
           <StatusPill />
         </header>
         <main className="flex-1 min-h-0 overflow-auto p-4" key={loc.pathname.split("/")[1]}>
+          <ErrorBoundary resetKey={loc.pathname}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/tournaments" element={<Tournaments />} />
             <Route path="/tournaments/new" element={<Wizard />} />
             <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
             <Route path="/live" element={<Live />} />
+            <Route path="/games" element={<Games />} />
             <Route path="/engines" element={<Engines />} />
             <Route path="/ccrl" element={<CcrlLists />} />
             <Route path="/bench" element={<Bench />} />
@@ -291,6 +299,7 @@ function Layout() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/logs" element={<Logs />} />
           </Routes>
+          </ErrorBoundary>
         </main>
       </div>
       <Palette open={palette} setOpen={setPalette} toggleTheme={toggle} />

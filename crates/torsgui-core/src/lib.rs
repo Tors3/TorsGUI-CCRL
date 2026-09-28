@@ -24,4 +24,5 @@ pub mod scheduler;
 pub mod stats;
 pub mod store;
 pub mod tc;
+pub mod tournament_file;
 pub mod util;

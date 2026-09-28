@@ -58,6 +58,9 @@ export default async function globalSetup() {
       await call("import_legacy", { dir: join(ref, "tournaments", t), results: join(ref, "results", "gauntlets", t) });
     }
     await call("engines_import_report", { report: join(ref, "engines", "REPORT.md"), uci_dir: join(ref, "engines", "uci_options") });
+    // exported CCRL files of the reference repository as an external archive source
+    const cur = await call("settings_get");
+    await call("settings_save", { settings: { ...cur, archive_paths: [join(ref, "results", "gauntlets", "2026-09-22_Caissa_2.0_4CPU")] } });
     const bench = join(ref, "benchmark", "results");
     await call("bench_import", { files: readdirSync(bench).filter((f) => f.endsWith(".json")).map((f) => join(bench, f)) });
   }

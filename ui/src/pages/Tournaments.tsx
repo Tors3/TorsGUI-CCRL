@@ -1,10 +1,11 @@
-import { FolderInput, Plus, Trash2 } from "lucide-react";
+import { FileCode2, FolderInput, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { TournamentSummary } from "../bindings/TournamentSummary";
 import { TournamentActions } from "../components/TournamentActions";
 import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, ProgressBar, Seg, Spinner, StateChip } from "../components/ui";
+import { TournamentFileDialog } from "../components/TournamentFileDialog";
 import { call, usePoll } from "../lib/api";
 import { duration } from "../lib/format";
 
@@ -79,6 +80,7 @@ export function Tournaments() {
   const nav = useNavigate();
   const [filter, setFilter] = useState<"all" | "active" | "done">("all");
   const [imp, setImp] = useState(false);
+  const [tfile, setTfile] = useState(false);
   const rows = (data ?? []).filter((t) =>
     filter === "all" ? true : filter === "active" ? ["running", "queued", "paused", "draft", "stopped"].includes(t.record.state) : ["completed", "incomplete", "failed"].includes(t.record.state),
   );
@@ -99,8 +101,11 @@ export function Tournaments() {
         actions={
           <>
             <Seg value={filter} onChange={setFilter} options={[{ value: "all", label: "All" }, { value: "active", label: "Active" }, { value: "done", label: "Finished" }]} />
-            <button className="btn" onClick={() => setImp(true)}>
-              <FolderInput size={14} /> Import
+            <button className="btn" onClick={() => setImp(true)} title="Tournaments played with the old scripts (CCRL_ScirptsTests)">
+              <FolderInput size={14} /> Import old tournaments
+            </button>
+            <button className="btn" onClick={() => setTfile(true)} data-testid="tfile-open">
+              <FileCode2 size={14} /> Import file
             </button>
             <button className="btn btn-primary" onClick={() => nav("/tournaments/new")}>
               <Plus size={14} /> New tournament
@@ -169,6 +174,7 @@ export function Tournaments() {
         )}
       </Panel>
       <ImportDialog open={imp} setOpen={setImp} onDone={refresh} />
+      <TournamentFileDialog open={tfile} setOpen={setTfile} onDone={refresh} />
     </div>
   );
 }

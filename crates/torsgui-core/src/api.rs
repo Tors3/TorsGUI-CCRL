@@ -109,6 +109,21 @@ pub struct WizardPreview {
     pub event_example: String,
 }
 
+/// A group of PGN games in the archive: a tournament or an external PGN file.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
+pub struct ArchiveSource {
+    /// "tournament" or "file".
+    pub kind: String,
+    /// Tournament id, or the file path.
+    pub id: String,
+    pub label: String,
+    pub path: String,
+    pub files: u32,
+    pub games: u32,
+    pub state: Option<TState>,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
 #[ts(export)]
 pub struct GameRow {
@@ -214,6 +229,66 @@ impl App {
                     store.enqueue(&rec.id)?;
                 }
                 ok(store.tournament(&rec.id)?)
+            }
+            // ---------------------------------------------------------- tournament files
+            "tfile_parse" => {
+                let (imp, preview) = self.tfile_parse(&store, &arg::<String>(&a, "text")?)?;
+                ok(json!({"import": imp, "preview": preview}))
+            }
+            "tfile_import" => {
+                let text: String = arg(&a, "text")?;
+                let action: String = opt(&a, "action").unwrap_or_else(|| "queue".into());
+                let (imp, preview) = self.tfile_parse(&store, &text)?;
+                let (Some(cfg), None) = (imp.config.clone(), imp.errors.first().or(preview.errors.first())) else {
+                    bail!("{}", imp.errors.iter().chain(preview.errors.iter()).cloned().collect::<Vec<_>>().join("; "));
+                };
+                let rec = TournamentRecord::new(cfg);
+                store.insert_tournament(&rec)?;
+                std::fs::create_dir_all(self.ws.pgn_dir(&rec.id))?;
+                std::fs::write(self.ws.tournament_dir(&rec.id).join("config.json"), serde_json::to_string_pretty(&rec.config)?)?;
+                std::fs::write(self.ws.tournament_dir(&rec.id).join("tournament.toml"), &text)?;
+                store.push_event("info", "tournament_created", Some(&rec.id), &format!("{} imported from a tournament file ({} games)", rec.name, rec.expected_games))?;
+                if action == "queue" || action == "start" {
+                    store.enqueue(&rec.id)?;
+                }
+                if action == "start" {
+                    let busy = store.tournaments()?.into_iter().any(|t| t.id != rec.id && t.state == TState::Running && runner::is_running(&self.ws.tournament_dir(&t.id)));
+                    if busy {
+                        store.push_event("info", "queue_changed", Some(&rec.id), "a tournament is running: queued, it starts when the queue reaches it")?;
+                    } else {
+                        store.set_desired(&rec.id, Desired::Run)?;
+                        runner::launch(&self.ws, &rec.id, store.settings()?.use_task_scheduler)?;
+                    }
+                }
+                ok(store.tournament(&rec.id)?)
+            }
+            "tfile_export" => {
+                let t = store.tournament(&arg::<String>(&a, "id")?)?.context("tournament not found")?;
+                ok(crate::tournament_file::to_toml(&crate::tournament_file::from_config(&t.config))?)
+            }
+            "tfile_template" => {
+                let topo = crate::platform::os().topology();
+                let nodes: Vec<(u32, u32)> = topo.nodes.iter().map(|n| (n.id, n.physical_cores)).collect();
+                ok(crate::tournament_file::template(&store.engines()?, &store.settings()?, &nodes))
+            }
+            "tfile_inbox" => {
+                let dir = self.ws.root.join("inbox");
+                std::fs::create_dir_all(&dir)?;
+                let mut v: Vec<Value> = Vec::new();
+                for e in std::fs::read_dir(&dir)?.flatten() {
+                    let p = e.path();
+                    let ext = p.extension().map(|x| x.to_string_lossy().to_lowercase()).unwrap_or_default();
+                    if ext == "toml" || ext == "json" {
+                        let modified = e.metadata().ok().and_then(|m| m.modified().ok()).map(|t| chrono::DateTime::<chrono::Local>::from(t).format("%Y-%m-%d %H:%M").to_string()).unwrap_or_default();
+                        v.push(json!({"name": p.file_name().unwrap().to_string_lossy(), "path": p.to_string_lossy(), "modified": modified, "text": crate::pgn::read_text(&p).unwrap_or_default()}));
+                    }
+                }
+                v.sort_by(|a, b| b["modified"].as_str().cmp(&a["modified"].as_str()));
+                ok(json!({"dir": dir.to_string_lossy(), "files": v}))
+            }
+            "tfile_read" => {
+                let path: PathBuf = arg(&a, "path")?;
+                ok(crate::pgn::read_text(&path).with_context(|| format!("{}", path.display()))?)
             }
             "tournament_update" => {
                 let id: String = arg(&a, "id")?;
@@ -339,23 +414,14 @@ impl App {
             "games_list" => {
                 let id: String = arg(&a, "id")?;
                 let loaded = self.loaded(&store, &id)?;
-                let rows: Vec<GameRow> = loaded
-                    .games
-                    .iter()
-                    .map(|g| GameRow {
-                        index: g.index,
-                        source: g.source.to_string_lossy().to_string(),
-                        white: g.white().into(),
-                        black: g.black().into(),
-                        result: g.result().into(),
-                        termination: g.headers.get_or("Termination", "").into(),
-                        plies: g.plies().unwrap_or(0),
-                        end_time: g.end_time().into(),
-                        duration_s: g.duration_s(),
-                        opening: g.headers.get_or("Opening", "").into(),
-                        round: g.slot().map(|s| format!("n{} p{} r{}", s.node, s.pass, s.round)).unwrap_or_default(),
-                    })
-                    .collect();
+                let rows: Vec<GameRow> = loaded.games.iter().map(game_row).collect();
+                ok(rows)
+            }
+            "archive_sources" => ok(self.archive_sources(&store)?),
+            "archive_games" => {
+                let source: PathBuf = arg(&a, "source")?;
+                self.guard_path(&source)?;
+                let rows: Vec<GameRow> = pgn::read_games(&source)?.iter().map(game_row).collect();
                 ok(rows)
             }
             "game_get" => {
@@ -455,15 +521,17 @@ impl App {
             }
             "github_releases" => {
                 let r = crate::github::parse_repo(&arg::<String>(&a, "url")?).context("not a GitHub repository URL")?;
-                let token = store.settings()?.github_token;
+                let s = store.settings()?;
+                let token = s.github_token.clone();
                 let rels = crate::github::list_releases(&r.owner, &r.repo, Some(&token))?;
                 let os: crate::assets::TargetOs = opt(&a, "os").unwrap_or_else(crate::assets::TargetOs::current);
+                let policy = request_policy(&s, &a);
                 let latest = crate::github::latest_stable(&rels).map(|x| x.tag.clone());
                 let with_sel: Vec<Value> = rels
                     .iter()
-                    .map(|rel| json!({"release": rel, "selection": crate::assets::select(&rel.assets.iter().map(|x| x.name.clone()).collect::<Vec<_>>(), os)}))
+                    .map(|rel| json!({"release": rel, "selection": crate::assets::select_with(&rel.assets.iter().map(|x| x.name.clone()).collect::<Vec<_>>(), os, policy)}))
                     .collect();
-                ok(json!({"repo": r, "latest_stable": latest, "releases": with_sel}))
+                ok(json!({"repo": r, "latest_stable": latest, "releases": with_sel, "policy": policy}))
             }
             "github_install" => ok(self.github_install(&store, &a)?),
             "job_status" => ok(self.jobs.lock().unwrap().get(&arg::<String>(&a, "id")?).cloned()),
@@ -666,13 +734,61 @@ impl App {
         }
     }
 
+    fn tfile_parse(&self, store: &crate::store::Store, text: &str) -> Result<(crate::tournament_file::FileImport, WizardPreview)> {
+        let f = crate::tournament_file::parse(text)?;
+        let s = store.settings()?;
+        let engines = store.engines()?;
+        let lists = store.ccrl_lists()?;
+        let aliases: HashMap<String, String> = store.aliases()?.into_iter().map(|(a, c, _)| (a, c)).collect();
+        let list = f.list.clone().unwrap_or_else(|| "Blitz".into());
+        let idx = RatingIndex::new(&lists, &list, aliases, s.default_cpu_gap);
+        let rating = |n: &str, t: u32| {
+            let r = idx.rating(n, t);
+            (r.rating, r.estimated)
+        };
+        let topo = crate::platform::os().topology();
+        let env = crate::tournament_file::Env { engines: &engines, settings: &s, nodes: topo.nodes.iter().map(|n| (n.id, n.physical_cores)).collect(), rating: &rating };
+        let imp = crate::tournament_file::build(&f, &env);
+        let preview = imp.config.as_ref().map(|c| self.preview(c)).unwrap_or_default();
+        Ok((imp, preview))
+    }
+
+    /// Files served to the UI must be inside the workspace or inside a PGN file/folder the
+    /// user added to the game archive.
     fn guard_path(&self, p: &Path) -> Result<()> {
         let root = self.ws.root.canonicalize().unwrap_or(self.ws.root.clone());
         let pc = p.canonicalize().with_context(|| format!("{}", p.display()))?;
-        if !pc.starts_with(&root) {
-            bail!("path outside the workspace");
+        if pc.starts_with(&root) {
+            return Ok(());
         }
-        Ok(())
+        let archive = self.ws.open().and_then(|s| s.settings()).map(|s| s.archive_paths).unwrap_or_default();
+        if archive.iter().filter_map(|a| Path::new(a).canonicalize().ok()).any(|a| pc.starts_with(&a)) {
+            return Ok(());
+        }
+        bail!("path outside the workspace and the game archive")
+    }
+
+    /// Every PGN the archive can show: the tournaments' files and the user's archive paths.
+    fn archive_sources(&self, store: &crate::store::Store) -> Result<Vec<ArchiveSource>> {
+        let mut v = Vec::new();
+        for t in store.tournaments()? {
+            let files = self.pgn_files(&t.id);
+            if files.is_empty() {
+                continue;
+            }
+            let games = self.loaded(store, &t.id).map(|l| l.games.len() as u32).unwrap_or(0);
+            v.push(ArchiveSource { kind: "tournament".into(), id: t.id.clone(), label: t.name.clone(), path: self.ws.pgn_dir(&t.id).to_string_lossy().into(), files: files.len() as u32, games, state: Some(t.state) });
+        }
+        for a in store.settings()?.archive_paths {
+            let p = PathBuf::from(&a);
+            let files = if p.is_dir() { pgn::list_pgns(&p) } else if p.is_file() { vec![p.clone()] } else { vec![] };
+            for f in files {
+                let games = pgn::read_games(&f).map(|g| g.len() as u32).unwrap_or(0);
+                let label = f.file_name().unwrap_or_default().to_string_lossy().to_string();
+                v.push(ArchiveSource { kind: "file".into(), id: f.to_string_lossy().into(), label, path: f.to_string_lossy().into(), files: 1, games, state: None });
+            }
+        }
+        Ok(v)
     }
 
     pub fn pgn_files(&self, id: &str) -> Vec<PathBuf> {
@@ -866,6 +982,15 @@ impl App {
                 p.warnings.push(format!("{}: executable not found ({})", pp.name, pp.cmd));
             }
         }
+        if let Ok(store) = self.ws.open() {
+            for pp in &cfg.participants {
+                if let Some(e) = pp.engine_id.and_then(|id| store.engine(id).ok().flatten()) {
+                    if e.flags.iter().any(|f| f == NOT_CCRL_FLAG) {
+                        p.warnings.push(format!("{}: AVX-512 build (personal option): the results are not valid for CCRL", pp.name));
+                    }
+                }
+            }
+        }
         p.est_game_s = crate::tc::estimate_game_seconds(&cfg.tc, 60.0);
         p.eta_s = p.est_game_s * p.total_games as f64 / p.concurrent_games.max(1) as f64;
         if let Some(j) = jobs.first() {
@@ -1004,7 +1129,9 @@ impl App {
                 }
             }
         };
-        let cls = crate::assets::classify(&path.file_name().unwrap_or_default().to_string_lossy(), crate::assets::TargetOs::current());
+        // a local file is the user's explicit choice: classify it with the personal policy so
+        // that an AVX-512 build is recorded with its flag instead of silently unflagged
+        let cls = crate::assets::classify_with(&path.file_name().unwrap_or_default().to_string_lossy(), crate::assets::TargetOs::current(), crate::assets::AssetPolicy::personal(false));
         let mut e = EngineEntry {
             display_name: crate::names::display_name(&e_name, &e_ver),
             engine: e_name,
@@ -1019,7 +1146,7 @@ impl App {
             ..Default::default()
         };
         if cls.flagged {
-            e.flags.push(cls.reason.clone());
+            e.flags.push(if cls.ccrl_ok { cls.reason.clone() } else { NOT_CCRL_FLAG.into() });
         }
         engines::apply_verify(&mut e, &v);
         let id = store.save_engine(&e)?;
@@ -1039,12 +1166,18 @@ impl App {
             None => crate::github::latest_stable(&rels).cloned().context("no stable release")?,
         };
         let os = crate::assets::TargetOs::current();
+        let policy = request_policy(&s, a);
         let names: Vec<String> = rel.assets.iter().map(|x| x.name.clone()).collect();
-        let sel = crate::assets::select(&names, os);
+        let sel = crate::assets::select_with(&names, os, policy);
         let chosen: String = match opt::<String>(a, "asset") {
             Some(x) => x,
             None => sel.chosen.clone().with_context(|| format!("{} ({}): {}", r.repo, rel.tag, sel.reason))?,
         };
+        // the verdict of the asset actually installed (the user may pick another one)
+        let verdict = sel.verdicts.iter().find(|v| v.name == chosen).cloned().context("asset not in the release")?;
+        if !verdict.accepted {
+            bail!("{} cannot be used: {}", verdict.name, verdict.reason);
+        }
         let asset = rel.assets.iter().find(|x| x.name == chosen).context("asset not in the release")?.clone();
         let folder = crate::pgn::slug(&format!("{}_{}", r.repo, rel.tag));
         let dir = Path::new(&s.engines_dir).join(&folder);
@@ -1057,17 +1190,19 @@ impl App {
                 bail!("sha256 mismatch for {}: GitHub digest {d}, got {got}", asset.name);
             }
         }
-        let mut reason = sel.reason.clone();
-        let mut build = sel.build.clone();
-        let mut flagged = sel.flagged;
+        let mut reason = if sel.chosen.as_deref() == Some(chosen.as_str()) { sel.reason.clone() } else { format!("{}: {} (chosen manually)", verdict.name, verdict.reason) };
+        let mut build = verdict.build.clone();
+        let mut flagged = verdict.flagged;
+        let mut ccrl_ok = verdict.ccrl_ok;
         let exe = if crate::assets::is_archive(&asset.name) {
             let files = crate::github::extract(&file, &dir)?;
             let inner: Vec<String> = files.iter().map(|p| p.file_name().unwrap().to_string_lossy().to_string()).collect();
-            let s2 = crate::assets::select(&inner, os);
+            let s2 = crate::assets::select_with(&inner, os, policy);
             let pick = s2.chosen.clone().with_context(|| format!("no suitable binary inside {}: {}", asset.name, s2.reason))?;
             reason = format!("{}; inside the archive: {}", reason, s2.reason);
             build = s2.build.clone();
             flagged = s2.flagged;
+            ccrl_ok = s2.ccrl_ok && ccrl_ok;
             files.into_iter().find(|p| p.file_name().unwrap().to_string_lossy() == pick).unwrap()
         } else {
             file.clone()
@@ -1104,7 +1239,9 @@ impl App {
             added_at: crate::store::now(),
             ..Default::default()
         };
-        if flagged {
+        if !ccrl_ok {
+            e.flags.push(NOT_CCRL_FLAG.into());
+        } else if flagged {
             e.flags.push(format!("{} build", e.build));
         }
         engines::apply_verify(&mut e, &v);
@@ -1190,5 +1327,32 @@ impl Default for TournamentRecord {
             fastchess: String::new(),
             startup_ms: 60000,
         })
+    }
+}
+
+/// Flag stored on engines installed with the personal AVX-512 option.
+pub const NOT_CCRL_FLAG: &str = "AVX-512 build: personal use, not valid for CCRL";
+
+/// The asset policy of a request: the settings, overridable per call (`allow_avx512`,
+/// `prefer_avx512`) from the *Add from GitHub* dialog.
+fn request_policy(s: &crate::store::Settings, a: &Value) -> crate::assets::AssetPolicy {
+    let allow = opt::<bool>(a, "allow_avx512").unwrap_or(s.allow_avx512);
+    let prefer = opt::<bool>(a, "prefer_avx512").unwrap_or(s.prefer_avx512);
+    if allow { crate::assets::AssetPolicy::personal(prefer) } else { crate::assets::AssetPolicy::ccrl() }
+}
+
+fn game_row(g: &pgn::Game) -> GameRow {
+    GameRow {
+        index: g.index,
+        source: g.source.to_string_lossy().to_string(),
+        white: g.white().into(),
+        black: g.black().into(),
+        result: g.result().into(),
+        termination: g.headers.get_or("Termination", "").into(),
+        plies: g.plies().unwrap_or(0),
+        end_time: g.end_time().into(),
+        duration_s: g.duration_s(),
+        opening: g.headers.get_or("Opening", "").into(),
+        round: g.slot().map(|s| format!("n{} p{} r{}", s.node, s.pass, s.round)).unwrap_or_default(),
     }
 }

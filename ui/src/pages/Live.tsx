@@ -1,28 +1,54 @@
 import { Activity } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { EngineLive } from "../bindings/EngineLive";
 import type { LiveLane } from "../bindings/LiveLane";
-import { Board } from "../components/Board";
+import { Board, EvalBar } from "../components/Board";
+import { BoardSettingsButton } from "../components/BoardSettings";
 import { LineChart } from "../components/Chart";
+import { Material } from "../components/GameViewer";
 import { Empty, ErrorBox, Modal, PageHeader, Panel } from "../components/ui";
 import { usePoll } from "../lib/api";
+import { playMove, useBoardPrefs } from "../lib/boardPrefs";
+import { isCapture, isCheck } from "../lib/chess";
 import { clock, duration, evalText, nps } from "../lib/format";
 
-function PlayerRow({ name, ms, active, e }: { name: string; ms: number | null; active: boolean; e?: EngineLive }) {
+/**
+ * Clock that keeps running between polls: the runner reports the clock at the last `go`;
+ * the side to move is counted down locally from the moment the value was first seen.
+ */
+function useTicking(ms: number | null, running: boolean): number | null {
+  const base = useRef<{ ms: number | null; at: number }>({ ms, at: Date.now() });
+  const [, tick] = useState(0);
+  if (base.current.ms !== ms) base.current = { ms, at: Date.now() };
+  useEffect(() => {
+    if (!running || ms == null) return;
+    const t = setInterval(() => tick((x) => x + 1), 100);
+    return () => clearInterval(t);
+  }, [running, ms]);
+  if (ms == null || !running) return ms;
+  return Math.max(0, base.current.ms! - (Date.now() - base.current.at));
+}
+
+function PlayerRow({ name, ms, active, e, fen, side }: { name: string; ms: number | null; active: boolean; e?: EngineLive; fen?: string; side?: "w" | "b" }) {
+  const t = useTicking(ms, active);
   return (
     <div className="flex items-center justify-between gap-2 text-[12px]">
-      <span className="truncate font-medium flex items-center gap-1.5">
+      <span className="truncate font-medium flex items-center gap-1.5 min-w-0">
         {active && <span className="dot dot-pulse" style={{ color: "var(--win)" }} />}
-        {name}
+        <span className="truncate">{name}</span>
+        {fen && side && <Material fen={fen} side={side} />}
       </span>
-      <span className="tnum muted shrink-0">
-        {e ? `${evalText(e.score_cp, e.mate)} d${e.depth ?? "?"} ${nps(e.nps)}` : ""}
-      </span>
-      <span className="mono shrink-0 px-1.5 rounded" style={{ background: active ? "var(--accent-bg)" : "var(--bg-2)", color: active ? "var(--text)" : "var(--muted)" }}>
-        {clock(ms)}
-      </span>
+      <span className="tnum muted shrink-0">{e ? `${evalText(e.score_cp, e.mate)} d${e.depth ?? "?"} ${nps(e.nps)}` : ""}</span>
+      <span className={`clock shrink-0 ${active ? "running" : ""} ${t != null && t < 10000 ? "low" : ""}`}>{clock(t)}</span>
     </div>
   );
+}
+
+/** White-view score of an engine (engines report from their own side). */
+function whiteView(e: EngineLive | undefined, white: boolean): { cp: number | null; mate: number | null } {
+  if (!e) return { cp: null, mate: null };
+  const s = white ? 1 : -1;
+  return { cp: e.score_cp != null ? e.score_cp * s : null, mate: e.mate != null ? e.mate * s : null };
 }
 
 function LaneCard({ l, onOpen }: { l: LiveLane; onOpen: () => void }) {
@@ -41,7 +67,7 @@ function LaneCard({ l, onOpen }: { l: LiveLane; onOpen: () => void }) {
       {g && job ? (
         <>
           <PlayerRow name={g.black} ms={g.btime} active={g.side_to_move === "black"} e={black} />
-          <Board fen={g.fen} lastMove={g.last_move} />
+          <Board fen={g.fen} lastMove={g.last_move} check={isCheck(g.moves_san.slice(-1)[0])} mini />
           <PlayerRow name={g.white} ms={g.wtime} active={g.side_to_move === "white"} e={white} />
           <div className="flex justify-between text-[11px] muted tnum">
             <span>
@@ -83,7 +109,14 @@ function EnginePanel({ e, color }: { e?: EngineLive; color: string }) {
 }
 
 function BigView({ l, onClose }: { l: LiveLane | null; onClose: () => void }) {
+  const prefs = useBoardPrefs();
   const g = l?.game;
+  const lastLen = useRef<number | null>(null);
+  useEffect(() => {
+    const len = g?.moves_san.length ?? null;
+    if (prefs.sound && len != null && lastLen.current != null && len === lastLen.current + 1) playMove(isCapture(g?.moves_san[len - 1]));
+    lastLen.current = len;
+  }, [g?.moves_san.length, prefs.sound, g?.moves_san]);
   const white = g?.engines.find((e) => e.name === g.white);
   const black = g?.engines.find((e) => e.name === g.black);
   const series = useMemo(() => {
@@ -97,15 +130,34 @@ function BigView({ l, onClose }: { l: LiveLane | null; onClose: () => void }) {
       tb: ev.map((p) => (p.engine === g?.black ? p.time_ms / 1000 : null)),
     };
   }, [g]);
-  const tomove = g?.side_to_move === "white" ? white : black;
+  const wtm = g?.side_to_move === "white";
+  const tomove = wtm ? white : black;
+  // the engine to move thinks now: its score is the freshest; otherwise the other one's
+  const ev = tomove?.score_cp != null || tomove?.mate != null ? whiteView(tomove, wtm) : whiteView(wtm ? black : white, !wtm);
   return (
-    <Modal open={!!l} onOpenChange={(o) => !o && onClose()} width={1180} title={g ? `${g.white} – ${g.black}` : ""}>
+    <Modal open={!!l} onOpenChange={(o) => !o && onClose()} width={1200} title={g ? `${g.white} – ${g.black}` : ""}>
       {g && (
-        <div className="grid gap-4" style={{ gridTemplateColumns: "minmax(320px, 460px) 1fr" }}>
+        <div className="grid gap-5" style={{ gridTemplateColumns: "minmax(320px, 480px) 1fr" }}>
           <div className="flex flex-col gap-2">
-            <PlayerRow name={g.black} ms={g.btime} active={g.side_to_move === "black"} e={black} />
-            <Board fen={g.fen} lastMove={g.last_move} arrows={tomove?.pv.slice(0, 1)} />
-            <PlayerRow name={g.white} ms={g.wtime} active={g.side_to_move === "white"} e={white} />
+            <PlayerRow name={g.black} ms={g.btime} active={g.side_to_move === "black"} e={black} fen={g.fen} side="b" />
+            <div className="flex gap-2 items-stretch">
+              <EvalBar cp={ev.cp} mate={ev.mate} />
+              <Board
+                fen={g.fen}
+                lastMove={g.last_move}
+                check={isCheck(g.moves_san.slice(-1)[0])}
+                arrows={[
+                  ...(tomove?.pv[0] ? [{ uci: tomove.pv[0], brush: "green" as const }] : []),
+                  ...(tomove?.pv[1] ? [{ uci: tomove.pv[1], brush: "paleBlue" as const }] : []),
+                ]}
+                className="flex-1"
+              />
+            </div>
+            <PlayerRow name={g.white} ms={g.wtime} active={g.side_to_move === "white"} e={white} fen={g.fen} side="w" />
+            <div className="flex justify-between items-center text-[11.5px] muted">
+              <span>green arrow: best move of the engine to move · blue: the reply it expects</span>
+              <BoardSettingsButton />
+            </div>
           </div>
           <div className="flex flex-col gap-3 min-w-0">
             <EnginePanel e={white} color="var(--text)" />
@@ -122,7 +174,9 @@ function BigView({ l, onClose }: { l: LiveLane | null; onClose: () => void }) {
               {g.moves_san.map((m, i) => (
                 <span key={i}>
                   {i % 2 === 0 && <span className="muted mr-1">{i / 2 + 1}.</span>}
-                  <span className="mr-1.5">{m}</span>
+                  <span className="mr-1.5 px-0.5 rounded" style={i === g.moves_san.length - 1 ? { background: "var(--accent)", color: "#fff" } : undefined}>
+                    {m}
+                  </span>{" "}
                 </span>
               ))}
             </div>

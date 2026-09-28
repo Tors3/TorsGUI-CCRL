@@ -17,4 +17,16 @@ auto_resume: boolean, tc_base_formula: string, tc_inc_formula: string, default_f
 /**
  * Default rating gap 8CPU - 1CPU when an engine has no own history.
  */
-default_cpu_gap: number, github_token: string, git_sync_dir: string, post_template_finished: string, post_template_announcement: string, post_template_progress: string, log_retention_days: number, };
+default_cpu_gap: number, github_token: string, git_sync_dir: string, post_template_finished: string, post_template_announcement: string, post_template_progress: string, log_retention_days: number, 
+/**
+ * Personal option: accept AVX-512 / VNNI / x86-64-v4 builds (never for CCRL).
+ */
+allow_avx512: boolean, 
+/**
+ * Personal option: pick them first when the CPU supports them.
+ */
+prefer_avx512: boolean, 
+/**
+ * PGN files or folders outside the workspace shown in the game archive.
+ */
+archive_paths: Array<string>, };

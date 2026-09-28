@@ -65,6 +65,14 @@ files are the source of truth for which games have been played.
   download is checked against GitHub's sha256 digest when published, extracted (zip / 7z /
   tar.gz), and verified: `uci` → `isready` → `go depth 12`. The `id name`, the options (saved
   like `uci_options.txt`), the bestmove, Threads max and Syzygy support are recorded.
+- **Choosing the build yourself**: the dialog proposes a build and shows every asset with its
+  reason; click another accepted row to install that one instead (the engine keeps the reason
+  "chosen manually").
+- **AVX-512 as a personal option**: *Settings → Engine builds* (or the checkbox in the
+  dialog) accepts AVX-512 / VNNI / x86-64-v4 builds for your own tests, and can prefer them
+  when the CPU supports AVX-512 (VNNI builds only when the CPU has VNNI). They are never
+  chosen for CCRL by default: such engines carry the purple flag *AVX-512 build: personal
+  use, not valid for CCRL*, and the wizard warns when a tournament uses one.
 - **Add local file** does the same verification for a binary already on disk.
 - **Import REPORT.md** rebuilds the library (metadata only) from a CCRL_ScirptsTests-style
   `engines/` folder: release, asset, build, sha256, `id name`, options, used or not, notes.
@@ -183,14 +191,34 @@ opening(round) = start + round − 1
   per-opponent `[code]` table ordered by list rating and a closing line naming the next queued
   tournament. **Copy** and paste it on the forum.
 
-## 8. Importing the old scripts' tournaments
+## 8. Tournament files (and Claude)
 
-**Tournaments → Import** scans a CCRL_ScirptsTests-style folder (`tournaments/<name>/config`,
+A tournament can also be described in a small TOML file — written by you or by Claude — and
+imported with **Tournaments → Import file**: TorsGUI shows the engines it matched, the
+games, TC and ETA and every warning, then you save it as a draft, queue it or start it.
+**Template for Claude** copies a template with the rules and your engine names to give to
+Claude with the request. See [TOURNAMENT_FILE.md](TOURNAMENT_FILE.md).
+
+## 9. Games, viewer and board
+
+**Games** is the archive: every tournament's games, plus PGN files or folders you add (for
+example the results of CCRL_ScirptsTests; they are only read). Click a game to replay it:
+board with the last move, check highlight and the next move as an arrow, evaluation bar,
+captured material, clocks, eval and time graphs (click to jump), move list with evaluations.
+`Space` plays/pauses (0.5×–4×), `t` theater mode (large board), `f` flip. The large live
+board has the same bar, ticking clocks and the PV of the engine to move as arrows.
+**Board appearance** (palette button, or Settings): walnut, maple, marble, tournament green,
+ocean, slate or classic boards; Merida, Cburnett, Chessnut, Fantasy, Spatial or MPChess
+pieces; animation speed, coordinates, arrows and an optional move sound.
+
+## 10. Importing the old scripts' tournaments
+
+**Tournaments → Import old tournaments** scans a CCRL_ScirptsTests-style folder (`tournaments/<name>/config`,
 `scripts/gauntlet.bat`, PGNs in `pgn/` or `results/gauntlets/<name>/all_games.pgn`). Finished
 tournaments are imported read-only (for verification: same standings, same export);
 configured but never started ones become drafts.
 
-## 9. Maintenance
+## 11. Maintenance
 
 **Settings → Housekeeping**: disk usage per tournament, unused engines, superseded versions,
 log rotation of per-game engine logs. **Git sync** copies configurations and results (and
@@ -199,5 +227,6 @@ event log and every runner, console and per-game log (last 96 KB, refreshed).
 
 ## Keyboard
 
-`Ctrl K` or `/` command palette · `g` then `d t l e c b x s o` to navigate · `n` new tournament
-· `t` theme · in the PGN viewer `←` `→` `Home` `End`, `f` flip.
+`Ctrl K` or `/` command palette · `g` then `d t l a e c b x s o` to navigate (`a` = Games) ·
+`n` new tournament · `t` theme · in the game viewer `←` `→` `Home` `End`, `Space` play/pause,
+`f` flip, `t` theater mode.

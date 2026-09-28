@@ -32,10 +32,14 @@ test("screenshots", async ({ page }) => {
     const rows = page.getByTestId("games-table").locator("tbody tr");
     await rows.nth(3).click();
     await page.waitForTimeout(1500);
-    await page.keyboard.press("ArrowLeft");
-    await page.keyboard.press("ArrowLeft");
-    await page.waitForTimeout(500);
+    // a middlegame position: captured material, eval bar and the next-move arrow are visible
+    await page.keyboard.press("Home");
+    for (let i = 0; i < 41; i++) await page.keyboard.press("ArrowRight");
+    await page.waitForTimeout(900);
     await page.screenshot({ path: shot("04-pgn-viewer") });
+    await page.keyboard.press("t");
+    await page.waitForTimeout(900);
+    await page.screenshot({ path: shot("18-pgn-viewer-theater") });
     await page.keyboard.press("Escape");
   }
   if (live) {
@@ -65,6 +69,40 @@ test("screenshots", async ({ page }) => {
     await page.screenshot({ path: shot("08-live-board") });
     await page.keyboard.press("Escape");
   }
+
+  await page.goto("/#/games");
+  await page.waitForTimeout(2000);
+  const src = page.getByTestId("archive-source");
+  if ((await src.count()) > 1) {
+    await src.last().click();
+    await page.waitForTimeout(1500);
+  }
+  await page.screenshot({ path: shot("19-games-archive") });
+  await page.getByRole("button", { name: "Board appearance" }).first().click();
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: shot("20-board-appearance") });
+  await page.keyboard.press("Escape");
+
+  await page.goto("/#/tournaments");
+  await page.waitForTimeout(800);
+  await page.getByTestId("tfile-open").click();
+  await page.getByTestId("tfile-text").fill(
+    [
+      "# written by Claude: \"a Blitz gauntlet of Mock Alpha against the Bravo engine\"",
+      'kind = "gauntlet"',
+      'list = "Blitz"',
+      'seed = "mock alpha"',
+      'opponents = ["Mock Bravo"]',
+      "threads = 1",
+      "games_per_opponent = 20",
+      "passes = 2",
+      'after_import = "queue"',
+      'notes = "quick sanity gauntlet before the real 8CPU run"',
+    ].join("\n"),
+  );
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: shot("21-tournament-file") });
+  await page.keyboard.press("Escape");
 
   await page.goto("/#/engines");
   await page.waitForTimeout(1500);
