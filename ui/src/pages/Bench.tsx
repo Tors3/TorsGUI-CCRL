@@ -92,14 +92,15 @@ export function Bench() {
     toast.success("Formulas and factor saved as defaults");
     refreshSettings();
   };
-  const latest = progress?.result ?? hist?.[hist.length - 1]?.run;
+  const latest = progress?.result ?? (hist ?? []).slice().sort((a, b) => (a.run.created_at || a.created_at).localeCompare(b.run.created_at || b.created_at)).pop()?.run;
   const chart = useMemo(() => {
-    const runs = (hist ?? []).filter((h) => h.run.levels?.length);
+    const when = (h: Hist) => h.run.created_at || h.created_at;
+    const runs = (hist ?? []).filter((h) => h.run.levels?.length).sort((a, b) => when(a).localeCompare(when(b)));
     const xs = Array.from(new Set(runs.flatMap((h) => h.run.levels.map((l) => l.instances)))).sort((a, b) => a - b);
     return {
       xs,
       series: runs.slice(-8).map((h, i) => ({
-        label: `${h.created_at.slice(0, 16)} ${h.run.builds.join("+")}`,
+        label: `${when(h).slice(0, 16).replace("T", " ")} ${h.run.builds.join("+")}${h.run.valid ? "" : " (invalid)"}`,
         color: COLORS[i % COLORS.length],
         dash: h.run.valid ? undefined : [4, 4],
         values: xs.map((x) => h.run.levels.find((l) => l.instances === x)?.factor ?? null),
@@ -263,7 +264,7 @@ export function Bench() {
               <tbody>
                 {(hist ?? [])
                   .slice()
-                  .reverse()
+                  .sort((a, b) => (b.run.created_at || b.created_at).localeCompare(a.run.created_at || a.created_at))
                   .map((h) => (
                     <tr key={h.id}>
                       <td className="mono">{(h.run.created_at || h.created_at).slice(0, 16).replace("T", " ")}</td>
@@ -325,7 +326,7 @@ export function Bench() {
             {tc && (
               <div className="panel p-3 flex flex-col items-center gap-1" style={{ background: "var(--bg-2)" }}>
                 <div className="kpi-label">Local TC for fastchess</div>
-                <div className="text-[26px] font-semibold mono" data-testid="tc-result">
+                <div className="font-semibold mono" style={{ fontSize: 28, lineHeight: 1.2 }} data-testid="tc-result">
                   {tc.fastchess}
                 </div>
                 <div className="muted">{tc.human}</div>

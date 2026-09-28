@@ -1,0 +1,37 @@
+# ILLUSTRATIVE SAMPLE for tests and screenshots, NOT the real CCRL list.
+# Format as copied from a CCRL page: rank, name, rating, +, -, score, avg opp, draws, games.
+1 Stockfish 19 64-bit 8CPU 3812 +12 -12 61.0% -76 78.1% 2120
+2 PlentyChess 8.0.0 64-bit 8CPU 3771 +15 -15 55.2% -35 81.3% 1540
+3 Obsidian 16.0 64-bit 8CPU 3766 +15 -15 54.0% -28 82.0% 1500
+4 Reckless 0.9.0 64-bit 8CPU 3764 +16 -16 53.1% -21 83.5% 1320
+5 Stockfish 19 64-bit 3752 +10 -10 70.2% -150 60.2% 4100
+6 Cinder 0.6.1 64-bit 8CPU 3747 +18 -18 51.0% -7 85.1% 1100
+7 Berserk 14 64-bit 8CPU 3745 +14 -14 50.5% -3 84.0% 1700
+8 Alexandria 9.0.0 64-bit 8CPU 3741 +16 -16 49.9% 1 84.8% 1400
+9 pawnocchio 2.0.1 64-bit 8CPU 3738 +17 -17 49.0% 7 85.5% 1200
+10 Integral v8 64-bit 8CPU 3736 +17 -17 49.5% 3 86.0% 1180
+11 Viridithas 20.0.0 64-bit 8CPU 3733 +15 -15 48.0% 14 84.2% 1560
+12 Caissa 2.0 64-bit 8CPU 3730 +18 -18 48.5% 10 86.4% 1000
+13 PlentyChess 8.0.0 64-bit 3712 +12 -12 62.0% -80 70.0% 3000
+14 Stormphrax 8.0.0 64-bit 8CPU 3721 +19 -19 47.0% 21 86.0% 960
+15 Hobbes 3.0 64-bit 8CPU 3718 +19 -19 47.2% 19 85.0% 900
+16 Horsie 1.1 64-bit 8CPU 3712 +20 -20 46.9% 22 86.2% 880
+17 Coda 0.9.4 64-bit 8CPU 3709 +20 -20 46.0% 28 85.8% 860
+18 Lizard 11.2 64-bit 8CPU 3705 +20 -20 45.8% 29 86.9% 840
+19 Obsidian 16.0 64-bit 3701 +11 -11 58.0% -56 72.0% 3300
+20 Raphael 4.2.0 64-bit 8CPU 3699 +21 -21 45.0% 35 87.0% 800
+21 Astra 7.0 64-bit 8CPU 3695 +21 -21 44.7% 37 87.2% 780
+22 RubiChess 20240817 64-bit 8CPU 3690 +22 -22 44.0% 42 87.5% 760
+23 Starzix 6.0 64-bit 8CPU 3688 +22 -22 43.5% 45 87.8% 740
+24 Clover 9.1 64-bit 8CPU 3684 +22 -22 43.0% 49 88.0% 720
+25 Halogen 16 64-bit 8CPU 3681 +23 -23 42.8% 50 88.1% 700
+26 Tarnished 6.0-Eternal 64-bit 8CPU 3677 +23 -23 42.0% 56 88.3% 690
+27 Quanticade Cronus 3.0 64-bit 8CPU 3672 +24 -24 41.5% 59 88.6% 660
+28 PZChessBot 7.1 64-bit 8CPU 3668 +24 -24 41.0% 63 88.9% 640
+29 Devre 7.0 64-bit 8CPU 3664 +24 -24 40.5% 66 89.0% 620
+30 Titan 1.1.0 64-bit 8CPU 3659 +25 -25 40.0% 70 89.2% 600
+31 Velvet 8.1.1 64-bit 8CPU 3655 +25 -25 39.5% 74 89.5% 590
+32 Minke 7.0.0 64-bit 8CPU 3650 +26 -26 39.0% 78 89.7% 580
+33 Triumviratus 7.0 64-bit 3615 +14 -14 48.0% 14 83.0% 1800
+34 Reckless 0.9.0 64-bit 3701 +12 -12 58.1% -57 71.5% 2800
+35 Minke 7.0.0 64-bit 3601 +15 -15 47.0% 21 84.0% 1600

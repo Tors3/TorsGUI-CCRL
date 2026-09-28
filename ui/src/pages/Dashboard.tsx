@@ -114,7 +114,7 @@ function Timeline({ items }: { items: TimelineItem[] }) {
         {Array.from({ length: ticks + 1 }, (_, k) => {
           const t = t0 + ((t1 - t0) * k) / ticks;
           return (
-            <span key={k} className="absolute -translate-x-1/2 tnum" style={{ left: x(t) }}>
+            <span key={k} className="absolute tnum whitespace-nowrap" style={{ left: x(t), transform: `translateX(${k === 0 ? "0" : k === ticks ? "-100%" : "-50%"})` }}>
               {new Date(t).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" })}
             </span>
           );

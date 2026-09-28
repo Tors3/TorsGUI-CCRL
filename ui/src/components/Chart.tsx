@@ -4,6 +4,8 @@ import uPlot from "uplot";
 export type Series = { label: string; color: string; values: (number | null)[]; dash?: number[]; width?: number; bars?: boolean };
 
 const css = (v: string) => getComputedStyle(document.documentElement).getPropertyValue(v).trim() || "#888";
+/** Canvas needs real colours: resolve `var(--x)` tokens. */
+const color = (c: string) => (c.startsWith("var(") ? css(c.slice(4, -1).trim()) : c);
 
 /** Small uPlot line chart that follows the container width. */
 export function LineChart(props: { x: number[]; series: Series[]; height?: number; yRange?: [number, number]; xLabel?: (v: number) => string; yLabel?: (v: number) => string; zeroLine?: boolean; onClick?: (idx: number) => void; marker?: number }) {
@@ -28,13 +30,13 @@ export function LineChart(props: { x: number[]; series: Series[]; height?: numbe
         {},
         ...props.series.map((s) => ({
           label: s.label,
-          stroke: s.color,
+          stroke: color(s.color),
           width: s.width ?? 1.6,
           dash: s.dash,
           points: { show: props.x.length < 40 },
           spanGaps: true,
           paths: s.bars ? uPlot.paths.bars!({ size: [0.7, 20] }) : undefined,
-          fill: s.bars ? s.color : undefined,
+          fill: s.bars ? color(s.color) : undefined,
         })),
       ],
       hooks: {

@@ -8,3 +8,4 @@ crates/*/bindings/
 /src-tauri/target
 /src-tauri/gen
 /src-tauri/binaries/
+/ui/e2e/.cache

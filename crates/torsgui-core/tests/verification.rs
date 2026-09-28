@@ -161,10 +161,11 @@ fn library_from_report() {
 #[test]
 fn export_byte_compatible_with_python() {
     let r = need_ref!();
-    if std::process::Command::new("python3").arg("--version").output().is_err() {
-        eprintln!("python3 missing: skipping");
+    let py = ["python3", "python"].into_iter().find(|p| std::process::Command::new(p).arg("--version").output().map(|o| o.status.success()).unwrap_or(false));
+    let Some(py) = py else {
+        eprintln!("python missing: skipping");
         return;
-    }
+    };
     let dir = tempfile::tempdir().unwrap();
     let g = dir.path().join("g");
     for d in ["scripts", "config", "pgn"] {
@@ -184,7 +185,7 @@ fn export_byte_compatible_with_python() {
     let lane1 = format!("{}\n\n{}\n\n", b.join("\n\n"), unfinished);
     std::fs::write(g.join("pgn/node0_lane0.pgn"), lane0).unwrap();
     std::fs::write(g.join("pgn/node1_lane0.pgn"), lane1).unwrap();
-    let out = std::process::Command::new("python3")
+    let out = std::process::Command::new(py)
         .arg(r.join("tools/export_ccrl.py"))
         .args(["--gauntlet-dir", g.to_str().unwrap(), "--name", "Tester Name", "--site", "Milan", "--date", "2026-09-28", "--no-zip"])
         .output()

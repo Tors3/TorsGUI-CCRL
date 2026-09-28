@@ -15,6 +15,7 @@ export default defineConfig({
   build: { target: "es2021", chunkSizeWarningLimit: 1500 },
   test: {
     environment: "jsdom",
+    globals: true,
     setupFiles: ["./src/test-setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
   },

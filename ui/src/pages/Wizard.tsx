@@ -95,7 +95,7 @@ export function Wizard() {
   }, [autoEvent, eventAuto]);
 
   // ratings of the selected engines in the target list / CPU category
-  const names = [...seedEngines, ...oppEngines].map((e) => e.display_name);
+  const names = (engines ?? []).map((e) => e.display_name);
   useEffect(() => {
     if (!names.length) return;
     call<RatingLookup[]>("ccrl_ratings", { list, cpus: threads, names })
@@ -285,9 +285,15 @@ export function Wizard() {
                           {r?.estimated && <span className="chip chip-warn ml-1" title={r.note}>est.</span>}
                         </td>
                         <td>
-                          {e.verify_status === "ok" ? <span className="chip chip-win">verified</span> : <span className="chip chip-warn">{e.verify_status || "unverified"}</span>}
-                          {!e.path && <span className="chip chip-loss ml-1">no binary</span>}
-                          {tooFew && <span className="chip chip-loss ml-1">max {e.threads_max} threads</span>}
+                          {!e.path ? (
+                            <span className="chip chip-loss" title="metadata only: set the executable in Engines">no binary</span>
+                          ) : tooFew ? (
+                            <span className="chip chip-loss">max {e.threads_max} threads</span>
+                          ) : e.verify_status === "ok" ? (
+                            <span className="chip chip-win">verified</span>
+                          ) : (
+                            <span className="chip chip-warn">{e.verify_status || "unverified"}</span>
+                          )}
                         </td>
                       </tr>
                     );

@@ -741,7 +741,7 @@ impl App {
     fn summary(&self, t: TournamentRecord, with_games: bool) -> TournamentSummary {
         let alive = runner::is_running(&self.ws.tournament_dir(&t.id));
         let seed = t.config.seeds().first().map(|p| p.name.clone()).unwrap_or_default();
-        let loaded = if with_games || t.status.is_none() { self.ws.open().ok().and_then(|s| self.loaded(&s, &t.id).ok()) } else { None };
+        let loaded = if with_games || t.status.is_none() || t.state == TState::Running { self.ws.open().ok().and_then(|s| self.loaded(&s, &t.id).ok()) } else { None };
         let mut t = t;
         if let Some(l) = &loaded {
             // PGNs are the source of truth
