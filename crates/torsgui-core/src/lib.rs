@@ -3,13 +3,17 @@
 
 pub mod analysis;
 pub mod assets;
+pub mod bench;
 pub mod ccrl;
 pub mod engines;
 pub mod export;
 pub mod fastchess;
 pub mod forum;
 pub mod github;
+pub mod health;
 pub mod legacy;
+pub mod live;
+pub mod maintenance;
 pub mod model;
 pub mod names;
 pub mod pgn;

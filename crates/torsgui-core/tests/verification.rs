@@ -216,3 +216,17 @@ fn export_byte_compatible_with_python() {
     let b = std::fs::read(&py).unwrap();
     assert!(a == b, "export differs from export_ccrl.py ({} vs {} bytes)", a.len(), b.len());
 }
+
+/// The PGN viewer replays every game of the Triumviratus gauntlet and reads
+/// the engine information of the fastchess comments.
+#[test]
+fn viewer_replays_all_games() {
+    let r = need_ref!();
+    let (_, l) = load(&r, "2026-09-27_Triumviratus_7.0_8CPU");
+    for g in &l.games {
+        let v = torsgui_core::live::viewer_game(g);
+        assert!(v.error.is_none(), "{:?}: {:?}", g.headers.get("Event"), v.error);
+        assert_eq!(v.plies.len() as u32, g.plies().unwrap(), "PlyCount");
+        assert!(v.plies.iter().any(|p| p.info.nps.is_some()));
+    }
+}
