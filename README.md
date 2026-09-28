@@ -32,6 +32,11 @@ It is open source (GPL-3.0-or-later) and nothing is specific to one machine.
 
 ## Screenshots
 
+![Game viewer](docs/screenshots/04-pgn-viewer.png)
+
+<details>
+<summary><b>All screenshots</b> (21 screens: dashboard, standings, live, wizard, engines, CCRL lists, bench, export, archive, tournament file…)</summary>
+
 | | |
 |---|---|
 | ![Dashboard](docs/screenshots/01-dashboard.png) Dashboard: running tournament, queue, ETA timeline, health | ![Tournaments](docs/screenshots/02-tournaments.png) Tournaments |
@@ -50,6 +55,8 @@ three tournaments of [CCRL_ScirptsTests](https://github.com/Tors3/CCRL_ScirptsTe
 as they are, the engine library rebuilt from its report, its bench history, and a live
 tournament between mock engines played by the real fastchess. The CCRL list shown is an
 illustrative sample (the site was not reachable from the build machine), not real ratings.
+
+</details>
 
 ## Quick start
 
