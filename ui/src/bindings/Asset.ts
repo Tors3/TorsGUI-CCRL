@@ -4,7 +4,7 @@ export type Asset = { name: string,
 /**
  * browser_download_url
  */
-url: string, size: number | null, 
+url: string, size: bigint | null, 
 /**
  * "sha256:..." when GitHub publishes it.
  */

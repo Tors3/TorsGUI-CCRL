@@ -2,4 +2,4 @@
 import type { LaneStatus } from "./LaneStatus";
 import type { LiveGame } from "./LiveGame";
 
-export type LiveLane = { tournament_id: string, tournament: string, lane: LaneStatus, game: LiveGame | null, elapsed_s: number | null, };
+export type LiveLane = { tournament_id: string, tournament: string, lane: LaneStatus, game: LiveGame | null, elapsed_s: bigint | null, };

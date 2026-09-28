@@ -8,11 +8,11 @@ export type TournamentRecord = { id: string, name: string, state: TState, desire
 /**
  * Position in the queue (lower first), None when not queued.
  */
-queue_pos: number | null, retries: number, runner_pid: number | null, 
+queue_pos: bigint | null, retries: number, runner_pid: number | null, 
 /**
  * Unix timestamp of the last runner heartbeat.
  */
-heartbeat: number | null, expected_games: number, done_games: number, last_error: string | null, imported: boolean, 
+heartbeat: bigint | null, expected_games: number, done_games: number, last_error: string | null, imported: boolean, 
 /**
  * Extra PGN sources (imported legacy tournaments).
  */

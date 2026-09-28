@@ -4,4 +4,4 @@ export type EvalPoint = { ply: number,
 /**
  * White's point of view, centipawns (mates clamped to ±2000)
  */
-cp: number, engine: string, time_ms: number, depth: number | null, };
+cp: number, engine: string, time_ms: bigint, depth: number | null, };

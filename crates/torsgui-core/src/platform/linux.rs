@@ -203,7 +203,7 @@ impl Os for LinuxOs {
             None => true,
         };
         PlacementCheck {
-            detail: format!("affinity {:?}", super::super::util::compact_list(&cpus)),
+            detail: format!("affinity {}", super::super::util::compact_list(&cpus)),
             cpus,
             group: None,
             mask: None,
