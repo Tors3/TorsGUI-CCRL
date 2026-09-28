@@ -1,0 +1,9 @@
+/target
+node_modules/
+/ui/dist
+/ui/test-results
+/ui/playwright-report
+crates/*/bindings/
+*.log
+/src-tauri/target
+/src-tauri/gen
