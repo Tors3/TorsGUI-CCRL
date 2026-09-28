@@ -64,7 +64,7 @@ jobs:
       - name: Tests (unit, §9 verification, bench, integration with fastchess + mock engines)
         env:
           CCRL_REF: ${{ github.workspace }}/ccrl-ref
-        run: cargo test --locked -- --test-threads=2
+        run: cargo test --locked --no-fail-fast -- --test-threads=2
 
   ui:
     name: UI (typecheck, component tests, build, Playwright smoke)

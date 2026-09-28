@@ -47,7 +47,7 @@ export default async function globalSetup() {
     }
   }
   const settings = await call("settings_get");
-  const fastchess = process.env.FASTCHESS ?? ["/home/user/disservin/fastchess/fastchess"].find(existsSync) ?? "";
+  const fastchess = process.env.TORSGUI_E2E_NO_LIVE ? "" : process.env.FASTCHESS ?? ["/home/user/disservin/fastchess/fastchess"].find(existsSync) ?? "";
   mkdirSync(join(ws, "books"), { recursive: true });
   const bk = book(join(ws, "books"));
   await call("settings_save", { settings: { ...settings, tester_name: "Francesco Torsello", site: "Milan", fastchess_path: fastchess, default_book: bk, default_factor: 0.86 } });

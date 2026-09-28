@@ -82,8 +82,8 @@ pub fn fmt_min(seconds: f64) -> String {
 }
 
 pub fn compute(nominal: &NominalTc, factor: f64, base_formula: Option<&str>, inc_formula: Option<&str>) -> Result<TcResult> {
-    let bf = base_formula.unwrap_or(DEFAULT_BASE_FORMULA);
-    let inf = inc_formula.unwrap_or(DEFAULT_INC_FORMULA);
+    let bf = base_formula.filter(|f| !f.trim().is_empty()).unwrap_or(DEFAULT_BASE_FORMULA);
+    let inf = inc_formula.filter(|f| !f.trim().is_empty()).unwrap_or(DEFAULT_INC_FORMULA);
     let b = eval(bf, nominal.base_s, nominal.inc_s, nominal.moves as f64, factor)?;
     let i = eval(inf, nominal.base_s, nominal.inc_s, nominal.moves as f64, factor)?;
     let mut fc = String::new();

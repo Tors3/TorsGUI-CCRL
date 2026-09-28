@@ -175,7 +175,8 @@ fn export_byte_compatible_with_python() {
     std::fs::copy(r.join("tournaments").join(name).join("scripts/gauntlet.bat"), g.join("scripts/gauntlet.bat")).unwrap();
     std::fs::copy(r.join("tournaments").join(name).join("config/engines.json"), g.join("config/engines.json")).unwrap();
     // fixture: two lane files with CRLF, a duplicate (later end time), an unfinished game
-    let all = std::fs::read_to_string(r.join("results/gauntlets").join(name).join("all_games.pgn")).unwrap();
+    // read_text normalises newlines (git may check the reference out with CRLF on Windows)
+    let all = torsgui_core::pgn::read_text(&r.join("results/gauntlets").join(name).join("all_games.pgn")).unwrap();
     let blocks = torsgui_core::pgn::game_blocks(&all);
     let a: Vec<&str> = blocks[..40].to_vec();
     let b: Vec<&str> = blocks[40..80].to_vec();

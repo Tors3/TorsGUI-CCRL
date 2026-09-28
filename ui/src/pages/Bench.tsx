@@ -65,7 +65,7 @@ export function Bench() {
     const n = presets?.find((p) => p.id === nominal);
     if (!n) return;
     try {
-      setTc(await call<TcResult>("tc_compute", { nominal: n, factor, base_formula: bf, inc_formula: inf }));
+      setTc(await call<TcResult>("tc_compute", { nominal: n, factor, base_formula: bf || null, inc_formula: inf || null }));
       setTcErr(undefined);
     } catch (e) {
       setTcErr((e as Error).message);
