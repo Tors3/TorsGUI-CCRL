@@ -18,6 +18,7 @@ pub mod maintenance;
 pub mod model;
 pub mod names;
 pub mod pgn;
+pub mod pieces;
 pub mod platform;
 pub mod runner;
 pub mod scheduler;

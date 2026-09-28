@@ -27,6 +27,8 @@ import type { Health } from "./bindings/Health";
 import type { TournamentSummary } from "./bindings/TournamentSummary";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { call, usePoll } from "./lib/api";
+import { setUserPieceSets } from "./lib/boardPrefs";
+import type { UserPieceSet } from "./bindings/UserPieceSet";
 import { Bench } from "./pages/Bench";
 import { CcrlLists } from "./pages/CcrlLists";
 import { Dashboard } from "./pages/Dashboard";
@@ -203,6 +205,9 @@ function Palette({ open, setOpen, toggleTheme }: { open: boolean; setOpen: (o: b
 
 function Shortcuts({ setPalette, toggleTheme }: { setPalette: (o: boolean) => void; toggleTheme: () => void }) {
   const nav = useNavigate();
+  useEffect(() => {
+    call<UserPieceSet[]>("piece_sets_user").then(setUserPieceSets).catch(() => {});
+  }, []);
   const pending = useRef<number>(0);
   const onKey = useCallback(
     (e: KeyboardEvent) => {

@@ -2,8 +2,8 @@ import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
 import type { DrawShape } from "chessground/draw";
 import type { Key } from "chessground/types";
-import { useEffect, useMemo, useRef } from "react";
-import { useBoardPrefs } from "../lib/boardPrefs";
+import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { piecesClass, themeStyle, useBoardPrefs } from "../lib/boardPrefs";
 
 export type Arrow = { uci: string; brush?: "green" | "blue" | "yellow" | "red" | "paleBlue" | "paleGreen" | "paleGrey" };
 
@@ -60,7 +60,7 @@ export function Board(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.fen, props.lastMove, props.orientation, props.check, shapes, prefs.animation]);
   return (
-    <div className={`board-box board-theme-${prefs.theme} pieces-${prefs.pieces} ${props.mini ? "board-mini" : ""} ${props.className ?? ""}`}>
+    <div className={`board-box board-theme-${prefs.theme} ${piecesClass(prefs.pieces)} ${props.mini ? "board-mini" : ""} ${props.className ?? ""}`} style={themeStyle(prefs) as CSSProperties}>
       <div ref={el} className="w-full h-full" data-testid="board" />
     </div>
   );

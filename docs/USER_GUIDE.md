@@ -207,9 +207,13 @@ board with the last move, check highlight and the next move as an arrow, evaluat
 captured material, clocks, eval and time graphs (click to jump), move list with evaluations.
 `Space` plays/pauses (0.5×–4×), `t` theater mode (large board), `f` flip. The large live
 board has the same bar, ticking clocks and the PV of the engine to move as arrows.
-**Board appearance** (palette button, or Settings): walnut, maple, marble, tournament green,
-ocean, slate or classic boards; Merida, Cburnett, Chessnut, Fantasy, Spatial or MPChess
-pieces; animation speed, coordinates, arrows and an optional move sound.
+**Board appearance** (palette button, or Settings): *Minimal* (flat, the default), slate,
+ocean, tournament green, classic brown, walnut, maple, marble, or *Custom* with your own
+light/dark square colours; 69 piece sets (sharechess and lichess sets whose licence allows
+bundling, with their colour variants; searchable); animation speed, coordinates, arrows and
+an optional move sound. **Import** adds any other set from a folder (lichess names
+`wP.svg`…`bK.svg` or sharechess names `pw.svg`…`kb.svg`, SVG or PNG), e.g. the
+non-commercial sets of sharechess: they stay on your computer, for personal use.
 
 ## 10. Importing the old scripts' tournaments
 

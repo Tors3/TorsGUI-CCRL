@@ -20,8 +20,9 @@ Python scripts, `.bat` files and scheduled tasks with one elegant, dense tool th
   short **BBCode forum post**;
 - shows everything **live**: mini boards per lane, ticking clocks, evaluation bar, PV arrows,
   games/hour, ETA;
-- replays archived games on an elegant, animated board (7 board themes, 6 piece sets,
-  autoplay, theater mode), from its tournaments or any PGN file or folder;
+- replays archived games on an animated board (minimal by default; 9 board themes including
+  your own colours, 69 bundled piece sets plus any set you import; autoplay, theater mode),
+  from its tournaments or any PGN file or folder;
 - imports **tournament files**: describe a tournament in a few TOML lines (or ask Claude to),
   import it, review, queue or start ([docs/TOURNAMENT_FILE.md](docs/TOURNAMENT_FILE.md)).
 
@@ -40,7 +41,7 @@ It is open source (GPL-3.0-or-later) and nothing is specific to one machine.
 | ![Settings](docs/screenshots/13-settings.png) Settings, topology, housekeeping | ![Logs](docs/screenshots/14-logs.png) Logs |
 | ![Palette](docs/screenshots/15-command-palette.png) Command palette (Ctrl K) | ![Light](docs/screenshots/16-dashboard-light.png) Light theme |
 | ![Theater](docs/screenshots/18-pgn-viewer-theater.png) Game viewer, theater mode | ![Games](docs/screenshots/19-games-archive.png) Game archive: tournaments and external PGN files |
-| ![Board](docs/screenshots/20-board-appearance.png) Board themes and piece sets | ![Tournament file](docs/screenshots/21-tournament-file.png) Importing a tournament file written by Claude |
+| ![Board](docs/screenshots/20-board-appearance.png) Board appearance: minimal default, custom colours, 69 piece sets | ![Tournament file](docs/screenshots/21-tournament-file.png) Importing a tournament file written by Claude |
 
 The screenshots are produced by `npm run screenshots` (Playwright) on a demo workspace: the
 three tournaments of [CCRL_ScirptsTests](https://github.com/Tors3/CCRL_ScirptsTests) imported

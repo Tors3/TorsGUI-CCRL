@@ -73,8 +73,12 @@ test("board appearance is applied and remembered", async ({ page }) => {
   await page.reload();
   await expect(page.locator(".board-box").first()).toHaveClass(/board-theme-marble/);
   await expect(page.locator(".board-box").first()).toHaveClass(/pieces-fantasy/);
-  await page.getByTestId("theme-walnut").click();
-  await page.getByTestId("pieces-merida").click();
+  // custom colours
+  await page.getByTestId("theme-custom").click();
+  await page.getByLabel("Dark squares").fill("#336699");
+  await expect(page.locator(".board-box.board-theme-custom").first()).toHaveAttribute("style", /--sq-dark: #336699/);
+  await page.getByTestId("theme-minimal").click();
+  await page.getByTestId("pieces-cburnett").click();
 });
 
 test("wizard computes the total number of games", async ({ page }) => {

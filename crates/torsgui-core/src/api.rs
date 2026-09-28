@@ -418,6 +418,16 @@ impl App {
                 ok(rows)
             }
             "archive_sources" => ok(self.archive_sources(&store)?),
+            "piece_sets_user" => ok(crate::pieces::list(&self.ws.root.join("pieces"))),
+            "piece_set_import" => {
+                let dir: PathBuf = arg(&a, "dir")?;
+                let name: Option<String> = opt(&a, "name");
+                ok(crate::pieces::import(&self.ws.root.join("pieces"), &dir, name.as_deref())?)
+            }
+            "piece_set_delete" => {
+                crate::pieces::delete(&self.ws.root.join("pieces"), &arg::<String>(&a, "name")?)?;
+                ok(true)
+            }
             "archive_games" => {
                 let source: PathBuf = arg(&a, "source")?;
                 self.guard_path(&source)?;

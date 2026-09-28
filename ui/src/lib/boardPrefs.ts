@@ -1,4 +1,6 @@
 import { useSyncExternalStore } from "react";
+import type { UserPieceSet } from "../bindings/UserPieceSet";
+import { BUNDLED_PIECE_SETS } from "./pieceSets";
 
 /** Board appearance: a per-viewer preference kept in localStorage. */
 export type BoardPrefs = {
@@ -11,11 +13,16 @@ export type BoardPrefs = {
   sound: boolean;
   /** Best-move arrows from the engines' PV. */
   arrows: boolean;
+  /** Square colours of the "custom" theme. */
+  customLight: string;
+  customDark: string;
 };
 
-export const BOARD_THEMES = ["walnut", "maple", "marble", "tournament", "ocean", "slate", "classic"] as const;
+export const BOARD_THEMES = ["minimal", "slate", "ocean", "tournament", "classic", "walnut", "maple", "marble", "custom"] as const;
 export type BoardTheme = (typeof BOARD_THEMES)[number];
 export const THEME_LABEL: Record<BoardTheme, string> = {
+  minimal: "Minimal",
+  custom: "Custom",
   walnut: "Walnut",
   maple: "Maple",
   marble: "Marble",
@@ -25,19 +32,60 @@ export const THEME_LABEL: Record<BoardTheme, string> = {
   classic: "Classic brown",
 };
 
-/** Piece sets bundled in public/pieces (all GPL-compatible, see public/pieces/README.md). */
-export const PIECE_SETS = ["cburnett", "merida", "chessnut", "fantasy", "spatial", "mpchess"] as const;
-export type PieceSet = (typeof PIECE_SETS)[number];
-export const PIECE_LABEL: Record<PieceSet, string> = {
-  cburnett: "Cburnett",
-  merida: "Merida",
-  chessnut: "Chessnut",
-  fantasy: "Fantasy",
-  spatial: "Spatial",
-  mpchess: "MPChess",
+/** A bundled set id ("merida", "cburnett_blue") or "user:<name>" for an imported set. */
+export type PieceSet = string;
+export const PIECE_SETS: PieceSet[] = BUNDLED_PIECE_SETS.map((p) => p.id);
+export const PIECE_LABEL: Record<string, string> = Object.fromEntries(BUNDLED_PIECE_SETS.map((p) => [p.id, p.label]));
+
+// ------------------------------------------------------------------ piece CSS
+
+const ROLES: Record<string, string> = { P: "pawn", N: "knight", B: "bishop", R: "rook", Q: "queen", K: "king" };
+let userSets: UserPieceSet[] = [];
+const cssClass = (set: PieceSet) => `pieces-${set.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+export const piecesClass = cssClass;
+
+/** One stylesheet with the rules of every set (bundled: files; imported: data URIs). */
+function injectPieceCss() {
+  if (typeof document === "undefined") return;
+  const rules: string[] = [];
+  const add = (set: PieceSet, url: (c: "w" | "b", r: string) => string) => {
+    for (const c of ["w", "b"] as const)
+      for (const r of Object.keys(ROLES)) rules.push(`.${cssClass(set)} .cg-wrap piece.${ROLES[r]}.${c === "w" ? "white" : "black"}{background-image:url("${url(c, r)}")}`);
+  };
+  for (const id of PIECE_SETS) add(id, (c, r) => `/pieces/${id}/${c}${r}.svg`);
+  for (const u of userSets) add(`user:${u.name}`, (c, r) => u.pieces[`${c}${r}`]);
+  let el = document.getElementById("torsgui-pieces") as HTMLStyleElement | null;
+  if (!el) {
+    el = document.createElement("style");
+    el.id = "torsgui-pieces";
+    document.head.appendChild(el);
+  }
+  el.textContent = rules.join("\n");
+}
+injectPieceCss();
+
+export function setUserPieceSets(sets: UserPieceSet[]) {
+  userSets = sets;
+  injectPieceCss();
+  listeners.forEach((l) => l());
+}
+export const getUserPieceSets = () => userSets;
+
+export const DEFAULT_PREFS: BoardPrefs = {
+  theme: "minimal",
+  pieces: "cburnett",
+  animation: 220,
+  coordinates: true,
+  sound: false,
+  arrows: true,
+  customLight: "#e8e8e8",
+  customDark: "#9e9e9e",
 };
 
-export const DEFAULT_PREFS: BoardPrefs = { theme: "walnut", pieces: "merida", animation: 260, coordinates: true, sound: false, arrows: true };
+/** Inline square colours for the custom theme (the other themes are pure CSS). */
+export function themeStyle(p: BoardPrefs, theme: BoardTheme = p.theme): Record<string, string> | undefined {
+  return theme === "custom" ? { "--sq-light": p.customLight, "--sq-dark": p.customDark } : undefined;
+}
 
 const KEY = "torsgui.board";
 let current: BoardPrefs = load();
@@ -49,7 +97,7 @@ function load(): BoardPrefs {
     if (raw) {
       const p = { ...DEFAULT_PREFS, ...JSON.parse(raw) } as BoardPrefs;
       if (!BOARD_THEMES.includes(p.theme)) p.theme = DEFAULT_PREFS.theme;
-      if (!PIECE_SETS.includes(p.pieces)) p.pieces = DEFAULT_PREFS.pieces;
+      if (!PIECE_SETS.includes(p.pieces) && !p.pieces.startsWith("user:")) p.pieces = DEFAULT_PREFS.pieces;
       return p;
     }
   } catch {
@@ -80,6 +128,11 @@ export function useBoardPrefs(): BoardPrefs {
 
 /** Piece image URL (for material strips and previews). */
 export function pieceUrl(set: PieceSet, color: "w" | "b", role: "P" | "N" | "B" | "R" | "Q" | "K") {
+  if (set.startsWith("user:")) {
+    const u = userSets.find((x) => `user:${x.name}` === set);
+    if (u) return u.pieces[`${color}${role}`];
+    set = DEFAULT_PREFS.pieces;
+  }
   return `/pieces/${set}/${color}${role}.svg`;
 }
 

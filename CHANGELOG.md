@@ -38,8 +38,10 @@ First release.
   tournament as a file, and a template for assistants such as Claude.
 - Game archive (tournaments + external PGN files/folders) and a new game viewer: evaluation
   bar, captured material, clocks, next-move arrow, check highlight, autoplay, theater mode,
-  move list with evaluations; live board with ticking clocks and PV arrows; 7 board themes
-  and 6 GPL-compatible piece sets, animation speed, coordinates, optional move sound.
+  move list with evaluations; live board with ticking clocks and PV arrows; minimal flat
+  board by default, 9 board themes including custom colours, 69 redistributable piece sets
+  (sharechess/lichess, with credits) and import of any other set for personal use,
+  animation speed, coordinates, optional move sound.
 - AVX-512 / VNNI / x86-64-v4 builds as a personal option (flagged "not valid for CCRL",
   optionally preferred when the CPU supports them); manual choice of the build to install.
 - Import of the CCRL_ScirptsTests tournaments; §9 verification tests; mock UCI engine;
