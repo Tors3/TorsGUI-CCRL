@@ -12,4 +12,4 @@ eval: number | null,
 /**
  * Mate distance when the score is `+M5` / `-M3`.
  */
-mate: number | null, depth: number | null, seldepth: number | null, time_s: number | null, time_left_s: number | null, nodes: bigint | null, nps: bigint | null, note: string | null, };
+mate: number | null, depth: number | null, seldepth: number | null, time_s: number | null, time_left_s: number | null, nodes: number | null, nps: number | null, note: string | null, };

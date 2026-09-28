@@ -34,7 +34,7 @@ Every feature of §3 is reachable from the UI; the mapping is in [PROGRESS.md](P
 | UI component tests (12) | formatting, W/D/L widgets, state chip, progress bar, tournament action rules | CI |
 | Playwright smoke (7) | real backend on a demo workspace: dashboard, imported Triumviratus numbers, PGN viewer, wizard totals, export + forum post (§8 lines), command palette and `g` navigation, TC calculator, every screen without errors | Linux CI |
 | Screenshots | every screen at 1920×1080, light theme, 1280×800, live view with a real fastchess tournament | local (`npm run screenshots`) |
-| Tauri bundle | `.deb` built locally; NSIS/MSI/portable zip/AppImage/deb in the CI bundle job | CI |
+| Tauri bundle | `.deb` built locally and the release app started under Xvfb; NSIS/MSI/portable zip/AppImage/deb in the CI bundle job | CI |
 
 ## Known limitations
 

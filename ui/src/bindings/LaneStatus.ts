@@ -2,4 +2,4 @@
 import type { Job } from "./Job";
 import type { PlacementCheck } from "./PlacementCheck";
 
-export type LaneStatus = { node: number, partition: number, lane: number, busy: boolean, job: Job | null, pid: number | null, started_at: bigint | null, log_file: string | null, pgn_file: string, cpuset: string | null, placement: PlacementCheck | null, games_played: number, failures: number, };
+export type LaneStatus = { node: number, partition: number, lane: number, busy: boolean, job: Job | null, pid: number | null, started_at: number | null, log_file: string | null, pgn_file: string, cpuset: string | null, placement: PlacementCheck | null, games_played: number, failures: number, };

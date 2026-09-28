@@ -23,7 +23,7 @@ Legend: [x] done and tested · [~] done, verified only partially (see FINAL_REPO
 ## §3.2 NUMA / CPU placement
 - [x] Topology detection and view (nodes, groups, cores/SMT, caches)
 - [x] Lane planning `cores / (2 × threads)`, override
-- [~] Windows: suspended creation + Job Object with `JobObjectGroupInformationEx` + kill-on-close; engines inherit (CI Windows: integration + bench through jobs; not on a 2-node machine)
+- [~] Windows: suspended creation + Job Object with `JobObjectGroupInformationEx` + kill-on-close; engines inherit (Windows CI: the 7 integration tests and the bench pass through jobs; not yet on a 2-node machine)
 - [x] Placement verified at runtime and shown (Lanes tab)
 
 ## §3.3 Engines

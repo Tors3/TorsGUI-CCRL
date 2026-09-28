@@ -141,7 +141,16 @@ function Palette({ open, setOpen, toggleTheme }: { open: boolean; setOpen: (o: b
   };
   if (!open) return null;
   return (
-    <div className="overlay flex items-start justify-center pt-[14vh]" onClick={() => setOpen(false)}>
+    <div
+      className="overlay flex items-start justify-center pt-[14vh]"
+      onClick={() => setOpen(false)}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          setOpen(false);
+        }
+      }}
+    >
       <div className="w-[560px] max-w-[94vw]" onClick={(e) => e.stopPropagation()}>
         <Command label="Command palette" loop>
           <Command.Input autoFocus placeholder="Type a command or search…" />

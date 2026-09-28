@@ -85,6 +85,10 @@ jobs:
           cache-dependency-path: ui/package-lock.json
       - run: npm ci
         working-directory: ui
+      - name: TypeScript bindings are up to date with the Rust types
+        run: |
+          cargo test -p torsgui-core --lib export_bindings -q
+          git diff --exit-code -- ui/src/bindings
       - run: npm run typecheck
         working-directory: ui
       - run: npm test

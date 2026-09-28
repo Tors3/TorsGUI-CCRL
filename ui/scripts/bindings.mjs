@@ -1,5 +1,6 @@
-// Regenerates the TypeScript bindings from the Rust types (ts-rs) and maps
-// 64-bit integers to `number` (JSON numbers; values stay far below 2^53).
+// Regenerates the TypeScript bindings from the Rust types (ts-rs). 64-bit
+// integers are already `number` (TS_RS_LARGE_INT in .cargo/config.toml); the
+// replacement below is a safety net for older checkouts.
 import { execSync } from "node:child_process";
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

@@ -4,4 +4,4 @@ export type PowerInfo = { plan: string,
 /**
  * Minimum processor state on AC (Windows) in percent.
  */
-min_processor_state: number | null, governor: string | null, current_mhz: bigint | null, max_mhz: bigint | null, warnings: Array<string>, };
+min_processor_state: number | null, governor: string | null, current_mhz: number | null, max_mhz: number | null, warnings: Array<string>, };

@@ -99,9 +99,11 @@ test("screenshots", async ({ page }) => {
 
   await page.evaluate(() => localStorage.setItem("torsgui-theme", "light"));
   await page.goto("/#/");
+  await page.reload();
   await page.waitForTimeout(2000);
   await page.screenshot({ path: shot("16-dashboard-light") });
   await page.evaluate(() => localStorage.setItem("torsgui-theme", "dark"));
+  await page.reload();
 
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/#/");

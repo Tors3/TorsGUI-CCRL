@@ -4,4 +4,4 @@ export type EngineLive = { name: string, depth: number | null, seldepth: number 
 /**
  * centipawns from the engine's point of view
  */
-score_cp: number | null, mate: number | null, nodes: number | null, nps: number | null, pv: Array<string>, pv_san: Array<string>, time_ms: bigint | null, };
+score_cp: number | null, mate: number | null, nodes: number | null, nps: number | null, pv: Array<string>, pv_san: Array<string>, time_ms: number | null, };

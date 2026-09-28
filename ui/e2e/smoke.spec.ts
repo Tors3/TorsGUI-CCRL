@@ -57,6 +57,9 @@ test("command palette and keyboard navigation", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   await page.keyboard.press("Control+k");
   await expect(page.getByPlaceholder("Type a command or search…")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByPlaceholder("Type a command or search…")).toHaveCount(0);
+  await page.keyboard.press("Control+k");
   await page.keyboard.type("engines");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Engines" })).toBeVisible();
