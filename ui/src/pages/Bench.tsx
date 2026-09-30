@@ -110,7 +110,7 @@ export function Bench() {
 
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader title="Bench & calibration" sub="Stockfish 10 bench against the CCRL reference i7-4770K (2054 ms, 3 939 338 nodes)" />
+      <PageHeader help="bench-and-time-control" title="Bench & calibration" sub="Stockfish 10 bench against the CCRL reference i7-4770K (2054 ms, 3 939 338 nodes)" />
       <div className="grid gap-3" style={{ gridTemplateColumns: "340px 1fr 340px" }}>
         <Panel title="Run a bench">
           <div className="flex flex-col gap-2.5">

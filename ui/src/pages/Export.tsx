@@ -1,7 +1,8 @@
-import { Copy, FileArchive, RotateCcw, Save } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, FileArchive, Info, RotateCcw, Save, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import type { Checklist } from "../bindings/Checklist";
 import type { ExportOptions } from "../bindings/ExportOptions";
 import type { ExportResult } from "../bindings/ExportResult";
 import type { PostKind } from "../bindings/PostKind";
@@ -9,6 +10,57 @@ import type { Settings } from "../bindings/Settings";
 import type { TournamentSummary } from "../bindings/TournamentSummary";
 import { ErrorBox, Field, PageHeader, Panel, Seg, Spinner } from "../components/ui";
 import { call, usePoll } from "../lib/api";
+import { HelpLink } from "../components/HelpLink";
+
+const CHECK_ICON = {
+  ok: <CheckCircle2 size={14} style={{ color: "var(--win)" }} />,
+  info: <Info size={14} style={{ color: "var(--muted)" }} />,
+  warn: <AlertTriangle size={14} style={{ color: "var(--warn)" }} />,
+  fail: <XCircle size={14} style={{ color: "var(--loss)" }} />,
+};
+
+/** The checks a tester makes before sending results to CCRL, computed from the tournament. */
+function CcrlChecklist({ id, stamp }: { id: string; stamp: number }) {
+  const [c, setC] = useState<Checklist>();
+  const [err, setErr] = useState<string>();
+  useEffect(() => {
+    setC(undefined);
+    if (id) call<Checklist>("export_checklist", { id }).then(setC).catch((e) => setErr((e as Error).message));
+  }, [id, stamp]);
+  const fails = c?.items.filter((i) => i.status === "fail").length ?? 0;
+  const warns = c?.items.filter((i) => i.status === "warn").length ?? 0;
+  return (
+    <Panel
+      title={
+        <span className="flex items-center gap-2">
+          CCRL checklist
+          {c && (
+            <span className={`chip ${fails ? "chip-loss" : warns ? "chip-warn" : "chip-win"}`} data-testid="checklist-status">
+              {fails ? `${fails} to fix` : warns ? `ready · ${warns} to check` : "ready to submit"}
+            </span>
+          )}
+        </span>
+      }
+      actions={<HelpLink section="ccrl-submission-checklist" label="What each check means" />}
+    >
+      <ErrorBox error={err} />
+      {!c ? (
+        <Spinner />
+      ) : (
+        <div className="grid gap-x-6 gap-y-1.5 text-[12.5px]" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }} data-testid="checklist">
+          {c.items.map((i) => (
+            <div key={i.id} className="flex gap-2 items-start min-w-0" data-status={i.status}>
+              <span className="mt-0.5 shrink-0">{CHECK_ICON[i.status]}</span>
+              <span className="min-w-0">
+                <span className="font-medium">{i.label}</span> <span className="muted">— {i.detail}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+}
 
 const zipName = (base: string) => base.replace(/[\s[\]()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "") + ".zip";
 
@@ -25,6 +77,7 @@ export function ExportPage() {
   const [kind, setKind] = useState<PostKind>(sp.get("post") ? "finished" : "finished");
   const [tpl, setTpl] = useState("");
   const [post, setPost] = useState("");
+  const [stamp, setStamp] = useState(0);
 
   useEffect(() => {
     if (!id && ts?.length) setSp({ id: ts.find((t) => t.record.state === "completed")?.record.id ?? ts[0].record.id });
@@ -55,6 +108,7 @@ export function ExportPage() {
       const r = await call<ExportResult>("export_run", { id, options: opts, copy_to_output: copyOut });
       setRes(r);
       toast.success(`${r.games} games exported`);
+      setStamp((x) => x + 1);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -73,7 +127,7 @@ export function ExportPage() {
   const base = opts ? `[${opts.tester} ${opts.date}] ${res?.event ?? eventPreview} (hash ${opts.hash_mb}MB) (book ${opts.book}) (egtb ${opts.egtb}-man)` : "";
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader
+      <PageHeader help="export-and-post"
         title="Export & forum post"
         sub="CCRL submission (Gabor Szots' convention) and a short BBCode post"
         actions={
@@ -86,6 +140,7 @@ export function ExportPage() {
           </select>
         }
       />
+      {id && <CcrlChecklist id={id} stamp={stamp} />}
       <div className="grid grid-cols-2 gap-3">
         <Panel title="CCRL export">
           {!opts ? (

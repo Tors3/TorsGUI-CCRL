@@ -389,7 +389,7 @@ export function TournamentDetailPage() {
   const mle = st.elo.find((e) => e.name === st.seed);
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader
+      <PageHeader help="run-it"
         title={
           <span className="flex items-center gap-2">
             {r.name} <StateChip state={r.state} alive={d.summary.runner_alive} />

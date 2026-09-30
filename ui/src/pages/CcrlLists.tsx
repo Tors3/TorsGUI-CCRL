@@ -122,7 +122,7 @@ export function CcrlLists() {
 
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader
+      <PageHeader help="ccrl-lists"
         title="CCRL Lists"
         sub="Blitz and 40/15, 1CPU/4CPU/8CPU, all and best versions — fetched from computerchess.org.uk or imported by hand"
         actions={

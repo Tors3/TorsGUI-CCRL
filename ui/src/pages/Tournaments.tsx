@@ -95,7 +95,7 @@ export function Tournaments() {
   };
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader
+      <PageHeader help="create-a-gauntlet"
         title="Tournaments"
         sub="Gauntlets, multi-seed gauntlets, round robins and matches"
         actions={

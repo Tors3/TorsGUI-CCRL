@@ -8,6 +8,27 @@ TorsGUI keeps everything in a *workspace* folder (`%LOCALAPPDATA%\TorsGUI` on Wi
 one folder per tournament with its PGNs (`pgn/node<N>_lane<L>.pgn`), logs and exports. The PGN
 files are the source of truth for which games have been played.
 
+## Getting started
+
+**Getting started** (in the sidebar, or the button on the dashboard of a new installation) is
+a guided procedure: each step says what to do and why, shows whether it is already done on
+this machine, and has a button to do it. The steps are the sections of this guide:
+
+1. **Tester**: your name and site (used in the export).
+2. **fastchess**: download the pinned version (it plays the games).
+3. **Folders**: engines, books and the default opening book.
+4. **Bench**: the SF10 bench gives the machine factor and the local time control.
+5. **Engines**: add at least two engines from GitHub (or local files) and verify them.
+6. **CCRL list**: import the list for ratings, names and suggested opponents.
+7. **First tournament**: the wizard, then Live, Export and the post.
+
+**Try the demo** plays a small example tournament with the *TorsGUI demo engines* (two tiny
+built-in engines that play legal but weak chess in a few milliseconds per move; they are
+never meant for rating lists). It needs only fastchess: in a couple of minutes you see the
+runner at work, the live boards, the standings, the game viewer and the CCRL export with its
+checklist. The demo can be standard chess or Chess960, and it can be removed afterwards
+(tournament → delete).
+
 ## 1. New machine
 
 1. Install TorsGUI (installer, MSI or portable zip; AppImage/deb on Linux).
@@ -191,6 +212,28 @@ opening(round) = start + round − 1
   per-opponent `[code]` table ordered by list rating and a closing line naming the next queued
   tournament. **Copy** and paste it on the forum.
 
+### CCRL submission checklist
+
+Before sending results, the **Export** page checks the tournament and marks each point
+✔ ok, ⓘ information, ⚠ to check or ✖ to fix. *Ready to submit* means nothing is to fix.
+
+| Check | Why it matters | How to fix |
+|---|---|---|
+| All games played | a partial gauntlet gives an unbalanced result | let it finish, or stop after a complete pass (passes keep every pass balanced) |
+| Every opening with both colours | each opening must be played twice, colours reversed, or the result favours one side | resume the tournament: the missing games are replayed |
+| No duplicate games | a game played twice (e.g. after a crash) must count once | nothing: the export keeps the first of each slot |
+| No crashes, time losses or illegal moves | CCRL wants to know about them; they may point to a broken build or an overloaded machine | look at the games (Decisive, Terminations), mention them in the post, re-test the engine if needed |
+| Hash 512 MB per thread | CCRL condition (512 MB × threads, e.g. 2048 MB at 4CPU) | set the hash in the wizard (the default follows the rule) |
+| Ponder off | CCRL plays without pondering | remove `Ponder=true` from the engine's options |
+| Opening book | every game must start from a book position, the same book for all | set the book in the wizard |
+| Tablebases | the EGTB used is part of the file name (`egtb 5-man`) | set the Syzygy path (information only) |
+| CCRL builds (AVX2, 64-bit) | CCRL uses the AVX2 build, never AVX-512, VNNI, x86-64-v4 or 32-bit | reinstall the engine with the proposed build (Engines → Add from GitHub) |
+| Engines verified | an engine that fails `uci / isready / go` spoils games | Engines → Verify |
+| CCRL names | the list matches engines by name: `<Engine> <version>`; exported as `… 64-bit NCPU` | tournament → Configuration → Rename an engine; import the current CCRL list |
+| Time control from a bench | the TC must be the CCRL TC scaled by this machine's speed | Bench → run the SF10 bench (again if older than 90 days), then the TC calculator |
+| Variant and list | Chess960 games belong to the FRC list only, standard games to the others | pick the right list/variant in the wizard |
+| Tester name and site | used in the file name and the PGN `Site` tag | Settings → Tester |
+
 ## 8. Chess960 (Fischer Random)
 
 In the wizard choose the **FRC (960)** list (or just the **Chess960** variant): fastchess plays
@@ -250,6 +293,7 @@ event log and every runner, console and per-game log (last 96 KB, refreshed).
 
 ## Keyboard
 
-`Ctrl K` or `/` command palette · `g` then `d t l a e c b x s o` to navigate (`a` = Games) ·
+`Ctrl K` or `/` command palette · `g` then `d t l a e c b x s o r h` to navigate (`a` = Games,
+`r` = Getting started, `h` = Help) ·
 `n` new tournament · `t` theme · in the game viewer `←` `→` `Home` `End`, `Space` play/pause,
 `f` flip, `t` theater mode.

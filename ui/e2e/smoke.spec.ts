@@ -95,6 +95,50 @@ test("Chess960: FRC list, generated start positions, engines supporting it, live
   }
 });
 
+test("in-app help: sections, search, the ? button of a screen", async ({ page }) => {
+  await page.goto("/#/help");
+  await expect(page.getByTestId("help-body")).toContainText("CCRL submission checklist");
+  await page.getByTestId("help-search").fill("Chess960");
+  await expect(page.getByTestId("help-body")).toContainText("UCI_Chess960");
+  await expect(page.getByTestId("help-body")).not.toContainText("Bench and time control");
+  await page.goto("/#/engines");
+  await page.getByTestId("help-link").first().click();
+  await expect(page).toHaveURL(/#\/help\?s=engines/);
+  await expect(page.locator("#engines")).toBeVisible();
+  // the tournament-file guide is reachable too
+  await page.goto("/#/help?doc=file");
+  await expect(page.getByTestId("help-body")).toContainText("after_import");
+});
+
+test("CCRL checklist on the export page", async ({ page }) => {
+  const list = await (await page.request.post("/api/tournaments_list", { data: {} })).json();
+  const tri = list.find((x: any) => x.record.name.includes("Triumviratus"));
+  test.skip(!tri, "reference data not available");
+  await page.goto(`/#/export?id=${encodeURIComponent(tri.record.id)}`);
+  const c = page.getByTestId("checklist");
+  await expect(c).toContainText("All games played");
+  await expect(c.locator('[data-status="ok"]').filter({ hasText: "All games played" })).toHaveCount(1);
+  await expect(c.locator('[data-status="ok"]').filter({ hasText: "Hash 512 MB per thread" })).toHaveCount(1);
+  await expect(c.locator('[data-status="ok"]').filter({ hasText: "Every opening with both colours" })).toHaveCount(1);
+  await expect(page.getByTestId("checklist-status")).toBeVisible();
+});
+
+test("getting started: live steps and the demo tournament", async ({ page }) => {
+  await page.goto("/#/");
+  await page.goto("/#/start");
+  await expect(page.getByTestId("step-tester")).toHaveAttribute("data-done", "yes");
+  await expect(page.getByTestId("step-fastchess")).toHaveAttribute("data-done", "yes");
+  await expect(page.getByTestId("setup-progress")).toContainText("/7 done");
+  await page.getByTestId("demo-standard").click();
+  await expect(page.getByTestId("demo-tour")).toBeVisible();
+  const list = await (await page.request.post("/api/tournaments_list", { data: {} })).json();
+  const demo = list.find((x: any) => x.record.name.startsWith("Demo Blitz gauntlet"));
+  expect(demo).toBeTruthy();
+  expect(demo.record.expected_games).toBe(16);
+  const engines = await (await page.request.post("/api/engines_list", { data: {} })).json();
+  expect(engines.filter((e: any) => e.notes.startsWith("TorsGUI demo engine")).length).toBe(3);
+});
+
 test("board appearance is applied and remembered", async ({ page }) => {
   await page.goto("/#/settings");
   await page.getByTestId("theme-marble").click();
@@ -156,7 +200,7 @@ test("TC calculator reproduces the reference Blitz TC", async ({ page }) => {
 test("every screen renders without errors", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  for (const p of ["/", "/tournaments", "/live", "/games", "/engines", "/ccrl", "/bench", "/export", "/settings", "/logs"]) {
+  for (const p of ["/", "/tournaments", "/live", "/games", "/engines", "/ccrl", "/bench", "/export", "/settings", "/logs", "/help", "/start"]) {
     await page.goto(`/#${p}`);
     await page.waitForTimeout(600);
   }

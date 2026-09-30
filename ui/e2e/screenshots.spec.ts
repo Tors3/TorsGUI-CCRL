@@ -130,6 +130,13 @@ test("screenshots", async ({ page }) => {
   await page.waitForTimeout(1500);
   await page.screenshot({ path: shot("23-wizard-chess960") });
 
+  await page.goto("/#/start");
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: shot("24-getting-started") });
+  await page.goto("/#/help?s=ccrl-submission-checklist");
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: shot("25-help") });
+
   await page.goto("/#/engines");
   await page.waitForTimeout(1500);
   await page.screenshot({ path: shot("09-engines") });

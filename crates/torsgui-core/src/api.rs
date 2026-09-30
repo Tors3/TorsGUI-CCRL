@@ -445,6 +445,12 @@ impl App {
             "live_lanes" => ok(self.live_lanes(&store)?),
 
             // ---------------------------------------------------------- export & post
+            "setup_status" => ok(self.setup_status(&store)?),
+            "demo_create" => {
+                let variant: Variant = opt(&a, "variant").unwrap_or_default();
+                ok(self.demo_create(&store, variant)?)
+            }
+            "export_checklist" => ok(self.export_checklist(&store, &arg::<String>(&a, "id")?)?),
             "export_defaults" => {
                 let id: String = arg(&a, "id")?;
                 ok(self.export_defaults(&store, &id)?)
@@ -1036,6 +1042,125 @@ impl App {
             p.event_example = j.event(&cfg.event);
         }
         p
+    }
+
+    fn setup_status(&self, store: &crate::store::Store) -> Result<crate::demo::SetupStatus> {
+        use crate::demo::SetupStep;
+        let s = store.settings()?;
+        let fc = crate::fastchess::resolve("", &s.fastchess_path, &self.ws.tools_dir(), &s.fastchess_version);
+        let engines = store.engines()?;
+        let real: Vec<&EngineEntry> = engines.iter().filter(|e| e.notes != crate::demo::DEMO_NOTE).collect();
+        let verified = real.iter().filter(|e| e.verify_status == "ok" && !e.path.is_empty()).count();
+        let bench = store.bench_runs()?.into_iter().filter_map(|(_, _, at, d)| serde_json::from_value::<crate::bench::BenchRun>(d).ok().map(|r| (at, r))).filter(|(_, r)| r.valid).last();
+        let lists = store.ccrl_lists()?;
+        let tournaments = store.tournaments()?;
+        let is_demo = |t: &TournamentRecord| t.config.participants.first().and_then(|p| p.uci_id.as_deref()) == Some("TorsGUI Demo Engine");
+        let own = tournaments.iter().filter(|t| !t.imported && !is_demo(t)).count();
+        let book_ok = !s.default_book.is_empty() && Path::new(&s.default_book).exists();
+        let steps = vec![
+            SetupStep { id: "tester".into(), done: !s.tester_name.trim().is_empty() && !s.site.trim().is_empty(), detail: if s.tester_name.trim().is_empty() { "no tester name yet".into() } else { format!("{} · {}", s.tester_name, if s.site.is_empty() { "no site" } else { &s.site }) } },
+            SetupStep { id: "fastchess".into(), done: fc.exists(), detail: if fc.exists() { crate::fastchess::version_of(&fc).unwrap_or_else(|_| fc.to_string_lossy().to_string()) } else { "not installed".into() } },
+            SetupStep { id: "folders".into(), done: book_ok, detail: if book_ok { format!("book {}", Path::new(&s.default_book).file_name().unwrap_or_default().to_string_lossy()) } else { "no default opening book".into() } },
+            SetupStep { id: "bench".into(), done: bench.is_some(), detail: bench.map(|(at, r)| format!("latest bench {} ({})", &at[..10.min(at.len())], r.cpu)).unwrap_or_else(|| "no bench yet".into()) },
+            SetupStep { id: "engines".into(), done: verified >= 2, detail: format!("{verified} verified engine(s) in the library") },
+            SetupStep { id: "ccrl".into(), done: !lists.is_empty(), detail: if lists.is_empty() { "no list imported".into() } else { format!("{} list(s): {}", lists.len(), lists.iter().map(|l| l.list.clone()).collect::<std::collections::BTreeSet<_>>().into_iter().collect::<Vec<_>>().join(", ")) } },
+            SetupStep { id: "tournament".into(), done: own > 0, detail: format!("{own} tournament(s) of your own") },
+        ];
+        let done = steps.iter().filter(|x| x.done).count() as u32;
+        let demos = tournaments.iter().filter(|t| is_demo(t)).map(|t| (t.id.clone(), t.name.clone(), format!("{:?}", t.state).to_lowercase())).collect();
+        Ok(crate::demo::SetupStatus { total: steps.len() as u32, steps, done, demo_engine: crate::demo::engine_path().is_some(), fastchess: fc.exists(), demos })
+    }
+
+    /// Creates the demo gauntlet (and the demo engines in the library) and starts it.
+    fn demo_create(&self, store: &crate::store::Store, variant: Variant) -> Result<Value> {
+        let s = store.settings()?;
+        let fc = crate::fastchess::resolve("", &s.fastchess_path, &self.ws.tools_dir(), &s.fastchess_version);
+        if !fc.exists() {
+            bail!("fastchess is not installed yet: step 2 (Settings → fastchess → Download)");
+        }
+        let exe = crate::demo::engine_path().context("the demo engine is not part of this build")?;
+        let mut ids = Vec::new();
+        for (name, ver, strength, movetime) in crate::demo::DEMO_ENGINES {
+            let display = crate::names::display_name(name, ver);
+            let existing = store.engines()?.into_iter().find(|e| e.display_name == display && e.notes == crate::demo::DEMO_NOTE && Path::new(&e.path).exists());
+            let id = match existing {
+                Some(e) => e.id,
+                None => {
+                    let mut e = self.add_local(store, &exe, Some(name.to_string()), Some(ver.to_string()))?;
+                    e.notes = crate::demo::DEMO_NOTE.into();
+                    e.used = false;
+                    e.default_options.insert("Strength".into(), strength.to_string());
+                    e.default_options.insert("MoveTime".into(), movetime.to_string());
+                    store.save_engine(&e)?;
+                    e.id
+                }
+            };
+            ids.push(id);
+        }
+        let dir = self.ws.root.join("demo");
+        let book = if variant == Variant::Chess960 { crate::chess960::write_book(&dir, &crate::chess960::BookSpec::default())? } else { crate::demo::write_openings(&dir)? };
+        let topo = crate::platform::os().topology();
+        let (node, cores) = topo.nodes.first().map(|n| (n.id, n.physical_cores)).unwrap_or((0, 2));
+        let cfg = crate::demo::tournament(&exe, &ids, variant, &book, node, (cores / 2).clamp(1, 2));
+        let rec = TournamentRecord::new(cfg);
+        store.insert_tournament(&rec)?;
+        std::fs::create_dir_all(self.ws.pgn_dir(&rec.id))?;
+        std::fs::write(self.ws.tournament_dir(&rec.id).join("config.json"), serde_json::to_string_pretty(&rec.config)?)?;
+        store.push_event("info", "tournament_created", Some(&rec.id), &format!("{} created (demo, {} games)", rec.name, rec.expected_games))?;
+        store.enqueue(&rec.id)?;
+        let busy = store.tournaments()?.into_iter().any(|t| t.id != rec.id && t.state == TState::Running && runner::is_running(&self.ws.tournament_dir(&t.id)));
+        let started = !busy;
+        if started {
+            store.set_desired(&rec.id, Desired::Run)?;
+            runner::launch(&self.ws, &rec.id, s.use_task_scheduler)?;
+        }
+        ok(json!({"id": rec.id, "started": started}))
+    }
+
+    fn export_checklist(&self, store: &crate::store::Store, id: &str) -> Result<crate::checklist::Checklist> {
+        let t = store.tournament(id)?.context("not found")?;
+        let loaded = self.loaded(store, id)?;
+        let st = analysis::tournament_standings(&t.config, &loaded, None, RowOrder::Config);
+        let summary = self.summary(t.clone(), true);
+        let s = store.settings()?;
+        let engines: Vec<Option<EngineEntry>> = t.config.participants.iter().map(|p| p.engine_id.and_then(|id| store.engine(id).ok().flatten())).collect();
+        // the latest valid bench: its factor range over the levels
+        let bench = store
+            .bench_runs()?
+            .into_iter()
+            .filter_map(|(_, _, at, d)| serde_json::from_value::<crate::bench::BenchRun>(d).ok().map(|r| (at, r)))
+            .filter(|(_, r)| r.valid && !r.levels.is_empty())
+            .last()
+            .map(|(at, r)| {
+                let f: Vec<f64> = r.levels.iter().map(|l| l.factor).filter(|f| f.is_finite() && *f > 0.0).collect();
+                (at, f.iter().cloned().fold(f64::INFINITY, f64::min), f.iter().cloned().fold(0.0, f64::max))
+            })
+            .filter(|(_, lo, hi)| lo.is_finite() && *hi > 0.0);
+        let lists = store.ccrl_lists()?;
+        let in_list = if lists.iter().any(|l| l.list == t.config.ccrl_list) {
+            let aliases: HashMap<String, String> = store.aliases()?.into_iter().map(|(a, c, _)| (a, c)).collect();
+            let idx = RatingIndex::new(&lists, &t.config.ccrl_list, aliases, s.default_cpu_gap);
+            t.config.opponents().iter().map(|p| {
+                let r = idx.rating(&p.name, t.config.threads);
+                (p.name.clone(), r.rating.is_some() && !r.estimated)
+            }).collect()
+        } else {
+            vec![]
+        };
+        let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+        Ok(crate::checklist::check(&crate::checklist::Input {
+            cfg: &t.config,
+            standings: &st,
+            done: summary.record.done_games,
+            expected: t.expected_games,
+            imported: t.imported,
+            engines,
+            tester: &s.tester_name,
+            site: &s.site,
+            bench,
+            today: &today,
+            in_list,
+        }))
     }
 
     fn export_defaults(&self, store: &crate::store::Store, id: &str) -> Result<ExportOptions> {

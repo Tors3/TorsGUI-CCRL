@@ -25,7 +25,7 @@ export function Logs() {
   const rows = (events ?? []).filter((e) => level === "all" || e.level === level);
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader
+      <PageHeader help="maintenance"
         title="Logs"
         sub="Events from the runners and the app, runner logs and per-game fastchess logs"
         actions={

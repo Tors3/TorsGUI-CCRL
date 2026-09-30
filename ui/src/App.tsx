@@ -3,7 +3,9 @@ import { Command } from "cmdk";
 import {
   Activity,
   BarChart3,
+  CircleHelp,
   Crown,
+  Rocket,
   Cpu,
   Download,
   Gauge,
@@ -35,6 +37,8 @@ import { Dashboard } from "./pages/Dashboard";
 import { Engines } from "./pages/Engines";
 import { ExportPage } from "./pages/Export";
 import { Games } from "./pages/Games";
+import { GettingStarted } from "./pages/GettingStarted";
+import { Help } from "./pages/Help";
 import { Live } from "./pages/Live";
 import { Logs } from "./pages/Logs";
 import { SettingsPage } from "./pages/Settings";
@@ -53,6 +57,8 @@ const NAV = [
   { to: "/export", label: "Export", icon: Download, key: "x" },
   { to: "/settings", label: "Settings", icon: SettingsIcon, key: "s" },
   { to: "/logs", label: "Logs", icon: ScrollText, key: "o" },
+  { to: "/start", label: "Getting started", icon: Rocket, key: "r" },
+  { to: "/help", label: "Help", icon: CircleHelp, key: "h" },
 ];
 
 function useTheme() {
@@ -297,6 +303,8 @@ function Layout() {
             <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
             <Route path="/live" element={<Live />} />
             <Route path="/games" element={<Games />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/start" element={<GettingStarted />} />
             <Route path="/engines" element={<Engines />} />
             <Route path="/ccrl" element={<CcrlLists />} />
             <Route path="/bench" element={<Bench />} />

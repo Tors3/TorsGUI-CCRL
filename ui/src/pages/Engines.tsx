@@ -251,7 +251,7 @@ export function Engines() {
   const flagged = engines.filter((e) => e.flags.length).length;
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader
+      <PageHeader help="engines"
         title="Engines"
         sub={`${engines.length} engines · ${verified} verified · ${flagged} flagged`}
         actions={

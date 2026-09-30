@@ -31,7 +31,9 @@ struct Cfg {
 }
 
 fn parse_args() -> Cfg {
-    let mut c = Cfg { name: "MockUCI".into(), strength: 50, movetime: 5, seed: 1, crash_after: None, hang_after: None, slow_start: 0, illegal_after: None, syzygy: true, frc: true };
+    // the copy bundled with TorsGUI for the demo tournament introduces itself as such
+    let bundled = std::env::current_exe().ok().and_then(|p| p.file_stem().map(|s| s.to_string_lossy().starts_with("torsgui-demo-engine"))).unwrap_or(false);
+    let mut c = Cfg { name: if bundled { "TorsGUI Demo Engine".into() } else { "MockUCI".into() }, strength: 50, movetime: 5, seed: 1, crash_after: None, hang_after: None, slow_start: 0, illegal_after: None, syzygy: true, frc: true };
     let a: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
     while i < a.len() {
@@ -121,7 +123,7 @@ fn score_move(b: &Board, m: Move) -> i32 {
 }
 
 fn main() {
-    let cfg = parse_args();
+    let mut cfg = parse_args();
     // stdin is read on its own thread so that a "hung search" still obeys quit
     let (tx, rx) = std::sync::mpsc::channel::<String>();
     std::thread::spawn(move || {
@@ -164,6 +166,8 @@ fn main() {
                 if cfg.frc {
                     let _ = writeln!(out, "option name UCI_Chess960 type check default false");
                 }
+                let _ = writeln!(out, "option name Strength type spin default {} min 0 max 100", cfg.strength);
+                let _ = writeln!(out, "option name MoveTime type spin default {} min 1 max 5000", cfg.movetime);
                 let _ = writeln!(out, "uciok");
             }
             Some("isready") => {
@@ -174,6 +178,16 @@ fn main() {
                 let l = line.to_lowercase();
                 if cfg.frc && l.contains("name uci_chess960") {
                     chess960 = l.trim_end().ends_with("value true");
+                }
+                let value = || l.rsplit_once(" value ").and_then(|(_, v)| v.trim().parse::<u64>().ok());
+                if l.contains("name strength ") {
+                    if let Some(v) = value() {
+                        cfg.strength = v.min(100) as u32;
+                    }
+                } else if l.contains("name movetime ") {
+                    if let Some(v) = value() {
+                        cfg.movetime = v.clamp(1, 5000);
+                    }
                 }
             }
             Some("position") => {

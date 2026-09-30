@@ -498,3 +498,101 @@ cg-board {
   color: #b48cff;
   background: rgba(180, 140, 255, 0.14);
 }
+
+/* in-app guide */
+.help-body {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text-2);
+  max-width: 980px;
+}
+.help-body h1 {
+  font-size: 22px;
+  font-weight: 650;
+  color: var(--text);
+  margin: 4px 0 10px;
+}
+.help-body h2 {
+  font-size: 17px;
+  font-weight: 620;
+  color: var(--text);
+  margin: 26px 0 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.help-body h3 {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 18px 0 6px;
+}
+.help-body p {
+  margin: 8px 0;
+}
+.help-body ul,
+.help-body ol {
+  margin: 6px 0 10px 22px;
+}
+.help-body ul {
+  list-style: disc;
+}
+.help-body ol {
+  list-style: decimal;
+}
+.help-body li {
+  margin: 3px 0;
+}
+.help-body strong {
+  color: var(--text);
+}
+.help-body a {
+  color: var(--accent-2);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.help-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+.help-body pre {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow: auto;
+  margin: 10px 0;
+}
+.help-body pre code {
+  border: 0;
+  padding: 0;
+  background: none;
+}
+.help-body table {
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 12.5px;
+}
+.help-body th,
+.help-body td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.help-body th {
+  background: var(--bg-2);
+  color: var(--text);
+}
+.help-flash {
+  animation: help-flash 1.6s ease-out;
+}
+@keyframes help-flash {
+  0%,
+  30% {
+    background: var(--accent-bg);
+  }
+}

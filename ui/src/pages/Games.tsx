@@ -85,7 +85,7 @@ export function Games() {
   );
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader
+      <PageHeader help="games-viewer-and-board"
         title="Games"
         sub={`${sources?.length ?? 0} sources · ${total} games · replay with board, evaluation and clocks`}
         actions={

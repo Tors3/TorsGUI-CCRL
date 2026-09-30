@@ -240,7 +240,7 @@ pub fn is_frc_list(list: &str) -> bool {
     l.contains("FRC") || l.contains("960")
 }
 
-fn nominal_for(list: &str) -> crate::tc::NominalTc {
+pub fn nominal_for(list: &str) -> crate::tc::NominalTc {
     let id = if list.contains("40/15") || list.contains("15") { "40/15" } else if list.contains("40/2") || is_frc_list(list) { "40/2" } else { "blitz" };
     crate::tc::presets().into_iter().find(|p| p.id == id).unwrap()
 }

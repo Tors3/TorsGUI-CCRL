@@ -216,7 +216,7 @@ export function Wizard() {
 
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader title="New tournament" sub="Every opening is played twice with colours reversed; openings are split into disjoint blocks per node, pass and pairing." />
+      <PageHeader help="create-a-gauntlet" title="New tournament" sub="Every opening is played twice with colours reversed; openings are split into disjoint blocks per node, pass and pairing." />
       <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 360px" }}>
         <div className="flex flex-col gap-3 min-w-0">
           <Panel title="1 · Type">

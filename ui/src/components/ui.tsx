@@ -1,3 +1,4 @@
+import { HelpLink } from "./HelpLink";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { AlertTriangle, Loader2, X } from "lucide-react";
@@ -165,14 +166,17 @@ export function Spinner({ size = 14 }: { size?: number }) {
   return <Loader2 size={size} className="animate-spin" />;
 }
 
-export function PageHeader(props: { title: ReactNode; sub?: ReactNode; actions?: ReactNode }) {
+export function PageHeader(props: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; help?: string }) {
   return (
     <div className="flex items-end justify-between gap-3 mb-3">
       <div className="min-w-0">
         <h1 className="text-[18px] font-semibold tracking-tight truncate">{props.title}</h1>
         {props.sub && <div className="muted text-[12.5px] truncate">{props.sub}</div>}
       </div>
-      <div className="flex items-center gap-2 shrink-0">{props.actions}</div>
+      <div className="flex items-center gap-2 shrink-0">
+        {props.actions}
+        {props.help && <HelpLink section={props.help} />}
+      </div>
     </div>
   );
 }

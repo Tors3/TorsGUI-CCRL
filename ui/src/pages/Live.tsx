@@ -195,7 +195,7 @@ export function Live() {
   const cur = lanes.find((l) => `${l.tournament_id}/${l.lane.partition}/${l.lane.lane}` === open) ?? null;
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader title="Live" sub={`${busy} games in progress on ${lanes.length} lanes · engine logs tailed incrementally`} />
+      <PageHeader help="run-it" title="Live" sub={`${busy} games in progress on ${lanes.length} lanes · engine logs tailed incrementally`} />
       <ErrorBox error={error} />
       {lanes.length === 0 ? (
         <Panel>

@@ -97,7 +97,7 @@ export function SettingsPage() {
   );
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader
+      <PageHeader help="new-machine"
         title="Settings"
         sub={info ? `TorsGUI ${info.version} · workspace ${info.workspace} · ${info.os}` : ""}
         actions={

@@ -11,6 +11,8 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: { "/api": "http://127.0.0.1:7878" },
+    // the in-app help imports the Markdown guides from ../docs
+    fs: { allow: [".."] },
   },
   build: { target: "es2021", chunkSizeWarningLimit: 1500 },
   test: {

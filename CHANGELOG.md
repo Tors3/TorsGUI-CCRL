@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0] - 2026-09-30
+
+### Added
+- **Getting started**: a guided setup (tester, fastchess, folders and book, bench, engines,
+  CCRL list, first tournament) with the live status of each step, why it matters and a button
+  to do it; a banner on the dashboard until the setup is complete.
+- **Demo tournament**: one click plays a short gauntlet (standard or Chess960) with three
+  bundled *TorsGUI demo engines* through the real runner and fastchess, with a short tour of
+  Live, the tournament, Games and Export. The demo engine ships with the app as a sidecar.
+- **In-app help**: the user guide and the tournament-file guide inside TorsGUI (offline),
+  with contents, search, and a **?** button on every screen that opens its section.
+- **CCRL submission checklist** on the Export page: games, colour pairs, duplicates,
+  terminations, hash rule, ponder, book, tablebases, CCRL builds, verified engines, names,
+  time control against the latest bench, variant/list, tester and site; each check explained
+  in the guide.
+
 ## [0.2.0] - 2026-09-30
 
 ### Added

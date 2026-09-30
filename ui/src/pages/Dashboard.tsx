@@ -1,4 +1,5 @@
-import { ArrowDown, ArrowUp, CheckCircle2, Cpu, HardDrive, Play, Plus, Server, Trophy, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCircle2, Cpu, HardDrive, Play, Plus, Rocket, Server, Trophy, X } from "lucide-react";
+import type { SetupStatus } from "../bindings/SetupStatus";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { Health } from "../bindings/Health";
@@ -150,7 +151,7 @@ export function Dashboard() {
   };
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader
+      <PageHeader help="run-it"
         title="Dashboard"
         sub={data ? `${running.length} running · ${queued.length} queued · ${ts.length} tournaments` : "Loading…"}
         actions={
@@ -164,6 +165,7 @@ export function Dashboard() {
           </>
         }
       />
+      <SetupBanner />
       <ErrorBox error={error} />
       <div className="grid grid-cols-6 gap-3">
         <Kpi label="Running" value={running.length} sub={`${running.reduce((s, t) => s + t.progress.lanes, 0)} lanes`} tone={running.length ? "win" : undefined} />
@@ -255,6 +257,26 @@ export function Dashboard() {
           </Panel>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Shown until the setup is complete: a way into Getting started and the demo. */
+function SetupBanner() {
+  const { data } = usePoll<SetupStatus>("setup_status", {}, 15000);
+  if (!data || data.done === data.total) return null;
+  return (
+    <div className="panel px-4 py-3 flex items-center gap-4" style={{ borderColor: "var(--accent)", background: "var(--accent-bg)" }} data-testid="setup-banner">
+      <Rocket size={20} style={{ color: "var(--accent-2)" }} />
+      <div className="flex-1 min-w-0">
+        <div className="font-medium">New to TorsGUI?</div>
+        <div className="muted text-[12.5px]">
+          {data.done}/{data.total} setup steps done. The guided setup walks you through the rest, and a 3-minute demo tournament shows how everything works.
+        </div>
+      </div>
+      <Link className="btn btn-primary" to="/start">
+        Getting started
+      </Link>
     </div>
   );
 }
