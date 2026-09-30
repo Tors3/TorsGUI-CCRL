@@ -3,6 +3,7 @@ import type { Adjudication } from "./Adjudication";
 import type { Participant } from "./Participant";
 import type { Placement } from "./Placement";
 import type { TournamentKind } from "./TournamentKind";
+import type { Variant } from "./Variant";
 
 export type TournamentConfig = { name: string, kind: TournamentKind, participants: Array<Participant>, 
 /**
@@ -51,4 +52,4 @@ max_slot_attempts: number,
 /**
  * fastchess binary override (empty = the managed one).
  */
-fastchess: string, startup_ms: number, };
+fastchess: string, startup_ms: number, variant: Variant, };

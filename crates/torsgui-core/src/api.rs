@@ -624,6 +624,13 @@ impl App {
 
             // ---------------------------------------------------------- bench & TC
             "tc_presets" => ok(crate::tc::presets()),
+            "chess960_book" => {
+                let spec: crate::chess960::BookSpec = opt(&a, "spec").unwrap_or_default();
+                let dir = store.settings()?.books_dir;
+                let path = crate::chess960::write_book(Path::new(&dir), &spec)?;
+                let positions = crate::chess960::book_positions(&spec).len();
+                ok(json!({"path": path.to_string_lossy(), "positions": positions}))
+            }
             "tc_compute" => {
                 let n: crate::tc::NominalTc = arg(&a, "nominal")?;
                 let f: f64 = arg(&a, "factor")?;
@@ -758,7 +765,16 @@ impl App {
         };
         let topo = crate::platform::os().topology();
         let env = crate::tournament_file::Env { engines: &engines, settings: &s, nodes: topo.nodes.iter().map(|n| (n.id, n.physical_cores)).collect(), rating: &rating };
-        let imp = crate::tournament_file::build(&f, &env);
+        let mut imp = crate::tournament_file::build(&f, &env);
+        if let Some(c) = imp.config.as_mut() {
+            if c.variant == Variant::Chess960 && c.book.is_empty() {
+                let spec = crate::chess960::BookSpec::default();
+                let path = crate::chess960::write_book(Path::new(&s.books_dir), &spec)?;
+                c.book = path.to_string_lossy().to_string();
+                c.book_format = "epd".into();
+                imp.warnings.push(format!("Chess960 book: all 960 start positions (shuffled, seed {}), both colours each: {}", spec.seed, c.book));
+            }
+        }
         let preview = imp.config.as_ref().map(|c| self.preview(c)).unwrap_or_default();
         Ok((imp, preview))
     }
@@ -992,11 +1008,22 @@ impl App {
                 p.warnings.push(format!("{}: executable not found ({})", pp.name, pp.cmd));
             }
         }
+        let frc = cfg.variant == Variant::Chess960;
+        if frc && !cfg.book.to_lowercase().ends_with(".epd") {
+            p.errors.push("Chess960 needs a book of start positions (.epd): generate one (all 960 positions, a random set or double Chess960)".into());
+        }
         if let Ok(store) = self.ws.open() {
             for pp in &cfg.participants {
                 if let Some(e) = pp.engine_id.and_then(|id| store.engine(id).ok().flatten()) {
                     if e.flags.iter().any(|f| f == NOT_CCRL_FLAG) {
                         p.warnings.push(format!("{}: AVX-512 build (personal option): the results are not valid for CCRL", pp.name));
+                    }
+                    if frc && !e.chess960 {
+                        if e.options.is_empty() {
+                            p.warnings.push(format!("{}: UCI options unknown (verify the engine): Chess960 support not confirmed", pp.name));
+                        } else {
+                            p.errors.push(format!("{} does not support Chess960 (no UCI_Chess960 option)", pp.name));
+                        }
                     }
                 }
             }
@@ -1336,6 +1363,7 @@ impl Default for TournamentRecord {
             max_slot_attempts: 3,
             fastchess: String::new(),
             startup_ms: 60000,
+            variant: crate::model::Variant::Standard,
         })
     }
 }

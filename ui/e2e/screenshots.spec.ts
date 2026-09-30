@@ -104,6 +104,32 @@ test("screenshots", async ({ page }) => {
   await page.screenshot({ path: shot("21-tournament-file") });
   await page.keyboard.press("Escape");
 
+  if (live) {
+    await page.goto(`/#/tournaments/${encodeURIComponent(live.record.id)}`);
+    await page.waitForTimeout(1200);
+    await page.getByRole("tab", { name: "Games" }).click();
+    await page.waitForTimeout(1000);
+    const frcRows = page.getByTestId("games-table").locator("tbody tr");
+    if (await frcRows.count()) {
+      await frcRows.first().click();
+      await page.waitForTimeout(1200);
+      await page.keyboard.press("Home");
+      for (let i = 0; i < 12; i++) await page.keyboard.press("ArrowRight");
+      await page.waitForTimeout(800);
+      await page.screenshot({ path: shot("22-chess960-game") });
+      await page.keyboard.press("Escape");
+    }
+  }
+  await page.goto("/#/tournaments/new");
+  await page.waitForTimeout(1000);
+  const s2 = page.getByLabel(/seed Mock Alpha/);
+  if (await s2.count()) await s2.check();
+  const o2 = page.getByLabel(/opponent Mock Bravo/);
+  if (await o2.count()) await o2.check();
+  await page.getByRole("button", { name: "FRC (960)", exact: true }).click();
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: shot("23-wizard-chess960") });
+
   await page.goto("/#/engines");
   await page.waitForTimeout(1500);
   await page.screenshot({ path: shot("09-engines") });

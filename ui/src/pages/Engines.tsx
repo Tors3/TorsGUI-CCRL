@@ -303,6 +303,11 @@ export function Engines() {
                       ) : (
                         e.display_name
                       )}
+                      {e.chess960 && (
+                        <span className="chip chip-accent ml-1.5" title="declares UCI_Chess960: can play Fischer Random">
+                          960
+                        </span>
+                      )}
                       <div className="mono muted text-[11px] truncate max-w-[260px]" title={e.asset}>
                         {e.asset}
                       </div>

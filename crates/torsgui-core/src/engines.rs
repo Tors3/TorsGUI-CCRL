@@ -51,6 +51,9 @@ pub struct EngineEntry {
     pub options: Vec<UciOption>,
     pub threads_max: Option<i64>,
     pub has_syzygy: bool,
+    /// Declares `UCI_Chess960` (can play Fischer Random).
+    #[serde(default)]
+    pub chess960: bool,
     /// unverified | ok | failed
     pub verify_status: String,
     pub verify_detail: String,
@@ -91,6 +94,7 @@ impl EngineEntry {
         }
         self.threads_max = opts.iter().find(|o| o.name == "Threads").and_then(|o| o.max);
         self.has_syzygy = opts.iter().any(|o| o.name == "SyzygyPath");
+        self.chess960 = opts.iter().any(|o| o.name.eq_ignore_ascii_case("UCI_Chess960"));
         self.default_options = default_options(&opts);
         self.flags.retain(|f| f != "single-thread only");
         if self.threads_max == Some(1) {

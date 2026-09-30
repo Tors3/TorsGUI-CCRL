@@ -6,6 +6,7 @@ pub mod api;
 pub mod assets;
 pub mod bench;
 pub mod ccrl;
+pub mod chess960;
 pub mod engines;
 pub mod export;
 pub mod fastchess;

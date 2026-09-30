@@ -96,6 +96,10 @@ pub fn game_args(cfg: &TournamentConfig, pairing: &(Participant, Participant), j
         // with -games 1 the first engine is White: -reverse swaps it
         a.push("-reverse".into());
     }
+    if cfg.variant == crate::model::Variant::Chess960 {
+        // fastchess then sends `setoption name UCI_Chess960 value true` to both engines
+        a.extend(["-variant".into(), "fischerandom".into()]);
+    }
     a.extend([
         "-concurrency".into(),
         "1".into(),

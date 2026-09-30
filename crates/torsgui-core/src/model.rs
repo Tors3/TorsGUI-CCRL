@@ -17,6 +17,18 @@ pub enum TournamentKind {
     Match,
 }
 
+/// Chess variant of a tournament.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum Variant {
+    #[default]
+    Standard,
+    /// Fischer Random / Chess960 (also double Chess960 books): fastchess `-variant
+    /// fischerandom`, engines get `UCI_Chess960 true`, openings are start positions (EPD).
+    Chess960,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(export)]
@@ -193,6 +205,8 @@ pub struct TournamentConfig {
     pub fastchess: String,
     #[serde(default = "startup_ms")]
     pub startup_ms: u32,
+    #[serde(default)]
+    pub variant: Variant,
 }
 
 fn one() -> u32 {

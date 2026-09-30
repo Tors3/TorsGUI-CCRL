@@ -66,6 +66,35 @@ test("tournament file: tolerant names, preview, save as draft", async ({ page })
   await expect(page.getByTestId("tfile-errors")).toContainText("Mock Brovo 9");
 });
 
+test("Chess960: FRC list, generated start positions, engines supporting it, live 960 game", async ({ page }) => {
+  await page.goto("/#/tournaments/new");
+  await page.getByLabel(/seed Mock Alpha/).check();
+  await page.getByLabel(/opponent Mock Bravo/).check();
+  await page.getByRole("button", { name: "FRC (960)", exact: true }).click();
+  await expect(page.getByTestId("book")).toHaveValue(/chess960-all-seed1\.epd$/);
+  await expect(page.getByTestId("event-name")).toHaveValue(/CCRL FRC gauntlet Mock Alpha 1\.0 1CPU/);
+  await expect(page.getByText("does not support Chess960")).toHaveCount(0);
+  // a double Chess960 book
+  await page.getByTestId("frc-generate").click();
+  await page.getByRole("button", { name: "Double 960" }).click();
+  await page.getByTestId("frc-create").click();
+  await expect(page.getByTestId("book")).toHaveValue(/dfrc-200-seed1\.epd$/);
+  // the running demo tournament is Chess960: its games replay from their start position
+  const list = await (await page.request.post("/api/tournaments_list", { data: {} })).json();
+  const live = list.find((x: any) => x.record.config.variant === "chess960");
+  if (live) {
+    await page.goto(`/#/tournaments/${encodeURIComponent(live.record.id)}`);
+    await page.getByRole("tab", { name: "Games" }).click();
+    const rows = page.getByTestId("games-table").locator("tbody tr");
+    if (await rows.count()) {
+      await rows.first().click();
+      await expect(page.getByTestId("move-list")).toBeVisible();
+      await expect(page.getByText("cannot replay")).toHaveCount(0);
+      await page.keyboard.press("Escape");
+    }
+  }
+});
+
 test("board appearance is applied and remembered", async ({ page }) => {
   await page.goto("/#/settings");
   await page.getByTestId("theme-marble").click();

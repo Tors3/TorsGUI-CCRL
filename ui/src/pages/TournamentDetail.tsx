@@ -396,7 +396,7 @@ export function TournamentDetailPage() {
             {r.imported && <span className="chip">imported</span>}
           </span>
         }
-        sub={`${r.config.event} · ${r.config.kind.replace("_", " ")} · TC ${r.config.tc} · ${r.config.threads} threads · hash ${r.config.hash_mb} MB · ${r.config.book.split(/[\\/]/).pop()} · ${r.config.nodes.length} node(s) × ${r.config.lanes_per_node} lanes`}
+        sub={`${r.config.event} · ${r.config.kind.replace("_", " ")}${r.config.variant === "chess960" ? " · Chess960" : ""} · TC ${r.config.tc} · ${r.config.threads} threads · hash ${r.config.hash_mb} MB · ${r.config.book.split(/[\\/]/).pop()} · ${r.config.nodes.length} node(s) × ${r.config.lanes_per_node} lanes`}
         actions={
           <>
             <Tip content="CCRL export and forum post">

@@ -69,6 +69,8 @@ pub fn default_sources() -> Vec<ListSource> {
             v.push(ListSource { list: list.into(), cpu: "mixed".into(), variant: variant.into(), url: format!("{base}/{dir}/{file}") });
         }
     }
+    // Chess960 list (best effort, like the others: paste the table if the page differs)
+    v.push(ListSource { list: "FRC".into(), cpu: "mixed".into(), variant: "all".into(), url: format!("{base}/404FRC/rating_list_all.html") });
     v
 }
 

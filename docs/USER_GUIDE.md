@@ -191,7 +191,26 @@ opening(round) = start + round − 1
   per-opponent `[code]` table ordered by list rating and a closing line naming the next queued
   tournament. **Copy** and paste it on the forum.
 
-## 8. Tournament files (and Claude)
+## 8. Chess960 (Fischer Random)
+
+In the wizard choose the **FRC (960)** list (or just the **Chess960** variant): fastchess plays
+with `-variant fischerandom` and sends `UCI_Chess960 true` to both engines.
+
+- **Engines**: TorsGUI reads the `UCI_Chess960` option when it verifies an engine and marks
+  it **960** (Engines, wizard). An engine that does not declare it is refused for a Chess960
+  tournament; one whose options are unknown (not verified yet) gives a warning.
+- **Start positions**: the openings are start positions in an EPD book. Choosing Chess960
+  generates *all 960 positions, shuffled with seed 1* (the standard position excluded);
+  **generate Chess960 positions…** makes other books: all 960 with another seed, a random set
+  of N positions, or **double Chess960** (different setups for White and Black). The same
+  seed always gives the same book. Each position is played twice with colours reversed, as
+  in standard tournaments; you can also use your own EPD (X-FEN or Shredder-FEN castling).
+- **Viewer and live**: 960 castling (king takes rook in UCI, O-O/O-O-O in the PGN) is
+  replayed everywhere; the PGNs carry `Variant` and the start `FEN`.
+- **CCRL**: the FRC list uses 40 moves in 2 minutes (repeating), scaled by the machine
+  factor like the other lists; check the current CCRL FRC conditions before submitting.
+
+## 9. Tournament files (and Claude)
 
 A tournament can also be described in a small TOML file — written by you or by Claude — and
 imported with **Tournaments → Import file**: TorsGUI shows the engines it matched, the
@@ -199,7 +218,7 @@ games, TC and ETA and every warning, then you save it as a draft, queue it or st
 **Template for Claude** copies a template with the rules and your engine names to give to
 Claude with the request. See [TOURNAMENT_FILE.md](TOURNAMENT_FILE.md).
 
-## 9. Games, viewer and board
+## 10. Games, viewer and board
 
 **Games** is the archive: every tournament's games, plus PGN files or folders you add (for
 example the results of CCRL_ScirptsTests; they are only read). Click a game to replay it:
@@ -215,14 +234,14 @@ an optional move sound. **Import** adds any other set from a folder (lichess nam
 `wP.svg`…`bK.svg` or sharechess names `pw.svg`…`kb.svg`, SVG or PNG), e.g. the
 non-commercial sets of sharechess: they stay on your computer, for personal use.
 
-## 10. Importing the old scripts' tournaments
+## 11. Importing the old scripts' tournaments
 
 **Tournaments → Import old tournaments** scans a CCRL_ScirptsTests-style folder (`tournaments/<name>/config`,
 `scripts/gauntlet.bat`, PGNs in `pgn/` or `results/gauntlets/<name>/all_games.pgn`). Finished
 tournaments are imported read-only (for verification: same standings, same export);
 configured but never started ones become drafts.
 
-## 11. Maintenance
+## 12. Maintenance
 
 **Settings → Housekeeping**: disk usage per tournament, unused engines, superseded versions,
 log rotation of per-game engine logs. **Git sync** copies configurations and results (and

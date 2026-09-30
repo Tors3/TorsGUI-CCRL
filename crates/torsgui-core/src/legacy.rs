@@ -182,6 +182,7 @@ pub fn read(tournament_dir: &Path, results_dir: Option<&Path>) -> Result<LegacyT
         max_slot_attempts: 3,
         fastchess: String::new(),
         startup_ms: 60000,
+        variant: crate::model::Variant::Standard,
     };
     // PGNs: prefer the per-node files, else the merged all_games.pgn
     let mut pgns = crate::pgn::list_pgns(&tournament_dir.join("pgn"));

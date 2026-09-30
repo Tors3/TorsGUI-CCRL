@@ -263,6 +263,7 @@ pub(crate) mod tests {
             max_slot_attempts: 3,
             fastchess: String::new(),
             startup_ms: 60000,
+            variant: crate::model::Variant::Standard,
         }
     }
 

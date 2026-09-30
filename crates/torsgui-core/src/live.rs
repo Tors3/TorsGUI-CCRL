@@ -250,7 +250,7 @@ impl LiveTracker {
         let p = &self.last_position;
         if let Some(rest) = p.strip_prefix("position fen ") {
             let fen = rest.split(" moves").next().unwrap_or("");
-            Board::from_fen(fen.trim(), false).unwrap_or_default()
+            crate::chess960::parse_fen(fen.trim()).unwrap_or_default()
         } else {
             Board::default()
         }
@@ -305,7 +305,8 @@ pub struct ViewerGame {
 
 /// Replays the SAN moves of a game (fastchess comments -> engine info).
 pub fn viewer_game(g: &crate::pgn::Game) -> ViewerGame {
-    let start = g.headers.get("FEN").and_then(|f| Board::from_fen(f, false).ok()).unwrap_or_default();
+    // Chess960 FENs use X-FEN or Shredder castling: parse every notation
+    let start = g.headers.get("FEN").and_then(|f| crate::chess960::parse_fen(f).ok()).unwrap_or_default();
     let mut b = start.clone();
     let mut plies = Vec::new();
     let mut error = None;

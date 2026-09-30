@@ -140,6 +140,7 @@ fn config(e: &Env, name: &str, opps: &[(&str, &str)], games: u32, lanes: u32, mo
         max_slot_attempts: 2,
         fastchess: e.fastchess.to_string_lossy().into(),
         startup_ms: 10000,
+        variant: torsgui_core::model::Variant::Standard,
     }
 }
 
@@ -361,4 +362,42 @@ fn misbehaving_engines_are_recorded_and_reported() {
         let r = st.rows.iter().find(|r| r.name == n).unwrap();
         assert_eq!(r.wins, 2, "{n}: {terms:?}");
     }
+}
+
+#[test]
+fn chess960_tournament_plays_start_positions() {
+    let _ = need_fastchess!();
+    let e = env().unwrap();
+    let spec = torsgui_core::chess960::BookSpec { kind: torsgui_core::chess960::BookKind::Random, count: 3, seed: 5, include_standard: false };
+    let book = torsgui_core::chess960::write_book(&e.ws.root, &spec).unwrap();
+    let mut cfg = config(&e, "frc", &[("Opp A", "")], 6, 2, 5);
+    cfg.variant = Variant::Chess960;
+    cfg.book = book.to_string_lossy().into();
+    cfg.book_format = "epd".into();
+    cfg.extra_args = vec!["-maxmoves".into(), "120".into()];
+    let id = create(&e, cfg, false);
+    let out = runner_cmd(&e, &id).output().unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(state(&e, &id), TState::Completed);
+    assert_eq!(games(&e, &id), (6, 6));
+    assert_pairs_complete(&e, &id);
+    // each game starts from one of the book's positions, flagged as Chess960, and replays
+    let starts: Vec<cozy_chess::Board> = torsgui_core::chess960::book_positions(&spec).iter().map(|(w, b)| torsgui_core::chess960::parse_fen(&torsgui_core::chess960::start_fen(*w, *b)).unwrap()).collect();
+    let mut seen = std::collections::HashSet::new();
+    let mut castled = 0;
+    for p in pgn::list_pgns(&e.ws.pgn_dir(&id)) {
+        for g in pgn::read_games(&p).unwrap() {
+            assert!(g.headers.get("Variant").map(|v| v.eq_ignore_ascii_case("chess960") || v == "fischerandom").unwrap_or(false), "{:?}", g.headers);
+            let fen = g.headers.get("FEN").expect("FEN header");
+            let b = torsgui_core::chess960::parse_fen(fen).unwrap();
+            assert!(starts.contains(&b), "start {fen} not in the book");
+            seen.insert(format!("{b:#}"));
+            let v = torsgui_core::live::viewer_game(&g);
+            assert!(v.error.is_none(), "{:?} in {}", v.error, g.movetext);
+            assert!(!v.plies.is_empty());
+            castled += v.plies.iter().filter(|p| p.san.starts_with("O-O")).count();
+        }
+    }
+    assert_eq!(seen.len(), 3, "the three start positions are each played with both colours");
+    eprintln!("chess960: {castled} castling moves replayed");
 }

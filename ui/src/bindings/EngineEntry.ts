@@ -19,6 +19,10 @@ source_url: string, release_url: string, release_tag: string, asset: string, uci
  */
 options_text: string, options: Array<UciOption>, threads_max: number | null, has_syzygy: boolean, 
 /**
+ * Declares `UCI_Chess960` (can play Fischer Random).
+ */
+chess960: boolean, 
+/**
  * unverified | ok | failed
  */
 verify_status: string, verify_detail: string, bestmove: string, notes: string, 

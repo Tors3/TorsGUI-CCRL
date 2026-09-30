@@ -48,7 +48,8 @@ Contempt = "0"
 |---|---|---|
 | `format` | 1 | file format version |
 | `kind` | `gauntlet` | `gauntlet`, `multi_gauntlet`, `round_robin`, `match` (two or more `seed`s make a multi-seed gauntlet) |
-| `list` | `Blitz` | CCRL list: `Blitz` or `40/15` (ratings, event name, default TC) |
+| `list` | `Blitz` | CCRL list: `Blitz`, `40/15` or `FRC` (ratings, event name, default TC) |
+| `variant` | by list | `standard` or `chess960` (default `chess960` for the FRC list); every engine must declare `UCI_Chess960`; without `book` all 960 start positions are generated |
 | `seed` | — | the engine under test, or a list of engines |
 | `opponents` | — | the opponents of a gauntlet |
 | `engines` | — | the players of a round robin or a match (instead of `seed`/`opponents`) |

@@ -100,4 +100,5 @@ Legend: [x] done and tested · [~] done, verified only partially (see FINAL_REPO
 - [x] Elegant board: themes, piece sets, animation, eval bar, material, check, arrows, autoplay, theater mode, move sound, ticking live clocks (Vitest + Playwright)
 - [x] Tournament files (TOML/JSON): parse, tolerant engine matching, wizard defaults, review dialog, draft/queue/start, inbox, export, template for Claude (unit tests incl. round trip; Playwright)
 - [x] Minimal board by default, custom square colours, 69 bundled piece sets with licences, personal import of other sets (unit test `import_sharechess_and_lichess_names`)
+- [x] Chess960: variant, UCI_Chess960 detection, 960/random/DFRC books, every castling notation, FRC list, wizard + tournament files (unit tests `chess960::*`, `tournament_file` FRC case; integration `chess960_tournament_plays_start_positions` with the real fastchess; Playwright)
 - [x] Error boundary: one failing screen no longer blanks the app

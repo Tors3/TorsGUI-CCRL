@@ -25,6 +25,8 @@ Python scripts, `.bat` files and scheduled tasks with one elegant, dense tool th
 - replays archived games on an animated board (minimal by default; 9 board themes including
   your own colours, 69 bundled piece sets plus any set you import; autoplay, theater mode),
   from its tournaments or any PGN file or folder;
+- plays **Chess960 / Fischer Random** (and double Chess960): engines that support it are
+  detected, start-position books are generated, games replay with 960 castling;
 - imports **tournament files**: describe a tournament in a few TOML lines (or ask Claude to),
   import it, review, queue or start ([docs/TOURNAMENT_FILE.md](docs/TOURNAMENT_FILE.md)).
 
@@ -35,7 +37,7 @@ It is open source (GPL-3.0-or-later) and nothing is specific to one machine.
 ![Game viewer](docs/screenshots/04-pgn-viewer.png)
 
 <details>
-<summary><b>All screenshots</b> (21 screens: dashboard, standings, live, wizard, engines, CCRL lists, bench, export, archive, tournament file…)</summary>
+<summary><b>All screenshots</b> (23 screens: dashboard, standings, live, wizard, engines, CCRL lists, bench, export, archive, tournament file…)</summary>
 
 | | |
 |---|---|
@@ -48,6 +50,7 @@ It is open source (GPL-3.0-or-later) and nothing is specific to one machine.
 | ![Settings](docs/screenshots/13-settings.png) Settings, topology, housekeeping | ![Logs](docs/screenshots/14-logs.png) Logs |
 | ![Palette](docs/screenshots/15-command-palette.png) Command palette (Ctrl K) | ![Light](docs/screenshots/16-dashboard-light.png) Light theme |
 | ![Theater](docs/screenshots/18-pgn-viewer-theater.png) Game viewer, theater mode | ![Games](docs/screenshots/19-games-archive.png) Game archive: tournaments and external PGN files |
+| ![Chess960](docs/screenshots/22-chess960-game.png) A Chess960 game (mock engines, real fastchess) | ![Wizard 960](docs/screenshots/23-wizard-chess960.png) Wizard: FRC list, Chess960 variant, generated start positions |
 | ![Board](docs/screenshots/20-board-appearance.png) Board appearance: minimal default, custom colours, 69 piece sets | ![Tournament file](docs/screenshots/21-tournament-file.png) Importing a tournament file written by Claude |
 
 The screenshots are produced by `npm run screenshots` (Playwright) on a demo workspace: the

@@ -9,4 +9,5 @@ anyhow = "1.0.104"
 torsgui-core = { version = "0.1.0", path = "../torsgui-core" }
 
 [dev-dependencies]
+cozy-chess = "0.3.4"
 tempfile = "3.27.0"

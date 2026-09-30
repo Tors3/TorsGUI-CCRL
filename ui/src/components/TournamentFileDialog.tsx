@@ -166,6 +166,7 @@ export function TournamentFileDialog({ open, setOpen, onDone }: { open: boolean;
                     <div>
                       <div className="kpi-label">Kind</div>
                       {c.kind.replace("_", " ")}
+                      {c.variant === "chess960" && <span className="chip chip-accent ml-1">960</span>}
                     </div>
                     <div>
                       <div className="kpi-label">Per opponent</div>

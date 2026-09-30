@@ -14,8 +14,10 @@ import type { Topology } from "../bindings/Topology";
 import type { TournamentConfig } from "../bindings/TournamentConfig";
 import type { TournamentKind } from "../bindings/TournamentKind";
 import type { TournamentRecord } from "../bindings/TournamentRecord";
+import type { Variant } from "../bindings/Variant";
+import type { BookSpec } from "../bindings/BookSpec";
 import type { WizardPreview } from "../bindings/WizardPreview";
-import { ErrorBox, Field, PageHeader, Panel, Seg, Spinner, Tip, Warn } from "../components/ui";
+import { ErrorBox, Field, Modal, PageHeader, Panel, Seg, Spinner, Tip, Warn } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { duration, num } from "../lib/format";
 
@@ -37,6 +39,9 @@ export function Wizard() {
 
   const [kind, setKind] = useState<TournamentKind>("gauntlet");
   const [list, setList] = useState("Blitz");
+  const [variant, setVariant] = useState<Variant>("standard");
+  const [frcOpen, setFrcOpen] = useState(false);
+  const [frcSpec, setFrcSpec] = useState<BookSpec>({ kind: "all", count: 200, seed: 1, include_standard: false });
   const [seeds, setSeeds] = useState<number[]>([]);
   const [opps, setOpps] = useState<number[]>([]);
   const [threads, setThreads] = useState(1);
@@ -84,6 +89,20 @@ export function Wizard() {
     const n = topo.nodes.find((x) => x.id === nodes[0]);
     if (n) setLanes(Math.max(1, Math.floor(n.physical_cores / (2 * threads))));
   }, [threads, topo, nodes]);
+
+  // Chess960 needs start positions: generate the default book (all 960, seed 1) when the
+  // current book is not an EPD
+  useEffect(() => {
+    if (variant !== "chess960" || book.toLowerCase().endsWith(".epd")) return;
+    call<{ path: string }>("chess960_book", { spec: { kind: "all", count: 960, seed: 1, include_standard: false } })
+      .then((r) => setBook(r.path))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variant]);
+  useEffect(() => {
+    if (variant === "standard" && book.toLowerCase().endsWith(".epd") && /chess960|dfrc/i.test(book) && settings?.default_book) setBook(settings.default_book);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variant]);
 
   const byId = useMemo(() => new Map((engines ?? []).map((e) => [e.id!, e])), [engines]);
   const seedEngines = seeds.map((i) => byId.get(i)).filter(Boolean) as EngineEntry[];
@@ -140,6 +159,7 @@ export function Wizard() {
         max_slot_attempts: 3,
         fastchess: "",
         startup_ms: 60000,
+        variant,
       }
     : null;
   const cfgKey = JSON.stringify(config);
@@ -217,7 +237,23 @@ export function Wizard() {
                 />
               </Field>
               <Field label="CCRL list">
-                <Seg value={list} onChange={setList} options={[{ value: "Blitz", label: "Blitz" }, { value: "40/15", label: "40/15" }]} />
+                <Seg
+                  value={list}
+                  onChange={(l) => {
+                    setList(l);
+                    if (l === "FRC") {
+                      setVariant("chess960");
+                      setNominal("40/2");
+                    } else if (list === "FRC") {
+                      setVariant("standard");
+                      setNominal(l === "40/15" ? "40/15" : "blitz");
+                    }
+                  }}
+                  options={[{ value: "Blitz", label: "Blitz" }, { value: "40/15", label: "40/15" }, { value: "FRC", label: "FRC (960)" }]}
+                />
+              </Field>
+              <Field label="Variant" hint={variant === "chess960" ? "Fischer Random: engines get UCI_Chess960, openings are start positions" : undefined}>
+                <Seg value={variant} onChange={setVariant} options={[{ value: "standard", label: "Standard" }, { value: "chess960", label: "Chess960" }]} />
               </Field>
               <Field label="Event" className="col-span-2" hint={eventAuto ? "automatic (CCRL naming)" : <button className="underline" onClick={() => setEventAuto(true)}>reset to automatic</button>}>
                 <input className="input" value={eventName} onChange={(e) => { setEventAuto(false); setEventName(e.target.value); }} data-testid="event-name" />
@@ -250,6 +286,7 @@ export function Wizard() {
                     <th>Build</th>
                     <th className="r">Threads max</th>
                     <th>Syzygy</th>
+                    <th>960</th>
                     <th className="r">Rating ({threads}CPU)</th>
                     <th>Status</th>
                   </tr>
@@ -280,6 +317,7 @@ export function Wizard() {
                           {e.threads_max ?? "?"}
                         </td>
                         <td>{e.has_syzygy ? "yes" : <span className="muted">no</span>}</td>
+                        <td>{e.chess960 ? <span className="chip chip-accent">960</span> : <span className="muted">—</span>}</td>
                         <td className="r tnum">
                           {r?.rating != null ? num(r.rating) : <span className="muted">—</span>}
                           {r?.estimated && <span className="chip chip-warn ml-1" title={r.note}>est.</span>}
@@ -289,6 +327,8 @@ export function Wizard() {
                             <span className="chip chip-loss" title="metadata only: set the executable in Engines">no binary</span>
                           ) : tooFew ? (
                             <span className="chip chip-loss">max {e.threads_max} threads</span>
+                          ) : variant === "chess960" && !e.chess960 && e.options.length > 0 ? (
+                            <span className="chip chip-loss" title="the engine does not declare UCI_Chess960">no Chess960</span>
                           ) : e.verify_status === "ok" ? (
                             <span className="chip chip-win">verified</span>
                           ) : (
@@ -346,8 +386,18 @@ export function Wizard() {
                   <Calculator size={13} /> Local TC
                 </button>
               </div>
-              <Field label="Opening book (PGN/EPD)" className="col-span-2">
-                <input className="input mono" value={book} onChange={(e) => setBook(e.target.value)} placeholder="C:\CCRL\books\avt-book-2026.pgn" />
+              <Field
+                label={variant === "chess960" ? "Start positions (EPD)" : "Opening book (PGN/EPD)"}
+                className="col-span-2"
+                hint={
+                  variant === "chess960" ? (
+                    <button className="underline" onClick={() => setFrcOpen(true)} data-testid="frc-generate">
+                      generate Chess960 positions…
+                    </button>
+                  ) : undefined
+                }
+              >
+                <input className="input mono" value={book} onChange={(e) => setBook(e.target.value)} placeholder={variant === "chess960" ? "chess960-all-seed1.epd" : "C:\\CCRL\\books\\avt-book-2026.pgn"} data-testid="book" />
               </Field>
               <Field label="Book start">
                 <input className="input tnum" type="number" min={1} value={bookStart} onChange={(e) => setBookStart(Math.max(1, +e.target.value))} />
@@ -504,6 +554,62 @@ export function Wizard() {
           </div>
         </div>
       </div>
+      <Modal
+        open={frcOpen}
+        onOpenChange={setFrcOpen}
+        title="Chess960 start positions"
+        footer={
+          <button
+            className="btn btn-primary"
+            data-testid="frc-create"
+            onClick={async () => {
+              try {
+                const r = await call<{ path: string; positions: number }>("chess960_book", { spec: frcSpec });
+                setBook(r.path);
+                setFrcOpen(false);
+                toast.success(`${r.positions} start positions: ${r.path.split(/[\\/]/).pop()}`);
+              } catch (e) {
+                toast.error((e as Error).message);
+              }
+            }}
+          >
+            Generate book
+          </button>
+        }
+      >
+        <div className="flex flex-col gap-3 text-[12.5px]">
+          <Seg
+            value={frcSpec.kind}
+            onChange={(k) => setFrcSpec({ ...frcSpec, kind: k })}
+            options={[
+              { value: "all", label: "All 960" },
+              { value: "random", label: "Random set" },
+              { value: "double", label: "Double 960" },
+            ]}
+          />
+          <div className="muted">
+            {frcSpec.kind === "all"
+              ? "Every Chess960 start position once (shuffled with the seed), each played with both colours."
+              : frcSpec.kind === "random"
+                ? "A random set of distinct start positions."
+                : "Double Chess960 (DFRC): White and Black get different random setups."}{" "}
+            The same seed always gives the same book, on every machine.
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {frcSpec.kind !== "all" && (
+              <Field label="Positions">
+                <input className="input tnum" type="number" min={1} value={frcSpec.count} onChange={(e) => setFrcSpec({ ...frcSpec, count: Math.max(1, +e.target.value) })} />
+              </Field>
+            )}
+            <Field label="Seed">
+              <input className="input tnum" type="number" min={0} value={frcSpec.seed} onChange={(e) => setFrcSpec({ ...frcSpec, seed: Math.max(0, +e.target.value) })} />
+            </Field>
+            <label className="flex items-end gap-2 pb-1.5">
+              <input type="checkbox" checked={frcSpec.include_standard} onChange={(e) => setFrcSpec({ ...frcSpec, include_standard: e.target.checked })} /> include the standard position (518)
+            </label>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

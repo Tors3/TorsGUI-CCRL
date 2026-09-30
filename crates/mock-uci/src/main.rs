@@ -5,7 +5,7 @@
 //! ```text
 //! mock-uci [--name N] [--strength 0..100] [--movetime MS] [--seed S]
 //!          [--crash-after PLIES] [--hang-after PLIES] [--slow-start MS]
-//!          [--illegal-after PLIES] [--no-syzygy]
+//!          [--illegal-after PLIES] [--no-syzygy] [--no-960]
 //! ```
 //!
 //! strength 0 plays random moves, 100 always plays the greedy best capture /
@@ -26,10 +26,12 @@ struct Cfg {
     slow_start: u64,
     illegal_after: Option<u32>,
     syzygy: bool,
+    /// Declares `UCI_Chess960` (default true).
+    frc: bool,
 }
 
 fn parse_args() -> Cfg {
-    let mut c = Cfg { name: "MockUCI".into(), strength: 50, movetime: 5, seed: 1, crash_after: None, hang_after: None, slow_start: 0, illegal_after: None, syzygy: true };
+    let mut c = Cfg { name: "MockUCI".into(), strength: 50, movetime: 5, seed: 1, crash_after: None, hang_after: None, slow_start: 0, illegal_after: None, syzygy: true, frc: true };
     let a: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
     while i < a.len() {
@@ -43,6 +45,9 @@ fn parse_args() -> Cfg {
             "--hang-after" => c.hang_after = v.parse().ok(),
             "--slow-start" => c.slow_start = v.parse().unwrap_or(0),
             "--illegal-after" => c.illegal_after = v.parse().ok(),
+            "--no-960" => {
+                c.frc = false;
+            }
             "--no-syzygy" => {
                 c.syzygy = false;
                 i += 1;
@@ -133,6 +138,7 @@ fn main() {
     });
     let mut out = std::io::stdout();
     let mut hung = false;
+    let mut chess960 = false;
     let mut board = Board::default();
     let mut searched: u32 = 0;
     let mut rng = Rng(cfg.seed.wrapping_mul(0x9E3779B97F4A7C15) | 1);
@@ -155,12 +161,21 @@ fn main() {
                 if cfg.syzygy {
                     let _ = writeln!(out, "option name SyzygyPath type string default <empty>");
                 }
+                if cfg.frc {
+                    let _ = writeln!(out, "option name UCI_Chess960 type check default false");
+                }
                 let _ = writeln!(out, "uciok");
             }
             Some("isready") => {
                 let _ = writeln!(out, "readyok");
             }
             Some("ucinewgame") => board = Board::default(),
+            Some("setoption") => {
+                let l = line.to_lowercase();
+                if cfg.frc && l.contains("name uci_chess960") {
+                    chess960 = l.trim_end().ends_with("value true");
+                }
+            }
             Some("position") => {
                 let rest: Vec<&str> = parts.collect();
                 let (mut b, moves_at) = if rest.first() == Some(&"startpos") {
@@ -168,7 +183,7 @@ fn main() {
                 } else if rest.first() == Some(&"fen") {
                     let mi = rest.iter().position(|x| *x == "moves");
                     let fen = rest[1..mi.unwrap_or(rest.len())].join(" ");
-                    (Board::from_fen(&fen, false).unwrap_or_default(), mi)
+                    (parse_fen(&fen).unwrap_or_default(), mi)
                 } else {
                     (Board::default(), None)
                 };
@@ -236,13 +251,49 @@ fn main() {
                     nodes,
                     nodes * 1000 / cfg.movetime.max(1),
                     cfg.movetime,
-                    display_uci_move(&board, mv)
+                    uci(&board, mv, chess960)
                 );
-                let _ = writeln!(out, "bestmove {}", display_uci_move(&board, mv));
+                let _ = writeln!(out, "bestmove {}", uci(&board, mv, chess960));
             }
             Some("quit") => break,
             _ => {}
         }
         let _ = out.flush();
     }
+}
+
+/// UCI move text: king-takes-rook castling in Chess960 mode, e1g1 otherwise.
+fn uci(board: &Board, mv: Move, chess960: bool) -> String {
+    if chess960 { mv.to_string() } else { display_uci_move(board, mv).to_string() }
+}
+
+/// FEN with any castling notation (KQkq, X-FEN or Shredder-FEN), as sent by fastchess.
+fn parse_fen(fen: &str) -> Option<Board> {
+    use cozy_chess::{File, Rank, Square};
+    let f: Vec<&str> = fen.split_whitespace().collect();
+    if f.len() < 4 {
+        return None;
+    }
+    let placement = Board::from_fen(&format!("{} {} - - 0 1", f[0], f[1]), true).ok()?;
+    let mut castling = String::new();
+    for c in f[2].chars().filter(|&c| c != '-') {
+        let color = if c.is_ascii_uppercase() { Color::White } else { Color::Black };
+        let rank = Rank::First.relative_to(color);
+        let king = placement.king(color).file();
+        let rooks = placement.colored_pieces(color, Piece::Rook);
+        let files = File::ALL.into_iter().filter(|&x| rooks.has(Square::new(x, rank)));
+        let file = match c.to_ascii_lowercase() {
+            'k' => files.filter(|&x| x > king).last(),
+            'q' => files.filter(|&x| x < king).next(),
+            x @ 'a'..='h' => Some(File::index((x as u8 - b'a') as usize)),
+            _ => None,
+        }?;
+        let ch = char::from(b'a' + file as u8);
+        castling.push(if color == Color::White { ch.to_ascii_uppercase() } else { ch });
+    }
+    if castling.is_empty() {
+        castling.push('-');
+    }
+    let tail = if f.len() >= 6 { f[3..6].join(" ") } else { format!("{} 0 1", f[3]) };
+    Board::from_fen(&format!("{} {} {} {}", f[0], f[1], castling, tail), true).ok()
 }

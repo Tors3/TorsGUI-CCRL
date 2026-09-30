@@ -36,7 +36,7 @@ pub fn presets() -> Vec<NominalTc> {
         NominalTc { id: "blitz".into(), label: "CCRL Blitz 2'+1\"".into(), moves: 0, base_s: 120.0, inc_s: 1.0 },
         NominalTc { id: "40/15".into(), label: "CCRL 40/15 (15'+10\")".into(), moves: 0, base_s: 900.0, inc_s: 10.0 },
         NominalTc { id: "40/15-rep".into(), label: "CCRL 40/15 repeating (40 moves in 15')".into(), moves: 40, base_s: 900.0, inc_s: 0.0 },
-        NominalTc { id: "40/2".into(), label: "40/2 repeating".into(), moves: 40, base_s: 120.0, inc_s: 0.0 },
+        NominalTc { id: "40/2".into(), label: "CCRL 40/2 FRC (40 moves in 2' repeating)".into(), moves: 40, base_s: 120.0, inc_s: 0.0 },
     ]
 }
 

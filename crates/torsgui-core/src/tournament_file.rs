@@ -14,7 +14,7 @@
 //! ```
 
 use crate::engines::EngineEntry;
-use crate::model::{Adjudication, Participant, Placement, Role, TournamentConfig, TournamentKind};
+use crate::model::{Adjudication, Participant, Placement, Role, TournamentConfig, TournamentKind, Variant};
 use crate::store::Settings;
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
@@ -78,9 +78,12 @@ pub struct TournamentFile {
     /// gauntlet | multi_gauntlet | round_robin | match (default gauntlet).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kind: Option<TournamentKind>,
-    /// CCRL list: "Blitz" or "40/15" (default Blitz).
+    /// CCRL list: "Blitz", "40/15" or "FRC" (default Blitz).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub list: Option<String>,
+    /// "standard" or "chess960" (default: chess960 for the FRC list, standard otherwise).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variant: Option<Variant>,
     /// Engine(s) under test (gauntlets). More than one seed makes a multi-seed gauntlet.
     #[serde(default, skip_serializing_if = "Names::is_empty")]
     pub seed: Names,
@@ -231,8 +234,14 @@ fn resolve(input: &str, role: &str, engines: &[EngineEntry]) -> (ResolvedEngine,
     (r, None)
 }
 
+/// True for the CCRL Chess960 list ("FRC", "40/2 FRC", "Chess960").
+pub fn is_frc_list(list: &str) -> bool {
+    let l = list.to_uppercase();
+    l.contains("FRC") || l.contains("960")
+}
+
 fn nominal_for(list: &str) -> crate::tc::NominalTc {
-    let id = if list.contains("40/15") || list.contains("15") { "40/15" } else if list.contains("40/2") { "40/2" } else { "blitz" };
+    let id = if list.contains("40/15") || list.contains("15") { "40/15" } else if list.contains("40/2") || is_frc_list(list) { "40/2" } else { "blitz" };
     crate::tc::presets().into_iter().find(|p| p.id == id).unwrap()
 }
 
@@ -251,6 +260,7 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
         out.warnings.push(format!("{} seeds: multi-seed gauntlet", seeds.len()));
     }
     let list = f.list.clone().unwrap_or_else(|| "Blitz".into());
+    let variant = f.variant.unwrap_or(if is_frc_list(&list) { Variant::Chess960 } else { Variant::Standard });
     let threads = f.threads.unwrap_or(1).max(1);
     // players in order: seeds, then opponents (gauntlets); `engines` (round robin, match)
     let wanted: Vec<(String, Role)> = match kind {
@@ -287,6 +297,13 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
                 if participants.iter().any(|p: &Participant| p.name == e.display_name) {
                     out.errors.push(format!("{} is listed twice", e.display_name));
                     continue;
+                }
+                if variant == Variant::Chess960 && !e.chess960 {
+                    if e.options.is_empty() {
+                        out.warnings.push(format!("{}: its UCI options are unknown (verify it): Chess960 support not confirmed", e.display_name));
+                    } else {
+                        out.errors.push(format!("{} does not support Chess960 (no UCI_Chess960 option)", e.display_name));
+                    }
                 }
                 if let Some(tm) = e.threads_max {
                     if (threads as i64) > tm {
@@ -369,6 +386,8 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
             let p = std::path::Path::new(b);
             if p.is_absolute() || s.books_dir.is_empty() { b.to_string() } else { std::path::Path::new(&s.books_dir).join(p).to_string_lossy().to_string() }
         }
+        // Chess960 without a book: the start positions are generated at import (all 960, seed 1)
+        None if variant == Variant::Chess960 => String::new(),
         None => s.default_book.clone(),
     };
     let mut adjudication: Adjudication = s.adjudication.clone();
@@ -425,6 +444,7 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
         max_slot_attempts: 3,
         fastchess: String::new(),
         startup_ms: 60000,
+        variant,
     });
     out
 }
@@ -455,6 +475,7 @@ pub fn from_config(c: &TournamentConfig) -> TournamentFile {
         event: Some(c.event.clone()),
         site: if c.site.is_empty() { None } else { Some(c.site.clone()) },
         extra_args: c.extra_args.clone(),
+        variant: if c.variant == Variant::Standard { None } else { Some(c.variant) },
         ..Default::default()
     }
 }
@@ -488,7 +509,8 @@ pub fn template(engines: &[EngineEntry], s: &Settings, nodes: &[(u32, u32)]) -> 
 
 format = {FORMAT}
 kind = "gauntlet"            # gauntlet | multi_gauntlet | round_robin | match
-list = "Blitz"               # "Blitz" or "40/15"
+list = "Blitz"               # "Blitz", "40/15" or "FRC"
+# variant = "chess960"       # Fischer Random (default for the FRC list); engines must support UCI_Chess960
 seed = "Engine Under Test 1.0"
 opponents = [
   "Opponent A 2.0",
@@ -502,7 +524,7 @@ games_per_opponent = 30      # even
 # hash_mb = 512              # default: {hash} MB x threads
 # nodes = [0, 1]             # default: all NUMA nodes
 # lanes_per_node = 2         # default: physical cores / (2 x threads)
-# book = "avt-book-2026.pgn" # default: {book}
+# book = "avt-book-2026.pgn" # default: {book} (Chess960: all 960 start positions, generated)
 # book_start = 1
 # event = "CCRL Blitz gauntlet Engine Under Test 1.0 1CPU"
 # after_import = "queue"     # draft | queue | start
@@ -614,6 +636,20 @@ mod tests {
         assert_eq!(serde_json::to_value(&again).unwrap(), serde_json::to_value(&c).unwrap(), "{text}");
         let rr = build(&parse("kind = \"round_robin\"\nengines = [\"Stockfish 17\", \"Obsidian 16.0\", \"Caissa 2.0\"]\ngames_per_opponent = 2\n").unwrap(), &env(&engines, &s)).config.unwrap();
         assert_eq!(crate::scheduler::expected_games(&rr), 6);
+        // Chess960: FRC list → chess960 variant, 40/2 TC, engines without UCI_Chess960 refused
+        let mut frc = lib();
+        frc[1].chess960 = true;
+        frc[3].chess960 = true;
+        frc[3].options = vec![crate::engines::UciOption { name: "UCI_Chess960".into(), kind: "check".into(), default: Some("false".into()), min: None, max: None, vars: vec![] }];
+        frc[5].options = vec![crate::engines::UciOption { name: "Hash".into(), kind: "spin".into(), default: None, min: None, max: None, vars: vec![] }];
+        let r = build(&parse("list = \"FRC\"\nseed = \"Stockfish 17\"\nopponents = [\"Obsidian 16.0\", \"Caissa 2.0\", \"Triumviratus 7.0\"]\n").unwrap(), &env(&frc, &s));
+        let c = r.config.clone().unwrap();
+        assert_eq!(c.variant, Variant::Chess960);
+        assert_eq!(c.tc, "40/120");
+        assert!(c.book.is_empty());
+        assert!(r.errors.iter().any(|e| e == "Caissa 2.0 does not support Chess960 (no UCI_Chess960 option)"), "{:?}", r.errors);
+        assert!(r.warnings.iter().any(|w| w.contains("Triumviratus 7.0") && w.contains("not confirmed")), "{:?}", r.warnings);
+        assert_eq!(from_config(&c).variant, Some(Variant::Chess960));
         // the template parses and lists the library
         let t = template(&engines, &s, &[(0, 20)]);
         assert!(t.contains("#   Stockfish 19"));
