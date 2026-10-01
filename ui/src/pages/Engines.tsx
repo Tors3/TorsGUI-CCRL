@@ -2,6 +2,7 @@ import { CheckCircle2, Copy, FileText, FolderOpen, Pencil, PackagePlus, RefreshC
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { AssetPolicy } from "../bindings/AssetPolicy";
+import type { BundledEngine } from "../bindings/BundledEngine";
 import type { EngineEntry } from "../bindings/EngineEntry";
 import type { Settings } from "../bindings/Settings";
 import type { Release } from "../bindings/Release";
@@ -209,6 +210,8 @@ export function Engines() {
   const [impPath, setImpPath] = useState("");
   const [busy, setBusy] = useState<number | null>(null);
   const engines = data ?? [];
+  const { data: bl } = usePoll<{ engines: BundledEngine[] }>("bundled_list", {}, 0);
+  const bundled = (bl?.engines ?? []).filter((b) => b.present && b.role !== "bench");
   const verify = async (e: EngineEntry) => {
     setBusy(e.id);
     try {
@@ -262,6 +265,24 @@ export function Engines() {
             <button className="btn" onClick={() => setImp(true)}>
               Import REPORT.md
             </button>
+            {bundled.length > 0 && (
+              <Tip content={`Engines shipped with TorsGUI: ${bundled.map((b) => `${b.engine} ${b.version} (${b.build})`).join(", ")}`}>
+                <button
+                  className="btn"
+                  data-testid="engines-bundled"
+                  onClick={() =>
+                    call<{ added: string[] }>("bundled_install")
+                      .then((r) => {
+                        toast.success(r.added.length ? `Added: ${r.added.join(", ")}` : "Already in the library");
+                        refresh();
+                      })
+                      .catch((e) => toast.error(e.message))
+                  }
+                >
+                  <PackagePlus size={14} /> Bundled engines
+                </button>
+              </Tip>
+            )}
             <button className="btn" onClick={() => setLocal(true)}>
               <FolderOpen size={14} /> Add local file
             </button>

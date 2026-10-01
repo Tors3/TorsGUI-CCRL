@@ -71,9 +71,11 @@ illustrative sample (the site was not reachable from the build machine), not rea
    [releases](https://github.com/Tors3/TorsGUI-CCRL/releases). Linux: AppImage or `.deb`.
 2. **Settings** → your name and site; press **Download** to install the pinned fastchess
    (or point to your own binary). Point the paths to your engines, books and tablebases.
-3. **Bench** → *Get official SF10* → run 1 and N parallel instances with the machine idle →
+3. **Bench** → Stockfish 10 comes with TorsGUI (*Get official SF10* uses the bundled builds)
+   → run 1 and N parallel instances with the machine idle →
    the TC calculator gives the local time control (e.g. Blitz 2'+1" → `103+1` at f≈0.86).
-4. **Engines** → *Add from GitHub* (paste the repository URL) for each engine; each one is
+4. **Engines** → *Bundled engines* adds Stockfish 10 and Triumviratus 7.0; *Add from GitHub*
+   (paste the repository URL) for the others; each one is
    downloaded, checked (sha256), verified (`uci` / `isready` / `go depth 12`) and named.
 5. **CCRL Lists** → fetch or paste the Blitz / 40/15 list.
 6. **Tournaments → New**: pick the seed, *Suggest opponents*, TC, threads, games per pairing,

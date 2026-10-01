@@ -5,4 +5,8 @@ export type SetupStatus = { steps: Array<SetupStep>, done: number, total: number
 /**
  * Demo tournaments already created (id, name, state).
  */
-demos: Array<[string, string, string]>, };
+demos: Array<[string, string, string]>, 
+/**
+ * Engines shipped with this installation ("Stockfish 10", "Triumviratus 7.0").
+ */
+bundled: Array<string>, };

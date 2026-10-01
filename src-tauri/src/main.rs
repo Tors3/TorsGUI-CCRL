@@ -44,6 +44,14 @@ fn main() {
     tauri::Builder::default()
         .manage(app)
         .setup(move |handle| {
+            // the engines bundled as resources (Stockfish 10, Triumviratus 7.0)
+            if let Ok(dir) = handle.path().resource_dir() {
+                let engines = dir.join("engines");
+                if engines.join("bundled.json").exists() {
+                    // SAFETY: set once at start-up, before any API call reads it
+                    unsafe { std::env::set_var("TORSGUI_BUNDLED", &engines) };
+                }
+            }
             let show = MenuItem::with_id(handle, "show", "Show TorsGUI", true, None::<&str>)?;
             let quit = MenuItem::with_id(handle, "quit", "Quit (tournaments keep running)", true, None::<&str>)?;
             let menu = Menu::with_items(handle, &[&show, &quit])?;

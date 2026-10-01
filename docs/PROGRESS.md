@@ -103,4 +103,5 @@ Legend: [x] done and tested · [~] done, verified only partially (see FINAL_REPO
 - [x] Chess960: variant, UCI_Chess960 detection, 960/random/DFRC books, every castling notation, FRC list, wizard + tournament files (unit tests `chess960::*`, `tournament_file` FRC case; integration `chess960_tournament_plays_start_positions` with the real fastchess; Playwright)
 - [x] In-app help (guides rendered offline, contents, search, ? per screen) and CCRL submission checklist on Export (unit tests `checklist::*`; Playwright)
 - [x] Getting started (setup status, per-step actions) and demo tournament with the bundled demo engine (unit tests `demo::*`; Playwright creates and starts the demo)
+- [x] Bundled engines: Stockfish 10 and Triumviratus 7.0 AVX2 in the installers (CI, sha256 checked), one-click install, offline bench (unit tests `bundled::*`)
 - [x] Error boundary: one failing screen no longer blanks the app

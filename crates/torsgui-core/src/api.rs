@@ -653,11 +653,25 @@ impl App {
                 ok(json!({"dir": dir, "binaries": found}))
             }
             "bench_prepare" => {
+                let dir = self.ws.tools_dir().join("stockfish-10");
+                // the Stockfish 10 builds shipped with TorsGUI: no download needed
+                if let Some(b) = crate::bundled::dir() {
+                    let mut copied = 0;
+                    for e in crate::bundled::list(&b)?.into_iter().filter(|e| e.present && e.engine == "Stockfish" && e.role != "engine") {
+                        crate::bundled::copy(&b, &e, &dir)?;
+                        copied += 1;
+                    }
+                    if copied > 0 {
+                        return ok(bench::find_binaries(&dir));
+                    }
+                }
                 if !cfg!(windows) {
                     bail!("the official Stockfish 10 binaries in CCRL_ScirptsTests are Windows builds: on Linux select a 64-bit Stockfish 10 built from the sf_10 sources");
                 }
-                ok(bench::ensure_sf10_windows(&self.ws.tools_dir().join("stockfish-10"))?)
+                ok(bench::ensure_sf10_windows(&dir)?)
             }
+            "bundled_list" => ok(self.bundled_list(&store)?),
+            "bundled_install" => ok(self.bundled_install(&store)?),
             "bench_start" => {
                 let cfg: BenchConfig = arg(&a, "config")?;
                 {
@@ -1044,6 +1058,56 @@ impl App {
         p
     }
 
+    fn bundled_list(&self, store: &crate::store::Store) -> Result<Value> {
+        let Some(dir) = crate::bundled::dir() else {
+            return ok(json!({"dir": null, "engines": []}));
+        };
+        let lib = store.engines()?;
+        let mut v = crate::bundled::list(&dir)?;
+        for e in v.iter_mut() {
+            let name = crate::names::display_name(&e.engine, &e.version);
+            e.installed = lib.iter().any(|x| (!e.sha256.is_empty() && x.sha256 == e.sha256) || (x.display_name == name && x.asset == e.file && Path::new(&x.path).exists()));
+        }
+        ok(json!({"dir": dir, "engines": v}))
+    }
+
+    /// Installs the bundled engines: Stockfish 10 for the bench, and the engines into the
+    /// engines folder and the library (verified like any local engine).
+    fn bundled_install(&self, store: &crate::store::Store) -> Result<Value> {
+        let dir = crate::bundled::dir().context("this installation has no bundled engines")?;
+        let s = store.settings()?;
+        let lib = store.engines()?;
+        let mut added = Vec::new();
+        let mut bench = 0;
+        for e in crate::bundled::list(&dir)?.into_iter().filter(|e| e.present) {
+            if e.engine == "Stockfish" && e.role != "engine" {
+                crate::bundled::copy(&dir, &e, &self.ws.tools_dir().join("stockfish-10"))?;
+                bench += 1;
+            }
+            if e.role == "bench" {
+                continue;
+            }
+            let name = crate::names::display_name(&e.engine, &e.version);
+            if lib.iter().any(|x| (!e.sha256.is_empty() && x.sha256 == e.sha256) || (x.display_name == name && x.asset == e.file && Path::new(&x.path).exists())) {
+                continue;
+            }
+            let folder = crate::pgn::slug(&format!("{}_{}", e.engine, e.version));
+            let path = crate::bundled::copy(&dir, &e, &Path::new(&s.engines_dir).join(folder))?;
+            let mut entry = self.add_local(store, &path, Some(e.engine.clone()), Some(e.version.clone()))?;
+            entry.build = e.build.clone();
+            entry.asset = e.file.clone();
+            entry.release_url = e.release_url.clone();
+            entry.source_url = e.source_url.clone();
+            entry.release_tag = format!("v{}", e.version);
+            entry.selection_reason = format!("bundled with TorsGUI: {}", e.note);
+            entry.flags.retain(|f| !f.contains("flagged") && !f.ends_with(" build"));
+            store.save_engine(&entry)?;
+            store.push_event("success", "engine_added", None, &format!("{} added from the engines bundled with TorsGUI ({})", entry.display_name, entry.verify_status))?;
+            added.push(entry.display_name.clone());
+        }
+        ok(json!({"added": added, "bench_binaries": bench}))
+    }
+
     fn setup_status(&self, store: &crate::store::Store) -> Result<crate::demo::SetupStatus> {
         use crate::demo::SetupStep;
         let s = store.settings()?;
@@ -1068,7 +1132,8 @@ impl App {
         ];
         let done = steps.iter().filter(|x| x.done).count() as u32;
         let demos = tournaments.iter().filter(|t| is_demo(t)).map(|t| (t.id.clone(), t.name.clone(), format!("{:?}", t.state).to_lowercase())).collect();
-        Ok(crate::demo::SetupStatus { total: steps.len() as u32, steps, done, demo_engine: crate::demo::engine_path().is_some(), fastchess: fc.exists(), demos })
+        let bundled = crate::bundled::dir().and_then(|d| crate::bundled::list(&d).ok()).map(|v| v.into_iter().filter(|e| e.present).map(|e| format!("{} {}", e.engine, e.version)).collect::<std::collections::BTreeSet<_>>().into_iter().collect()).unwrap_or_default();
+        Ok(crate::demo::SetupStatus { total: steps.len() as u32, steps, done, demo_engine: crate::demo::engine_path().is_some(), fastchess: fc.exists(), demos, bundled })
     }
 
     /// Creates the demo gauntlet (and the demo engines in the library) and starts it.

@@ -5,6 +5,7 @@ pub mod analysis;
 pub mod api;
 pub mod assets;
 pub mod bench;
+pub mod bundled;
 pub mod ccrl;
 pub mod checklist;
 pub mod chess960;

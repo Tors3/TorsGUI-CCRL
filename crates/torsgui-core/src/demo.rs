@@ -90,6 +90,8 @@ pub struct SetupStatus {
     pub fastchess: bool,
     /// Demo tournaments already created (id, name, state).
     pub demos: Vec<(String, String, String)>,
+    /// Engines shipped with this installation ("Stockfish 10", "Triumviratus 7.0").
+    pub bundled: Vec<String>,
 }
 
 /// The demo gauntlet: the demo engine against two sparring partners, 8 games each.

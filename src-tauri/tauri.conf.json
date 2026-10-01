@@ -58,6 +58,9 @@
       "nsis": {
         "installMode": "currentUser"
       }
+    },
+    "resources": {
+      "resources/engines/": "engines/"
     }
   }
 }

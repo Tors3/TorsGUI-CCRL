@@ -17,8 +17,10 @@ this machine, and has a button to do it. The steps are the sections of this guid
 1. **Tester**: your name and site (used in the export).
 2. **fastchess**: download the pinned version (it plays the games).
 3. **Folders**: engines, books and the default opening book.
-4. **Bench**: the SF10 bench gives the machine factor and the local time control.
-5. **Engines**: add at least two engines from GitHub (or local files) and verify them.
+4. **Bench**: the SF10 bench gives the machine factor and the local time control
+   (Stockfish 10 comes with TorsGUI: *Use the bundled Stockfish 10*).
+5. **Engines**: *Add the bundled engines* (Stockfish 10 and Triumviratus 7.0 AVX2 come with
+   TorsGUI), then add others from GitHub (or local files); each is verified.
 6. **CCRL list**: import the list for ratings, names and suggested opponents.
 7. **First tournament**: the wizard, then Live, Export and the post.
 
@@ -94,6 +96,9 @@ checklist. The demo can be standard chess or Chess960, and it can be removed aft
   when the CPU supports AVX-512 (VNNI builds only when the CPU has VNNI). They are never
   chosen for CCRL by default: such engines carry the purple flag *AVX-512 build: personal
   use, not valid for CCRL*, and the wizard warns when a tournament uses one.
+- **Bundled engines**: the installers carry Stockfish 10 and Triumviratus 7.0 (AVX2, the
+  CCRL asset of its release); the button copies them to the engines folder (sha256 checked)
+  and verifies them. Both are GPL-3: their sources are linked in the engine entry.
 - **Add local file** does the same verification for a binary already on disk.
 - **Import REPORT.md** rebuilds the library (metadata only) from a CCRL_ScirptsTests-style
   `engines/` folder: release, asset, build, sha256, `id name`, options, used or not, notes.

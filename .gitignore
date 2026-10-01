@@ -9,3 +9,8 @@ crates/*/bindings/
 /src-tauri/gen
 /src-tauri/binaries/
 /ui/e2e/.cache
+
+# bundled engine binaries are added by the CI
+/src-tauri/resources/engines/*
+!/src-tauri/resources/engines/bundled.json
+!/src-tauri/resources/engines/README.md

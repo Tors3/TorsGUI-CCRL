@@ -9,7 +9,39 @@ import { ErrorBox, Field, PageHeader, Panel, ProgressBar, Spinner } from "../com
 import { call, usePoll } from "../lib/api";
 
 type StepDef = { id: string; title: string; why: string; help: string; body: (ctx: Ctx) => ReactNode };
-type Ctx = { settings?: Settings; refresh: () => void; nav: (to: string) => void };
+type Ctx = { settings?: Settings; refresh: () => void; nav: (to: string) => void; bundled: string[] };
+
+function BundledButton({ refresh, bundled, kind }: Ctx & { kind: "engines" | "bench" }) {
+  const [busy, setBusy] = useState(false);
+  const engines = bundled.filter((b) => kind === "engines" || b.startsWith("Stockfish"));
+  if (!engines.length) return null;
+  return (
+    <button
+      className="btn btn-primary"
+      disabled={busy}
+      data-testid={`bundled-${kind}`}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          if (kind === "bench") {
+            await call("bench_prepare");
+            toast.success("Stockfish 10 ready for the bench");
+          } else {
+            const r = await call<{ added: string[] }>("bundled_install");
+            toast.success(r.added.length ? `Added: ${r.added.join(", ")}` : "The bundled engines are already in the library");
+          }
+          refresh();
+        } catch (e) {
+          toast.error((e as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {busy ? <Spinner /> : <PackagePlus size={13} />} {kind === "bench" ? "Use the bundled Stockfish 10" : `Add the bundled engines (${engines.join(", ")})`}
+    </button>
+  );
+}
 
 function TesterForm({ settings, refresh }: Ctx) {
   const [name, setName] = useState(settings?.tester_name ?? "");
@@ -83,8 +115,30 @@ const STEPS: StepDef[] = [
   { id: "tester", title: "Who you are", why: "Your name and location go into the CCRL file name and the PGN Site tag.", help: "new-machine", body: (c) => <TesterForm {...c} /> },
   { id: "fastchess", title: "Install fastchess", why: "fastchess plays the games: TorsGUI starts one fastchess process per game and places it on a NUMA node.", help: "new-machine", body: (c) => <FastchessStep {...c} /> },
   { id: "folders", title: "Folders and opening book", why: "Where engines are downloaded, where books and tablebases are, and the default book every tournament starts from.", help: "new-machine", body: go("/settings", "Open Settings → Paths", <SettingsIcon size={13} />) },
-  { id: "bench", title: "Bench the machine", why: "The Stockfish 10 bench measures this machine against the CCRL reference and turns CCRL time controls into local ones (e.g. Blitz 2'+1\" → 103+1).", help: "bench-and-time-control", body: go("/bench", "Open Bench", <Gauge size={13} />) },
-  { id: "engines", title: "Add engines", why: "Paste a GitHub repository: TorsGUI picks the CCRL build (AVX2), downloads, checks and verifies it. Two engines are enough to start.", help: "engines", body: go("/engines", "Open Engines → Add from GitHub", <PackagePlus size={13} />) },
+  {
+    id: "bench",
+    title: "Bench the machine",
+    why: "The Stockfish 10 bench measures this machine against the CCRL reference and turns CCRL time controls into local ones (e.g. Blitz 2'+1\" → 103+1). Stockfish 10 comes with TorsGUI: nothing to download.",
+    help: "bench-and-time-control",
+    body: (c) => (
+      <div className="flex gap-2">
+        <BundledButton {...c} kind="bench" />
+        {go("/bench", "Open Bench", <Gauge size={13} />)(c)}
+      </div>
+    ),
+  },
+  {
+    id: "engines",
+    title: "Add engines",
+    why: "TorsGUI comes with Stockfish 10 and Triumviratus 7.0 (AVX2): add them with one click. For the others paste a GitHub repository: TorsGUI picks the CCRL build (AVX2), downloads, checks and verifies it.",
+    help: "engines",
+    body: (c) => (
+      <div className="flex gap-2">
+        <BundledButton {...c} kind="engines" />
+        {go("/engines", "Open Engines → Add from GitHub", <PackagePlus size={13} />)(c)}
+      </div>
+    ),
+  },
   { id: "ccrl", title: "Import the CCRL list", why: "Ratings, the names CCRL uses, and opponent suggestions around your engine's level.", help: "ccrl-lists", body: go("/ccrl", "Open CCRL Lists", <ListOrdered size={13} />) },
   {
     id: "tournament",
@@ -137,7 +191,7 @@ export function GettingStarted() {
     }
   };
   const lastDemo = demoId ?? st?.demos[st.demos.length - 1]?.[0] ?? null;
-  const ctx: Ctx = { settings, refresh: refreshAll, nav };
+  const ctx: Ctx = { settings, refresh: refreshAll, nav, bundled: st?.bundled ?? [] };
   return (
     <div className="flex flex-col gap-3 fade-in max-w-[1100px]">
       <PageHeader title="Getting started" sub="Set up TorsGUI step by step, or watch a demo tournament first" help="getting-started" />

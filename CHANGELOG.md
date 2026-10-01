@@ -9,6 +9,10 @@
 - **Demo tournament**: one click plays a short gauntlet (standard or Chess960) with three
   bundled *TorsGUI demo engines* through the real runner and fastchess, with a short tour of
   Live, the tournament, Games and Export. The demo engine ships with the app as a sidecar.
+- **Bundled engines**: the installers carry Stockfish 10 (official Windows builds; built from
+  the `sf_10` sources on Linux) and Triumviratus 7.0 AVX2, both GPL-3 and sha256-checked.
+  *Add the bundled engines* (Getting started, Engines) installs and verifies them; the bench
+  uses the bundled Stockfish 10 without downloading anything.
 - **In-app help**: the user guide and the tournament-file guide inside TorsGUI (offline),
   with contents, search, and a **?** button on every screen that opens its section.
 - **CCRL submission checklist** on the Export page: games, colour pairs, duplicates,
