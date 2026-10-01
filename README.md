@@ -132,8 +132,11 @@ the bench test a 64-bit Stockfish 10 (`SF10`). Missing inputs skip those tests w
   project that inspired TorsGUI (rebuilt from scratch around fastchess).
 - [fastchess](https://github.com/Disservin/fastchess) by **Disservin** and contributors, which
   plays every game.
-- The [CCRL](https://computerchess.org.uk/ccrl/) team and testers, whose rules and workflow
-  TorsGUI follows.
+- **Graham Banks**, who provided the CCRL opening books bundled with TorsGUI (AVT, GM2700+,
+  LowDraw, TopGM and the others), and the authors of those books (Andres Valverde and the
+  others named in Settings → Opening books).
+- The whole **CCRL community**: the team and the testers, whose rules, workflow, rating lists
+  and advice TorsGUI follows, and who make computer-chess rating lists possible.
 - [Stockfish](https://github.com/official-stockfish/Stockfish) (the SF10 bench used to
   calibrate time controls).
 - [chessground](https://github.com/lichess-org/chessground) and the

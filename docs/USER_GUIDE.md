@@ -34,7 +34,8 @@ checklist. The demo can be standard chess or Chess960, and it can be removed aft
 
 ## Opening books
 
-TorsGUI ships the opening books used by CCRL testers. *Install the CCRL opening books*
+TorsGUI ships the opening books used by CCRL testers, kindly provided by **Graham Banks**
+(CCRL); thanks to him and to the authors of the books. *Install the CCRL opening books*
 (Getting started, or **Settings → Opening books**) extracts them into the books folder and,
 if no default book is set, makes **AVT-Book 2026d** (`AVT2026d.pgn`) the default.
 
