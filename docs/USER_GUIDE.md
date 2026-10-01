@@ -107,8 +107,9 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
 
 ## 3. Engines
 
-- **Add from GitHub**: pick one of the **known engines** (54 public repositories: the engines
-  of the CCRL top lists whose releases are on GitHub, most of them already tested by TorsGUI,
+- **Add from GitHub**: pick one of the **known engines** (73 public repositories: the engines
+  of the CCRL top lists whose releases are on GitHub, covering every open-source engine of the
+  Blitz top 60; 36 of them already tested by TorsGUI,
   with their best Blitz rating and whether they are in your library), or paste a repository or
   release URL. TorsGUI lists the releases (the
   latest *stable* is preselected; when the API is rate-limited it falls back to the

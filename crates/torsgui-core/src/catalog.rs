@@ -54,6 +54,19 @@ mod tests {
     }
 
     #[test]
+    fn the_open_source_engines_of_the_top_lists_are_covered() {
+        // commercial or private engines, or no public GitHub repository found
+        let closed = ["Torch", "Dragon", "Fritz", "Ginkgo", "Stoofvlees", "Chess System Tal", "Rebel", "Revenge", "Uralochka", "rofChade", "Peacekeeper", "Deep Shredder", "Heimdall", "Deep Sjeng", "SlowChess", "Lc0 0.29", "Leelenstein", "Allie", "Houdini", "Wasp", "Fire", "Pseudo", "Spaghet", "Ynode"];
+        let repos = known_repos();
+        for list in crate::ccrl::snapshot_lists().iter().filter(|l| l.list != "FRC") {
+            for e in list.entries.iter().filter(|e| e.rank <= 60) {
+                let covered = repos.iter().any(|r| is_family(&e.name, &r.ccrl_name)) || closed.iter().any(|c| e.name.starts_with(c));
+                assert!(covered, "{} #{} {} has no known repository", list.list, e.rank, e.name);
+            }
+        }
+    }
+
+    #[test]
     fn families() {
         assert!(is_family("Stockfish 19 64-bit 8CPU", "Stockfish"));
         assert!(is_family("Alexandria-9.0.0", "Alexandria"));

@@ -48,6 +48,14 @@
   "notes": ""
  },
  {
+  "name": "Bagatur",
+  "repo": "bagaturchess/Bagatur",
+  "ccrl_name": "Bagatur",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "Java"
+ },
+ {
   "name": "Berserk",
   "repo": "jhonnold/berserk",
   "ccrl_name": "Berserk",
@@ -64,12 +72,36 @@
   "notes": "verified by TorsGUI's reference tests (x86-64-v3 build)"
  },
  {
+  "name": "Booot",
+  "repo": "booot76/Booot-chess-engine",
+  "ccrl_name": "Booot",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "Pascal"
+ },
+ {
+  "name": "Bread",
+  "repo": "Nonlinear2/Bread-Engine",
+  "ccrl_name": "Bread",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
   "name": "Caissa",
   "repo": "Witek902/Caissa",
   "ccrl_name": "Caissa",
   "tested_tag": "2.0",
   "tested_asset": "caissa-2.0-x64-avx2.exe",
   "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Calvin",
+  "repo": "kelseyde/calvin-chess-engine",
+  "ccrl_name": "Calvin",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "Java 17+ required"
  },
  {
   "name": "Carp",
@@ -80,12 +112,28 @@
   "notes": ""
  },
  {
+  "name": "Cataphract",
+  "repo": "masceron/Cataphract",
+  "ccrl_name": "Cataphract",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "AVX2 CPUs only"
+ },
+ {
   "name": "Cinder",
   "repo": "brunocodutra/cinder",
   "ccrl_name": "Cinder",
   "tested_tag": "v0.6.1",
   "tested_asset": "cinder-v0.6.1-windows-avx2.exe",
   "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Clarity",
+  "repo": "Vast342/Clarity",
+  "ccrl_name": "Clarity",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
  },
  {
   "name": "Clover",
@@ -112,6 +160,14 @@
   "notes": "verified by TorsGUI's reference tests (avx2 build)"
  },
  {
+  "name": "Elixir",
+  "repo": "ArjunBasandrai/elixir-chess-engine",
+  "ccrl_name": "Elixir",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "C++ (not the Elixir language)"
+ },
+ {
   "name": "Ethereal",
   "repo": "AndyGrant/Ethereal",
   "ccrl_name": "Ethereal",
@@ -126,6 +182,14 @@
   "tested_tag": null,
   "tested_asset": null,
   "notes": ""
+ },
+ {
+  "name": "Gaia",
+  "repo": "jromang/gaiachess",
+  "ccrl_name": "Gaia",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "Rust; open source (GPL-3) since 4.2.2"
  },
  {
   "name": "Halogen",
@@ -152,6 +216,14 @@
   "notes": "verified by TorsGUI's reference tests (x86-64-v3 build)"
  },
  {
+  "name": "Icarus",
+  "repo": "Sp00ph/icarus",
+  "ccrl_name": "Icarus",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "Rust; supports (D)FRC"
+ },
+ {
   "name": "Igel",
   "repo": "vshcherbyna/igel",
   "ccrl_name": "Igel",
@@ -174,6 +246,14 @@
   "tested_tag": "v9.0",
   "tested_asset": "Koivisto_9.0-windows-avx2-pgo.exe",
   "notes": "verified by TorsGUI's reference tests (avx2-pgo build)"
+ },
+ {
+  "name": "Lambergar",
+  "repo": "jabolcni/Lambergar",
+  "ccrl_name": "Lambergar",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "Zig"
  },
  {
   "name": "Lc0",
@@ -232,6 +312,14 @@
   "notes": "verified by TorsGUI's reference tests (avx2 build)"
  },
  {
+  "name": "Oxide",
+  "repo": "Miguevrgo/Oxide",
+  "ccrl_name": "Oxide",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "Rust; single-thread"
+ },
+ {
   "name": "Patricia",
   "repo": "Adam-Kulju/Patricia",
   "ccrl_name": "Patricia",
@@ -264,6 +352,14 @@
   "notes": ""
  },
  {
+  "name": "Prune",
+  "repo": "tgirolami09/Prune",
+  "ccrl_name": "Prune",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "C++"
+ },
+ {
   "name": "PZChessBot",
   "repo": "kevlu8/PZChessBot",
   "ccrl_name": "PZChessBot",
@@ -278,6 +374,14 @@
   "tested_tag": "Cronus-3.0",
   "tested_asset": "Quanticade-Windows-clang-x86-64-bmi2.exe",
   "notes": "verified by TorsGUI's reference tests (bmi2 build)"
+ },
+ {
+  "name": "Quirky",
+  "repo": "Wind-Eagle/Quirky",
+  "ccrl_name": "Quirky",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
  },
  {
   "name": "Raphael",
@@ -304,6 +408,14 @@
   "notes": "verified by TorsGUI's reference tests (**bmi2** build)"
  },
  {
+  "name": "Rice",
+  "repo": "rafid-dev/rice",
+  "ccrl_name": "Rice",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
   "name": "RubiChess",
   "repo": "Matthies/RubiChess",
   "ccrl_name": "RubiChess",
@@ -318,6 +430,14 @@
   "tested_tag": "v2.8.0",
   "tested_asset": "seer_v2.8_x64_avx2_popcnt.exe",
   "notes": "verified by TorsGUI's reference tests (avx2-popcnt build)"
+ },
+ {
+  "name": "Serendipity",
+  "repo": "xu-shawn/Serendipity",
+  "ccrl_name": "Serendipity",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "Java"
  },
  {
   "name": "Sirius",
@@ -376,9 +496,25 @@
   "notes": "verified by TorsGUI's reference tests (avx2 build)"
  },
  {
+  "name": "Tcheran",
+  "repo": "tcheran-chess/tcheran",
+  "ccrl_name": "Tcheran",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "Rust; supports FRC"
+ },
+ {
   "name": "Texel",
   "repo": "peterosterlund2/texel",
   "ccrl_name": "Texel",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "Thrawn",
+  "repo": "feftywacky/thrawn",
+  "ccrl_name": "Thrawn",
   "tested_tag": null,
   "tested_asset": null,
   "notes": ""
@@ -430,5 +566,21 @@
   "tested_tag": null,
   "tested_asset": null,
   "notes": ""
+ },
+ {
+  "name": "Zangdar",
+  "repo": "Carbecq/Zangdar",
+  "ccrl_name": "Zangdar",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "C++20"
+ },
+ {
+  "name": "ZigQueen",
+  "repo": "stierms/zigqueen",
+  "ccrl_name": "ZigQueen",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "Zig; multi-thread from 6.3.0"
  }
 ]

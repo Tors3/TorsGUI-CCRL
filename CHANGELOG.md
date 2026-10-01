@@ -15,9 +15,9 @@
   *Bundled lists* on the CCRL page; *Open a saved page* in Manual import.
 - **Edit a tournament before it starts**: the Edit button on a draft opens the wizard with
   its settings; save, save and queue, or save and start.
-- **Known engines**: 54 public GitHub repositories in *Add from GitHub* (most tested by
-  TorsGUI, with the Blitz rating and whether the engine is in the library); one click lists
-  the releases.
+- **Known engines**: 73 public GitHub repositories in *Add from GitHub*, covering every
+  open-source engine of the CCRL Blitz top 60 (36 tested by TorsGUI), with the Blitz
+  rating and whether the engine is in the library; one click lists the releases.
 
 ## [0.3.1] - 2026-10-01
 
