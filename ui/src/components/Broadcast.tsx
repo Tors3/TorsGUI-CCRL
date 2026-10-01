@@ -30,8 +30,11 @@ export function BroadcastSettings({ s, set }: { s: Settings; set: <K extends key
     setChecking(true);
     try {
       const u = await call<string>("lichess_check", { token: s.lichess_token });
+      // a good token is saved at once, without the other unsaved changes
+      const saved = await call<Settings>("settings_get");
+      await call("settings_save", { settings: { ...saved, lichess_token: s.lichess_token } });
       setAccount(u);
-      toast.success(`Lichess token OK: ${u}`);
+      toast.success(`Lichess token OK and saved: ${u}`);
     } catch (e) {
       setAccount(null);
       toast.error((e as Error).message);
@@ -46,7 +49,7 @@ export function BroadcastSettings({ s, set }: { s: Settings; set: <K extends key
         <div className="font-medium flex items-center gap-1.5">
           <Globe size={14} /> Lichess broadcast
         </div>
-        <Field label="Lichess API token" hint="lichess.org/account/oauth/token/create with only “Read studies and broadcasts” and “Create, update, delete studies and broadcasts”. Stays on this computer.">
+        <Field label="Lichess API token" hint="lichess.org/account/oauth/token/create with only “Read studies and broadcasts” and “Create, update, delete studies and broadcasts”. Check saves it; it stays on this computer.">
           <div className="flex gap-2">
             <input className="input mono" type="password" autoComplete="off" placeholder="lip_…" value={s.lichess_token} onChange={(e) => set("lichess_token", e.target.value.trim())} data-testid="lichess-token" />
             <button className="btn" disabled={!s.lichess_token || checking} onClick={check}>

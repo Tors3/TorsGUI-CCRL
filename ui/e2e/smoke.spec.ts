@@ -217,7 +217,7 @@ test("live broadcast: settings and the tournament's Lichess / ccrl.live switches
   await expect(page.getByTestId("broadcast-panel")).toBeVisible();
   // Lichess needs a token first
   await page.getByTestId("broadcast-lichess").click();
-  await expect(page.getByText(/set the Lichess token first/)).toBeVisible();
+  await expect(page.getByText(/no Lichess token saved/)).toBeVisible();
   await expect(page.getByTestId("broadcast-lichess")).not.toBeChecked();
   await page.getByTestId("broadcast-ccrl").check();
   await expect(page.getByTestId("broadcast-ccrl")).toBeChecked();

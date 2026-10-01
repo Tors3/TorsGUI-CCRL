@@ -744,7 +744,7 @@ impl App {
                 let mut c = crate::broadcast::read_config(&tdir);
                 if let Some(v) = opt::<bool>(&a, "lichess") {
                     if v && store.settings()?.lichess_token.trim().is_empty() {
-                        bail!("set the Lichess token first (Settings → Live broadcast)");
+                        bail!("no Lichess token saved: open Settings → Live broadcast, paste the token, press Check (it saves it) or Save settings");
                     }
                     c.lichess = v;
                 }

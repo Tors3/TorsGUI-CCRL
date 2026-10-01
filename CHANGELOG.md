@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- Settings → Live broadcast: **Check** now saves a valid Lichess token at once. Before, a token
+  checked but not saved with "Save settings" made the tournament's Lichess switch fail with an
+  unclear red message; the message now says what to do.
+
 ## [0.4.0] - 2026-10-01
 
 ### Added
