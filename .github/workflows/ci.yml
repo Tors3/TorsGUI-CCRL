@@ -183,6 +183,7 @@ jobs:
           Copy-Item src-tauri/binaries/torsgui-runner-x86_64-pc-windows-msvc.exe $out/torsgui-runner.exe
           Copy-Item src-tauri/binaries/torsgui-demo-engine-x86_64-pc-windows-msvc.exe $out/torsgui-demo-engine.exe
           Copy-Item -Recurse src-tauri/resources/engines $out/engines
+          Copy-Item -Recurse src-tauri/resources/books $out/books
           Copy-Item LICENSE $out/
           Compress-Archive -Path "$out/*" -DestinationPath "$out.zip"
       - uses: actions/upload-artifact@v4

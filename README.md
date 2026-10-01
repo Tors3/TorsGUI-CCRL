@@ -70,7 +70,8 @@ illustrative sample (the site was not reachable from the build machine), not rea
 1. Download the installer (`TorsGUI_x.y.z_x64-setup.exe`), the MSI or the portable zip from the
    [releases](https://github.com/Tors3/TorsGUI-CCRL/releases). Linux: AppImage or `.deb`.
 2. **Settings** → your name and site; press **Download** to install the pinned fastchess
-   (or point to your own binary). Point the paths to your engines, books and tablebases.
+   (or point to your own binary). Point the paths to your engines, books and tablebases;
+   *Install the CCRL opening books* adds the bundled books (AVT 2026, GM2700+, LowDraw…).
 3. **Bench** → Stockfish 10 comes with TorsGUI (*Get official SF10* uses the bundled builds)
    → run 1 and N parallel instances with the machine idle →
    the TC calculator gives the local time control (e.g. Blitz 2'+1" → `103+1` at f≈0.86).

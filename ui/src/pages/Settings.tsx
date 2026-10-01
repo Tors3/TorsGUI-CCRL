@@ -5,6 +5,7 @@ import type { Housekeeping } from "../bindings/Housekeeping";
 import type { Settings } from "../bindings/Settings";
 import type { Topology } from "../bindings/Topology";
 import { BoardAppearance } from "../components/BoardSettings";
+import { OpeningBooksPanel } from "../components/OpeningBooks";
 import { ErrorBox, Field, PageHeader, Panel, Spinner } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { bytes } from "../lib/format";
@@ -176,6 +177,9 @@ export function SettingsPage() {
           </div>
         </Panel>
       </div>
+      <Panel title="Opening books">
+        <OpeningBooksPanel settings={s} onSettings={refresh} />
+      </Panel>
       <Panel title="CPU topology">{topo ? <TopologyView t={topo} /> : <Spinner />}</Panel>
       <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)" }}>
         <Panel title="Board appearance" actions={<span className="muted text-[11.5px]">saved on this computer, applied immediately</span>}>

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.1] - 2026-10-01
+
+### Added
+- **Bundled CCRL opening books**: the installers carry the 18 books used by CCRL testers
+  (AVT-Book 2026c/2026d, AVT-Fringe 2026, AVT 8 moves 50-65, AVT ICCF 8 moves more
+  unbalanced, GBSelect 2026, GM2700+, LowDraw1000, TopGM 8 moves): 9 PGN books for
+  fastchess and 9 CGB books for other GUIs. *Install the CCRL opening books* (Getting started,
+  Settings → Opening books) extracts them into the books folder and makes AVT-Book 2026d the
+  default book when none is set.
+- **Settings → Opening books**: every bundled book with author, positions, description and
+  terms, whether it is installed, and *Use as default*.
+- **Wizard**: an *Installed books…* menu next to the book field lists the PGN/EPD books of
+  the books folder with their number of positions.
+
 ## [0.3.0] - 2026-09-30
 
 ### Added

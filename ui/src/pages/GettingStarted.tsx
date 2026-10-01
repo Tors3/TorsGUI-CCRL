@@ -5,11 +5,12 @@ import { toast } from "sonner";
 import type { Settings } from "../bindings/Settings";
 import type { SetupStatus } from "../bindings/SetupStatus";
 import { HelpLink } from "../components/HelpLink";
+import { InstallBooksButton } from "../components/OpeningBooks";
 import { ErrorBox, Field, PageHeader, Panel, ProgressBar, Spinner } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 
 type StepDef = { id: string; title: string; why: string; help: string; body: (ctx: Ctx) => ReactNode };
-type Ctx = { settings?: Settings; refresh: () => void; nav: (to: string) => void; bundled: string[] };
+type Ctx = { settings?: Settings; refresh: () => void; nav: (to: string) => void; bundled: string[]; books: number };
 
 function BundledButton({ refresh, bundled, kind }: Ctx & { kind: "engines" | "bench" }) {
   const [busy, setBusy] = useState(false);
@@ -114,7 +115,18 @@ const go = (to: string, label: string, icon: ReactNode) => (ctx: Ctx) => (
 const STEPS: StepDef[] = [
   { id: "tester", title: "Who you are", why: "Your name and location go into the CCRL file name and the PGN Site tag.", help: "new-machine", body: (c) => <TesterForm {...c} /> },
   { id: "fastchess", title: "Install fastchess", why: "fastchess plays the games: TorsGUI starts one fastchess process per game and places it on a NUMA node.", help: "new-machine", body: (c) => <FastchessStep {...c} /> },
-  { id: "folders", title: "Folders and opening book", why: "Where engines are downloaded, where books and tablebases are, and the default book every tournament starts from.", help: "new-machine", body: go("/settings", "Open Settings → Paths", <SettingsIcon size={13} />) },
+  {
+    id: "folders",
+    title: "Folders and opening book",
+    why: "Where engines are downloaded, where books and tablebases are, and the default book every tournament starts from. The CCRL opening books (AVT 2026, GM 2700+, Low Draw…) come with TorsGUI.",
+    help: "new-machine",
+    body: (c) => (
+      <div className="flex gap-2">
+        {c.books > 0 && <InstallBooksButton onDone={c.refresh} label={`Install the ${c.books} CCRL opening books`} />}
+        {go("/settings", "Open Settings → Paths", <SettingsIcon size={13} />)(c)}
+      </div>
+    ),
+  },
   {
     id: "bench",
     title: "Bench the machine",
@@ -191,7 +203,7 @@ export function GettingStarted() {
     }
   };
   const lastDemo = demoId ?? st?.demos[st.demos.length - 1]?.[0] ?? null;
-  const ctx: Ctx = { settings, refresh: refreshAll, nav, bundled: st?.bundled ?? [] };
+  const ctx: Ctx = { settings, refresh: refreshAll, nav, bundled: st?.bundled ?? [], books: st?.bundled_books ?? 0 };
   return (
     <div className="flex flex-col gap-3 fade-in max-w-[1100px]">
       <PageHeader title="Getting started" sub="Set up TorsGUI step by step, or watch a demo tournament first" help="getting-started" />

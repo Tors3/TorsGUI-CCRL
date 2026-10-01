@@ -16,7 +16,8 @@ this machine, and has a button to do it. The steps are the sections of this guid
 
 1. **Tester**: your name and site (used in the export).
 2. **fastchess**: download the pinned version (it plays the games).
-3. **Folders**: engines, books and the default opening book.
+3. **Folders**: engines, books and the default opening book (*Install the CCRL opening
+   books*: the books come with TorsGUI, see [Opening books](#opening-books)).
 4. **Bench**: the SF10 bench gives the machine factor and the local time control
    (Stockfish 10 comes with TorsGUI: *Use the bundled Stockfish 10*).
 5. **Engines**: *Add the bundled engines* (Stockfish 10 and Triumviratus 7.0 AVX2 come with
@@ -30,6 +31,33 @@ never meant for rating lists). It needs only fastchess: in a couple of minutes y
 runner at work, the live boards, the standings, the game viewer and the CCRL export with its
 checklist. The demo can be standard chess or Chess960, and it can be removed afterwards
 (tournament → delete).
+
+## Opening books
+
+TorsGUI ships the opening books used by CCRL testers. *Install the CCRL opening books*
+(Getting started, or **Settings → Opening books**) extracts them into the books folder and,
+if no default book is set, makes **AVT-Book 2026d** (`AVT2026d.pgn`) the default.
+
+| Book | Positions | Notes |
+|---|---|---|
+| AVT-Book 2026d | 16677 | ICCF games >2200, 12 moves, shuffled (default) |
+| AVT-Book 2026c | 20319 | ICCF games >2200, 12 moves, slightly unbalanced |
+| AVT-Fringe 2026 | 6292 | ICCF games >2400, 12 moves, pretty unbalanced |
+| AVT 8 moves 50-65 | 3745 | ICCF games >2200, 8 moves, exit score 50–65 cp |
+| AVT ICCF 8 moves more unbalanced | 3745 | ICCF games >2200, 8 moves, more unbalanced |
+| GBSelect 2026 | 1879 | selected openings with ECO codes and names |
+| GM2700+ | 13438 | 8 moves from games between 2700+ grandmasters |
+| LowDraw1000 | 1000 | openings with a low draw rate |
+| TopGM 8 moves | 4999 | top GM games, 8 moves |
+
+The archive holds 9 **PGN** books, which fastchess plays, and 9 **CGB** books (the format of
+other GUIs), installed only for testers who also use those GUIs: fastchess cannot read CGB, so
+TorsGUI never offers them for tournaments. The CGB books are 2600+ 8 moves, AVT-Fringe 2026, AVT 8 moves 50-65,
+AVT ICCF 8 moves more unbalanced, FOEBOS v20.1, Hert500, IECG Masters, SuperGM 2020 and
+WorldClass 2013.
+The panel shows author, description and terms of each book and a *Use as default* button. In
+the wizard, *Installed books…* next to the book field picks any PGN/EPD book of the books
+folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
 
 ## 1. New machine
 
@@ -47,6 +75,7 @@ checklist. The demo can be standard chess or Chess960, and it can be removed aft
      open the GUI. On Linux the same button prints the `@reboot` crontab line to use.
    - *Launch runners through the Windows Task Scheduler*: optional, like the old
      `start_all_task.bat` (a CRLF `.bat` in the tournament folder, run by a scheduled task).
+   - *Opening books*: the CCRL books bundled with TorsGUI (see below).
 3. The **CPU topology** panel shows the NUMA nodes, processor groups, physical cores and SMT
    siblings as detected (`GetLogicalProcessorInformationEx` on Windows, sysfs on Linux). The
    highlighted cells are the first hardware thread of each core: the "one logical CPU per

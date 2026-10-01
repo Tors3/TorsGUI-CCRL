@@ -671,6 +671,51 @@ impl App {
                 ok(bench::ensure_sf10_windows(&dir)?)
             }
             "bundled_list" => ok(self.bundled_list(&store)?),
+            "books_bundled" => {
+                let s = store.settings()?;
+                match crate::bundled::books_dir() {
+                    Some(d) => ok(json!({"dir": d, "books": crate::bundled::books(&d, Path::new(&s.books_dir))?})),
+                    None => ok(json!({"dir": null, "books": []})),
+                }
+            }
+            "books_install" => {
+                let d = crate::bundled::books_dir().context("this installation has no bundled opening books")?;
+                let mut s = store.settings()?;
+                let only: Option<Vec<String>> = opt(&a, "files");
+                let installed = crate::bundled::install_books(&d, Path::new(&s.books_dir), only.as_deref())?;
+                // a default book is needed by every tournament: propose the newest AVT book
+                let mut default_set = false;
+                if s.default_book.is_empty() || !Path::new(&s.default_book).exists() {
+                    let p = Path::new(&s.books_dir).join(crate::bundled::DEFAULT_BOOK);
+                    if p.exists() {
+                        s.default_book = p.to_string_lossy().to_string();
+                        store.save_settings(&s)?;
+                        default_set = true;
+                    }
+                }
+                store.push_event("success", "books_installed", None, &format!("{} opening books installed in {}", installed.len(), s.books_dir))?;
+                ok(json!({"installed": installed, "default_book": s.default_book, "default_set": default_set}))
+            }
+            "books_list" => {
+                // books usable by fastchess in the books folder (and the default book)
+                let s = store.settings()?;
+                let mut files: Vec<PathBuf> = std::fs::read_dir(&s.books_dir).map(|rd| rd.flatten().map(|e| e.path()).collect()).unwrap_or_default();
+                if !s.default_book.is_empty() && Path::new(&s.default_book).exists() && !files.iter().any(|f| f == Path::new(&s.default_book)) {
+                    files.push(PathBuf::from(&s.default_book));
+                }
+                let mut v: Vec<Value> = files
+                    .into_iter()
+                    .filter(|p| matches!(p.extension().map(|x| x.to_string_lossy().to_lowercase()).as_deref(), Some("pgn" | "epd")))
+                    .map(|p| {
+                        let text = crate::pgn::read_text(&p).unwrap_or_default();
+                        let epd = p.extension().map(|x| x.eq_ignore_ascii_case("epd")).unwrap_or(false);
+                        let n = if epd { text.lines().filter(|l| !l.trim().is_empty()).count() } else { text.lines().filter(|l| l.starts_with("[Event ")).count() };
+                        json!({"path": p.to_string_lossy(), "name": p.file_name().unwrap_or_default().to_string_lossy(), "positions": n, "default": p.to_string_lossy() == s.default_book})
+                    })
+                    .collect();
+                v.sort_by(|a, b| a["name"].as_str().unwrap_or("").to_lowercase().cmp(&b["name"].as_str().unwrap_or("").to_lowercase()));
+                ok(v)
+            }
             "bundled_install" => ok(self.bundled_install(&store)?),
             "bench_start" => {
                 let cfg: BenchConfig = arg(&a, "config")?;
@@ -1132,8 +1177,9 @@ impl App {
         ];
         let done = steps.iter().filter(|x| x.done).count() as u32;
         let demos = tournaments.iter().filter(|t| is_demo(t)).map(|t| (t.id.clone(), t.name.clone(), format!("{:?}", t.state).to_lowercase())).collect();
+        let bundled_books = crate::bundled::books_dir().and_then(|d| crate::bundled::books(&d, Path::new(&s.books_dir)).ok()).map(|v| v.iter().filter(|b| b.fastchess).count() as u32).unwrap_or(0);
         let bundled = crate::bundled::dir().and_then(|d| crate::bundled::list(&d).ok()).map(|v| v.into_iter().filter(|e| e.present).map(|e| format!("{} {}", e.engine, e.version)).collect::<std::collections::BTreeSet<_>>().into_iter().collect()).unwrap_or_default();
-        Ok(crate::demo::SetupStatus { total: steps.len() as u32, steps, done, demo_engine: crate::demo::engine_path().is_some(), fastchess: fc.exists(), demos, bundled })
+        Ok(crate::demo::SetupStatus { total: steps.len() as u32, steps, done, demo_engine: crate::demo::engine_path().is_some(), fastchess: fc.exists(), demos, bundled, bundled_books })
     }
 
     /// Creates the demo gauntlet (and the demo engines in the library) and starts it.

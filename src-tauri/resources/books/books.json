@@ -1,0 +1,182 @@
+[
+  {
+    "file": "avt-fringe-2026.pgn",
+    "name": "AVT-Fringe 2026",
+    "format": "pgn",
+    "positions": 6292,
+    "fastchess": true,
+    "author": "Andres Valverde",
+    "description": "ICCF games (players >2400), 12 moves; final scores \u00b160\u201375 cp (pretty unbalanced, at the UHO frontier)",
+    "terms": "free for every use"
+  },
+  {
+    "file": "AVT2026c.pgn",
+    "name": "AVT-Book 2026c",
+    "format": "pgn",
+    "positions": 20319,
+    "fastchess": true,
+    "author": "Andres Valverde",
+    "description": "ICCF games (players >2200), 12 moves; final scores \u00b140\u201365 cp (slightly unbalanced), shuffled",
+    "terms": "free for every use"
+  },
+  {
+    "file": "AVT2026d.pgn",
+    "name": "AVT-Book 2026d",
+    "format": "pgn",
+    "positions": 16677,
+    "fastchess": true,
+    "author": "Andres Valverde",
+    "description": "ICCF games (players >2200), 12 moves, shuffled; the 2026 successor of the AVT book series",
+    "terms": "free for every use"
+  },
+  {
+    "file": "AVT8moves50-65.pgn",
+    "name": "AVT 8 moves 50\u201365",
+    "format": "pgn",
+    "positions": 3745,
+    "fastchess": true,
+    "author": "Andres Valverde",
+    "description": "ICCF games (players >2200), 8 moves; exit score 50\u201365 cp (Stockfish 18, 10 s/line)",
+    "terms": "free for every use"
+  },
+  {
+    "file": "avt_iccf_8m_more_unbalanced.pgn",
+    "name": "AVT ICCF 8 moves, more unbalanced",
+    "format": "pgn",
+    "positions": 3745,
+    "fastchess": true,
+    "author": "Andres Valverde",
+    "description": "ICCF games (players >2200), 8 moves, more unbalanced exits",
+    "terms": "free for every use"
+  },
+  {
+    "file": "GBSelect2026.pgn",
+    "name": "GB Select 2026",
+    "format": "pgn",
+    "positions": 1879,
+    "fastchess": true,
+    "author": "",
+    "description": "selected openings with ECO codes and names",
+    "terms": ""
+  },
+  {
+    "file": "GM2700+.pgn",
+    "name": "GM 2700+",
+    "format": "pgn",
+    "positions": 13438,
+    "fastchess": true,
+    "author": "",
+    "description": "8 moves from games between 2700+ grandmasters",
+    "terms": ""
+  },
+  {
+    "file": "LowDraw1000.pgn",
+    "name": "Low Draw 1000",
+    "format": "pgn",
+    "positions": 1000,
+    "fastchess": true,
+    "author": "",
+    "description": "1000 openings with a low draw rate (CW selection, Stockfish 15 evaluations)",
+    "terms": ""
+  },
+  {
+    "file": "TopGM_8move.pgn",
+    "name": "Top GM 8 moves",
+    "format": "pgn",
+    "positions": 4999,
+    "fastchess": true,
+    "author": "",
+    "description": "8 moves (16 plies) from top grandmaster games",
+    "terms": ""
+  },
+  {
+    "file": "2600+8moves.cgb",
+    "name": "2600+8moves",
+    "format": "cgb",
+    "positions": null,
+    "fastchess": false,
+    "author": "",
+    "description": "CGB book for other GUIs",
+    "terms": ""
+  },
+  {
+    "file": "avt-fringe-2026.cgb",
+    "name": "avt-fringe-2026",
+    "format": "cgb",
+    "positions": null,
+    "fastchess": false,
+    "author": "",
+    "description": "CGB book for other GUIs (the same openings are in the PGN version)",
+    "terms": ""
+  },
+  {
+    "file": "AVT8moves50-65.cgb",
+    "name": "AVT8moves50-65",
+    "format": "cgb",
+    "positions": null,
+    "fastchess": false,
+    "author": "",
+    "description": "CGB book for other GUIs (the same openings are in the PGN version)",
+    "terms": ""
+  },
+  {
+    "file": "avt_iccf_8m_more_unbalanced.cgb",
+    "name": "avt_iccf_8m_more_unbalanced",
+    "format": "cgb",
+    "positions": null,
+    "fastchess": false,
+    "author": "",
+    "description": "CGB book for other GUIs (the same openings are in the PGN version)",
+    "terms": ""
+  },
+  {
+    "file": "FOEBOSv20.1.cgb",
+    "name": "FOEBOSv20.1",
+    "format": "cgb",
+    "positions": null,
+    "fastchess": false,
+    "author": "",
+    "description": "CGB book for other GUIs",
+    "terms": ""
+  },
+  {
+    "file": "Hert500.cgb",
+    "name": "Hert500",
+    "format": "cgb",
+    "positions": null,
+    "fastchess": false,
+    "author": "",
+    "description": "CGB book for other GUIs",
+    "terms": ""
+  },
+  {
+    "file": "IECGMasters.cgb",
+    "name": "IECGMasters",
+    "format": "cgb",
+    "positions": null,
+    "fastchess": false,
+    "author": "",
+    "description": "CGB book for other GUIs",
+    "terms": ""
+  },
+  {
+    "file": "SuperGM2020.cgb",
+    "name": "SuperGM2020",
+    "format": "cgb",
+    "positions": null,
+    "fastchess": false,
+    "author": "",
+    "description": "CGB book for other GUIs",
+    "terms": ""
+  },
+  {
+    "file": "WorldClass2013-1.cgb",
+    "name": "WorldClass2013-1",
+    "format": "cgb",
+    "positions": null,
+    "fastchess": false,
+    "author": "",
+    "description": "CGB book for other GUIs",
+    "terms": ""
+  }
+]

@@ -36,6 +36,7 @@ export function Wizard() {
   const { data: topo } = usePoll<Topology>("topology", {}, 0);
   const { data: settings } = usePoll<Settings>("settings_get", {}, 0);
   const { data: presets } = usePoll<NominalTc[]>("tc_presets", {}, 0);
+  const { data: books } = usePoll<{ path: string; name: string; positions: number; default: boolean }[]>("books_list", {}, 0);
 
   const [kind, setKind] = useState<TournamentKind>("gauntlet");
   const [list, setList] = useState("Blitz");
@@ -397,7 +398,19 @@ export function Wizard() {
                   ) : undefined
                 }
               >
-                <input className="input mono" value={book} onChange={(e) => setBook(e.target.value)} placeholder={variant === "chess960" ? "chess960-all-seed1.epd" : "C:\\CCRL\\books\\avt-book-2026.pgn"} data-testid="book" />
+                <div className="flex gap-2">
+                  {variant !== "chess960" && (books ?? []).length > 0 && (
+                    <select className="select !w-[230px] shrink-0" value={(books ?? []).find((b) => b.path === book)?.path ?? ""} onChange={(e) => e.target.value && setBook(e.target.value)} aria-label="Installed books" data-testid="book-select">
+                      <option value="">Installed books…</option>
+                      {(books ?? []).map((b) => (
+                        <option key={b.path} value={b.path}>
+                          {b.name} ({num(b.positions)})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <input className="input mono" value={book} onChange={(e) => setBook(e.target.value)} placeholder={variant === "chess960" ? "chess960-all-seed1.epd" : "C:\\CCRL\\books\\AVT2026d.pgn"} data-testid="book" />
+                </div>
               </Field>
               <Field label="Book start">
                 <input className="input tnum" type="number" min={1} value={bookStart} onChange={(e) => setBookStart(Math.max(1, +e.target.value))} />

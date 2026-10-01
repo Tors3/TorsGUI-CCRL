@@ -92,6 +92,8 @@ pub struct SetupStatus {
     pub demos: Vec<(String, String, String)>,
     /// Engines shipped with this installation ("Stockfish 10", "Triumviratus 7.0").
     pub bundled: Vec<String>,
+    /// Opening books (PGN) shipped with this installation.
+    pub bundled_books: u32,
 }
 
 /// The demo gauntlet: the demo engine against two sparring partners, 8 games each.

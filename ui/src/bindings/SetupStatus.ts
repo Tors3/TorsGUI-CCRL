@@ -9,4 +9,8 @@ demos: Array<[string, string, string]>,
 /**
  * Engines shipped with this installation ("Stockfish 10", "Triumviratus 7.0").
  */
-bundled: Array<string>, };
+bundled: Array<string>, 
+/**
+ * Opening books (PGN) shipped with this installation.
+ */
+bundled_books: number, };

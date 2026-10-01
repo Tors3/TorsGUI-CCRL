@@ -119,3 +119,117 @@ mod tests {
         assert!(copy(t.path(), &e, &out).is_err());
     }
 }
+
+// ------------------------------------------------------------------ opening books
+
+/// An opening book shipped with TorsGUI (`books/books.json`, files in the zip next to it).
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
+pub struct BundledBook {
+    pub file: String,
+    pub name: String,
+    /// "pgn" or "cgb".
+    pub format: String,
+    pub positions: Option<u32>,
+    /// fastchess reads PGN and EPD books; CGB books are for other GUIs.
+    pub fastchess: bool,
+    pub author: String,
+    pub description: String,
+    pub terms: String,
+    /// Set when listed: already in the books folder.
+    #[serde(default)]
+    pub installed: bool,
+}
+
+pub const BOOKS_ZIP: &str = "opening_books_CCRL.zip";
+/// The default book proposed when none is set: the newest AVT book.
+pub const DEFAULT_BOOK: &str = "AVT2026d.pgn";
+
+/// Where the bundled books are (same places as the engines, `books` instead of `engines`).
+pub fn books_dir() -> Option<PathBuf> {
+    if let Ok(p) = std::env::var("TORSGUI_BUNDLED_BOOKS") {
+        if Path::new(&p).join("books.json").exists() {
+            return Some(p.into());
+        }
+    }
+    if let Some(e) = dir() {
+        let b = e.join("../books");
+        if b.join("books.json").exists() {
+            return Some(b);
+        }
+    }
+    let exe = std::env::current_exe().ok()?;
+    let d = exe.parent()?;
+    [d.join("books"), d.join("resources").join("books"), d.join("../lib/TorsGUI/books"), d.join("../lib/torsgui/books"), d.join("../../src-tauri/resources/books")]
+        .into_iter()
+        .find(|p| p.join("books.json").exists())
+}
+
+pub fn books(dir: &Path, installed_in: &Path) -> Result<Vec<BundledBook>> {
+    let mut v: Vec<BundledBook> = serde_json::from_str(&std::fs::read_to_string(dir.join("books.json")).context("books.json")?)?;
+    for b in v.iter_mut() {
+        b.installed = installed_in.join(&b.file).is_file();
+    }
+    Ok(v)
+}
+
+/// Extracts the books (all, or the given files) into `dest`; existing files are replaced.
+pub fn install_books(dir: &Path, dest: &Path, only: Option<&[String]>) -> Result<Vec<String>> {
+    std::fs::create_dir_all(dest)?;
+    let mut z = zip::ZipArchive::new(std::fs::File::open(dir.join(BOOKS_ZIP)).context(BOOKS_ZIP)?)?;
+    let mut out = Vec::new();
+    for i in 0..z.len() {
+        let mut f = z.by_index(i)?;
+        if f.is_dir() {
+            continue;
+        }
+        // flat names only: never write outside `dest`
+        let Some(name) = f.enclosed_name().and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string())) else { continue };
+        if only.map(|o| !o.iter().any(|x| x == &name)).unwrap_or(false) {
+            continue;
+        }
+        let mut w = std::fs::File::create(dest.join(&name))?;
+        std::io::copy(&mut f, &mut w)?;
+        out.push(name);
+    }
+    Ok(out)
+}
+
+#[cfg(test)]
+mod book_tests {
+    use super::*;
+
+    fn repo_books() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../src-tauri/resources/books")
+    }
+
+    #[test]
+    fn manifest_matches_the_archive() {
+        let d = repo_books();
+        let list = books(&d, Path::new("/nonexistent")).unwrap();
+        let z = zip::ZipArchive::new(std::fs::File::open(d.join(BOOKS_ZIP)).unwrap()).unwrap();
+        let mut in_zip: Vec<String> = z.file_names().map(|s| s.to_string()).collect();
+        in_zip.sort();
+        let mut listed: Vec<String> = list.iter().map(|b| b.file.clone()).collect();
+        listed.sort();
+        assert_eq!(listed, in_zip);
+        assert!(list.iter().any(|b| b.file == DEFAULT_BOOK && b.fastchess));
+        for b in &list {
+            assert_eq!(b.fastchess, b.format == "pgn", "{}", b.file);
+        }
+    }
+
+    #[test]
+    fn install_extracts_and_counts_positions() {
+        let t = tempfile::tempdir().unwrap();
+        let only = vec!["LowDraw1000.pgn".to_string(), "GBSelect2026.pgn".to_string()];
+        let got = install_books(&repo_books(), t.path(), Some(&only)).unwrap();
+        assert_eq!(got.len(), 2);
+        let list = books(&repo_books(), t.path()).unwrap();
+        for b in list.iter().filter(|b| b.installed) {
+            let n = crate::pgn::read_games(&t.path().join(&b.file)).unwrap().len() as u32;
+            assert_eq!(Some(n), b.positions, "{}", b.file);
+        }
+        assert_eq!(list.iter().filter(|b| b.installed).count(), 2);
+    }
+}

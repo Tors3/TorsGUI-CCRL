@@ -51,6 +51,11 @@ fn main() {
                     // SAFETY: set once at start-up, before any API call reads it
                     unsafe { std::env::set_var("TORSGUI_BUNDLED", &engines) };
                 }
+                let books = dir.join("books");
+                if books.join("books.json").exists() {
+                    // SAFETY: as above
+                    unsafe { std::env::set_var("TORSGUI_BUNDLED_BOOKS", &books) };
+                }
             }
             let show = MenuItem::with_id(handle, "show", "Show TorsGUI", true, None::<&str>)?;
             let quit = MenuItem::with_id(handle, "quit", "Quit (tournaments keep running)", true, None::<&str>)?;

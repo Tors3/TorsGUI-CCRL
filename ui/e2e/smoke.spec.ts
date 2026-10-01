@@ -146,6 +146,24 @@ test("getting started: live steps and the demo tournament", async ({ page }) => 
   expect(engines.filter((e: any) => e.notes.startsWith("TorsGUI demo engine")).length).toBe(3);
 });
 
+test("bundled CCRL opening books: install, then pick one in the wizard", async ({ page }) => {
+  const b = await (await page.request.post("/api/books_bundled", { data: {} })).json();
+  expect(b.books.length).toBe(18);
+  await page.goto("/#/settings");
+  const table = page.getByTestId("books-table");
+  await expect(table.locator("tbody tr")).toHaveCount(18);
+  await page.getByTestId("books-install").first().click();
+  await expect(table.locator('tr[data-book="AVT2026d.pgn"]')).toHaveAttribute("data-installed", "yes");
+  await expect(table.locator('tr[data-book="Hert500.cgb"]')).toHaveAttribute("data-installed", "yes");
+  await page.goto("/#/tournaments/new");
+  const select = page.getByTestId("book-select");
+  await expect(select.locator("option", { hasText: "LowDraw1000.pgn" })).toHaveCount(1);
+  await expect(select.locator("option", { hasText: ".cgb" })).toHaveCount(0);
+  const low = await select.locator("option", { hasText: "LowDraw1000.pgn" }).getAttribute("value");
+  await select.selectOption(low!);
+  await expect(page.getByTestId("book")).toHaveValue(/LowDraw1000\.pgn$/);
+});
+
 test("board appearance is applied and remembered", async ({ page }) => {
   await page.goto("/#/settings");
   await page.getByTestId("theme-marble").click();
