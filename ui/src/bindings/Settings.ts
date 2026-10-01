@@ -29,4 +29,16 @@ prefer_avx512: boolean,
 /**
  * PGN files or folders outside the workspace shown in the game archive.
  */
-archive_paths: Array<string>, };
+archive_paths: Array<string>, 
+/**
+ * Lichess API token (scopes study:read, study:write) for live broadcasts.
+ */
+lichess_token: string, 
+/**
+ * Visibility of new Lichess broadcasts: public, unlisted or private.
+ */
+lichess_visibility: string, 
+/**
+ * First UDP port of the ccrl.live (TLCS-compatible) broadcast: lane N uses port + N.
+ */
+ccrl_live_port: number, };

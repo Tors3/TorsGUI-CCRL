@@ -20,6 +20,9 @@ Python scripts, `.bat` files and scheduled tasks with one elegant, dense tool th
 - calibrates the machine with the **Stockfish 10 bench** and turns CCRL time controls into local ones;
 - builds the **CCRL submission** (PGN + zip, byte-compatible with `export_ccrl.py`) and a
   short **BBCode forum post**;
+- **broadcasts the games live** on **Lichess** (one broadcast per tournament, clocks and
+  evaluations) and on **[ccrl.live](https://ccrl.live)** (TorsGUI is a TLCS-compatible server,
+  one broadcast per lane, with the crosstable), straight from the runner;
 - shows everything **live**: mini boards per lane, ticking clocks, evaluation bar, PV arrows,
   games/hour, ETA;
 - replays archived games on an animated board (minimal by default; 9 board themes including
@@ -137,6 +140,12 @@ the bench test a 64-bit Stockfish 10 (`SF10`). Missing inputs skip those tests w
   others named in Settings → Opening books).
 - The whole **CCRL community**: the team and the testers, whose rules, workflow, rating lists
   and advice TorsGUI follows, and who make computer-chess rating lists possible.
+- **Jay Honnold** for [ccrl.live](https://ccrl.live) and its viewer
+  [node-tlcv](https://github.com/jhonnold/node-tlcv), which hosts Graham's live broadcasts and
+  whose code and protocol notes made the ccrl.live broadcast possible; and **Tom's Live Chess
+  Server (TLCS)**, whose protocol TorsGUI speaks.
+- [Lichess](https://lichess.org) and its open [broadcast API](https://lichess.org/api#tag/Broadcasts)
+  for the Lichess broadcasts.
 - [Stockfish](https://github.com/official-stockfish/Stockfish) (the SF10 bench used to
   calibrate time controls).
 - [chessground](https://github.com/lichess-org/chessground) and the

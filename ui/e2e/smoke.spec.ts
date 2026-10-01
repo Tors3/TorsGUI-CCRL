@@ -206,6 +206,28 @@ test("CCRL lists bundled with TorsGUI and the known engine repositories", async 
   await expect(page.getByTestId("known-Stockfish")).toContainText("official-stockfish/Stockfish");
 });
 
+test("live broadcast: settings and the tournament's Lichess / ccrl.live switches", async ({ page }) => {
+  await page.goto("/#/settings");
+  await expect(page.getByTestId("lichess-token")).toBeVisible();
+  await expect(page.getByTestId("ccrl-live-port")).toHaveValue("16001");
+  const list = await (await page.request.post("/api/tournaments_list", { data: {} })).json();
+  const t = list.find((x: any) => !x.record.imported);
+  await page.goto(`/#/tournaments/${encodeURIComponent(t.record.id)}`);
+  await page.getByTestId("tab-broadcast").click();
+  await expect(page.getByTestId("broadcast-panel")).toBeVisible();
+  // Lichess needs a token first
+  await page.getByTestId("broadcast-lichess").click();
+  await expect(page.getByText(/set the Lichess token first/)).toBeVisible();
+  await expect(page.getByTestId("broadcast-lichess")).not.toBeChecked();
+  await page.getByTestId("broadcast-ccrl").check();
+  await expect(page.getByTestId("broadcast-ccrl")).toBeChecked();
+  const b = await (await page.request.post("/api/broadcast_get", { data: { id: t.record.id } })).json();
+  expect(b.config).toEqual({ lichess: false, ccrl_live: true });
+  expect(b.first_port).toBe(16001);
+  await page.getByTestId("broadcast-ccrl").uncheck();
+  await expect(page.getByTestId("broadcast-ccrl")).not.toBeChecked();
+});
+
 test("board appearance is applied and remembered", async ({ page }) => {
   await page.goto("/#/settings");
   await page.getByTestId("theme-marble").click();

@@ -5,6 +5,7 @@ pub mod analysis;
 pub mod api;
 pub mod assets;
 pub mod bench;
+pub mod broadcast;
 pub mod bundled;
 pub mod catalog;
 pub mod ccrl;

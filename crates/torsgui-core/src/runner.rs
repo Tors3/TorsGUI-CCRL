@@ -220,6 +220,8 @@ pub fn run_tournament(ws: &Workspace, id: &str, fastchess_override: Option<PathB
     store.push_event("info", "tournament_started", Some(id), &format!("{} started (runner pid {})", rec.name, std::process::id()))?;
     log_line(&tdir, &format!("runner {} start: {} ({:?}), fastchess {}", std::process::id(), rec.name, cfg.kind, fastchess.display()));
 
+    // live broadcast (ccrl.live, Lichess) while this runner plays the tournament
+    let _cast = crate::broadcast::Caster::start(ws.clone(), id.to_string());
     let mut retries = rec.retries;
     loop {
         let (session, reason) = run_session(ws, &store, id, &cfg, &fastchess, retries)?;

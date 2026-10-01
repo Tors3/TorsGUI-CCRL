@@ -6,6 +6,7 @@ import type { Settings } from "../bindings/Settings";
 import type { Topology } from "../bindings/Topology";
 import { BoardAppearance } from "../components/BoardSettings";
 import { OpeningBooksPanel } from "../components/OpeningBooks";
+import { BroadcastSettings } from "../components/Broadcast";
 import { ErrorBox, Field, PageHeader, Panel, Spinner } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { bytes } from "../lib/format";
@@ -177,6 +178,9 @@ export function SettingsPage() {
           </div>
         </Panel>
       </div>
+      <Panel title="Live broadcast" actions={<span className="muted text-[11.5px]">Lichess and ccrl.live · choose per tournament (tournament → Live broadcast)</span>}>
+        <BroadcastSettings s={s} set={set} />
+      </Panel>
       <Panel title="Opening books">
         <OpeningBooksPanel settings={s} onSettings={refresh} />
       </Panel>

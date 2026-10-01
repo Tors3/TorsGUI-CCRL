@@ -720,6 +720,71 @@ impl App {
                 ok(bench::ensure_sf10_windows(&dir)?)
             }
             "bundled_list" => ok(self.bundled_list(&store)?),
+            // ---------------------------------------------------------- live broadcast
+            "broadcast_get" => {
+                let id: String = arg(&a, "id")?;
+                let t = store.tournament(&id)?.context("tournament not found")?;
+                let tdir = self.ws.tournament_dir(&id);
+                let s = store.settings()?;
+                let lanes = (t.config.nodes.len() as u32 * t.config.lanes_per_node).max(1);
+                ok(json!({
+                    "config": crate::broadcast::read_config(&tdir),
+                    "state": crate::broadcast::read_state(&tdir),
+                    "running": t.state == TState::Running && runner::is_running(&tdir),
+                    "lichess_token": !s.lichess_token.trim().is_empty(),
+                    "first_port": s.ccrl_live_port,
+                    "last_port": s.ccrl_live_port.saturating_add(lanes as u16 - 1),
+                    "lanes": lanes,
+                }))
+            }
+            "broadcast_set" => {
+                let id: String = arg(&a, "id")?;
+                store.tournament(&id)?.context("tournament not found")?;
+                let tdir = self.ws.tournament_dir(&id);
+                let mut c = crate::broadcast::read_config(&tdir);
+                if let Some(v) = opt::<bool>(&a, "lichess") {
+                    if v && store.settings()?.lichess_token.trim().is_empty() {
+                        bail!("set the Lichess token first (Settings → Live broadcast)");
+                    }
+                    c.lichess = v;
+                }
+                if let Some(v) = opt::<bool>(&a, "ccrl_live") {
+                    c.ccrl_live = v;
+                }
+                crate::broadcast::write_config(&tdir, &c)?;
+                ok(c)
+            }
+            "lichess_check" => {
+                let token: String = opt(&a, "token").filter(|t: &String| !t.trim().is_empty()).unwrap_or(store.settings()?.lichess_token);
+                if token.trim().is_empty() {
+                    bail!("no Lichess token");
+                }
+                ok(crate::broadcast::lichess_account(token.trim())?)
+            }
+            "public_ip" => {
+                let (st, ip) = crate::github::get_page("https://api.ipify.org")?;
+                if st != 200 {
+                    bail!("api.ipify.org returned HTTP {st}");
+                }
+                ok(ip.trim().to_string())
+            }
+            "firewall_allow_udp" => {
+                // Windows: an inbound rule for the ccrl.live ports (asks for administrator rights)
+                let from: u16 = arg(&a, "from")?;
+                let to: u16 = arg(&a, "to")?;
+                if !cfg!(windows) {
+                    bail!("on Linux open UDP ports {from}-{to} in your firewall (e.g. sudo ufw allow {from}:{to}/udp)");
+                }
+                let rule = format!("advfirewall firewall add rule name=\"TorsGUI ccrl.live\" dir=in action=allow protocol=UDP localport={from}-{to}");
+                let mut cmd = std::process::Command::new("powershell");
+                cmd.args(["-NoProfile", "-Command", &format!("Start-Process netsh -ArgumentList '{rule}' -Verb RunAs -WindowStyle Hidden")]);
+                crate::platform::no_window(&mut cmd);
+                let out = cmd.output()?;
+                if !out.status.success() {
+                    bail!("netsh: {}", String::from_utf8_lossy(&out.stderr));
+                }
+                ok(true)
+            }
             "books_bundled" => {
                 let s = store.settings()?;
                 match crate::bundled::books_dir() {

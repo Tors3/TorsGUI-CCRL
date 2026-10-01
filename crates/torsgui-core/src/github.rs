@@ -56,7 +56,7 @@ pub fn parse_repo(s: &str) -> Option<RepoRef> {
     Some(RepoRef { owner: c[1].to_string(), repo: c[2].to_string(), tag: c.get(3).map(|m| m.as_str().to_string()) })
 }
 
-fn agent(follow_redirects: bool) -> ureq::Agent {
+pub(crate) fn agent(follow_redirects: bool) -> ureq::Agent {
     let tls = ureq::tls::TlsConfig::builder().root_certs(ureq::tls::RootCerts::PlatformVerifier).build();
     ureq::Agent::config_builder()
         .proxy(ureq::Proxy::try_from_env())

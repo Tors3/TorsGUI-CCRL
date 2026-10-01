@@ -288,6 +288,38 @@ Before sending results, the **Export** page checks the tournament and marks each
 | Variant and list | Chess960 games belong to the FRC list only, standard games to the others | pick the right list/variant in the wizard |
 | Tester name and site | used in the file name and the PGN `Site` tag | Settings → Tester |
 
+## 7b. Live broadcast (Lichess, ccrl.live)
+
+TorsGUI can show the games being played to everyone, while they are played. The broadcast
+runs inside the runner, so it goes on with the window closed, and it stops when the
+tournament is paused or finished. Choose it per tournament: the wizard (*Broadcast live*) or
+the tournament page, tab **Live broadcast**.
+
+**Lichess** (no router setup needed)
+
+1. Create a token at <https://lichess.org/account/oauth/token/create> with only *Read studies
+   and broadcasts* and *Create, update, delete studies and broadcasts*.
+2. **Settings → Live broadcast**: paste it, press *Check* (it shows the account), choose the
+   visibility (public, unlisted, private).
+3. Switch on *Lichess* for the tournament. With the first game TorsGUI creates the broadcast
+   (name = the event, description with tester, TC, threads, hash, book and engines) and rounds
+   of 60 games; every game is pushed with clocks (`%clk`) and evaluations (`%eval`), finished
+   games with their final result. The link is on the tournament page.
+
+**ccrl.live** (the site where Graham Banks' games are broadcast, by Jay Honnold)
+
+TorsGUI is a TLCS-compatible server: every lane is one broadcast on its own UDP port (lane 1
+on the first port of Settings → Live broadcast, default 16001, lane 2 on the next one…). It
+sends the players, every move with the engine's depth, score, time and PV, the clocks, the
+result, and the crosstable of the tournament after every game.
+
+1. Router: forward the UDP ports (one per lane) to this computer.
+2. Firewall: *Allow in the firewall* adds the Windows rule (administrator rights asked).
+3. A fixed address: the public IP (*Show*) or a free dynamic DNS name if it changes.
+4. Ask Jay to add your address and ports to ccrl.live: *Copy the message* prepares it.
+5. Switch on *ccrl.live* for the tournament: the tab shows each lane's port, its game and the
+   connected viewers.
+
 ## 8. Chess960 (Fischer Random)
 
 In the wizard choose the **FRC (960)** list (or just the **Chess960** variant): fastchess plays

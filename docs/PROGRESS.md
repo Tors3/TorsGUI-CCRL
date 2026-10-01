@@ -108,4 +108,5 @@ Legend: [x] done and tested · [~] done, verified only partially (see FINAL_REPO
 - [x] CCRL lists: colspan headers and tied ranks, fallback addresses and text export, bundled Blitz/40/15/FRC lists (unit tests `ccrl::*`; Playwright)
 - [x] Edit a tournament that has not started in the wizard (Playwright)
 - [x] 73 known engine repositories in Add from GitHub (unit tests `catalog::*`; Playwright)
+- [x] Live broadcast: Lichess (push API) and ccrl.live (TLCS-compatible UDP server, crosstable) from the runner (unit tests `broadcast::*`; integration `ccrl_live_and_lichess_broadcast_from_the_runner`; interop with the real node-tlcv `node_tlcv_shows_the_runner_games`; Playwright); 0.3.2 → 0.4.0 resume of a paused tournament verified
 - [x] Error boundary: one failing screen no longer blanks the app

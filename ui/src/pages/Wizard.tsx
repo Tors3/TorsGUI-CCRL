@@ -38,6 +38,8 @@ export function Wizard() {
   const [editing, setEditing] = useState<TournamentRecord | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const keepLanes = useRef(false);
+  const [castLichess, setCastLichess] = useState(false);
+  const [castCcrl, setCastCcrl] = useState(false);
   const { data: engines } = usePoll<EngineEntry[]>("engines_list", {}, 0);
   const { data: topo } = usePoll<Topology>("topology", {}, 0);
   const { data: settings } = usePoll<Settings>("settings_get", {}, 0);
@@ -139,6 +141,12 @@ export function Wizard() {
         setAdj(c.adjudication);
         setExtra(c.extra_args.join(" "));
         setEditing(r);
+        call<{ config: { lichess: boolean; ccrl_live: boolean } }>("broadcast_get", { id: r.id })
+          .then((b) => {
+            setCastLichess(b.config.lichess);
+            setCastCcrl(b.config.ccrl_live);
+          })
+          .catch(() => {});
       })
       .catch((e) => setEditError((e as Error).message));
   }, [editId, editing, engines, topo, settings]);
@@ -254,6 +262,7 @@ export function Wizard() {
     setBusy(true);
     try {
       if (editing) {
+        await call("broadcast_set", { id: editing.id, lichess: castLichess, ccrl_live: castCcrl });
         const rec = await call<TournamentRecord>("tournament_update", { id: editing.id, config: { ...editing.config, ...config, max_retries: editing.config.max_retries, max_slot_attempts: editing.config.max_slot_attempts, startup_ms: editing.config.startup_ms, fastchess: editing.config.fastchess, log_level: editing.config.log_level } });
         if (mode === "queue" && editing.state !== "queued") await call("queue_add", { id: rec.id });
         if (mode === "start") await call("tournament_start", { id: rec.id });
@@ -262,6 +271,9 @@ export function Wizard() {
         return;
       }
       const rec = await call<TournamentRecord>("tournament_create", { config, enqueue: mode === "queue" });
+      if (castLichess || castCcrl) {
+        await call("broadcast_set", { id: rec.id, lichess: castLichess, ccrl_live: castCcrl }).catch((e) => toast.error((e as Error).message));
+      }
       if (mode === "start") await call("tournament_start", { id: rec.id });
       toast.success(`${rec.name}: ${rec.expected_games} games ${mode === "queue" ? "queued" : mode === "start" ? "started" : "created"}`);
       nav(`/tournaments/${encodeURIComponent(rec.id)}`);
@@ -614,6 +626,15 @@ export function Wizard() {
                 </div>
               )}
             </Panel>
+            <div className="flex gap-4 text-[12.5px] px-1" data-testid="wizard-broadcast">
+              <span className="muted">Broadcast live:</span>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={castLichess} onChange={(e) => setCastLichess(e.target.checked)} disabled={!settings?.lichess_token} /> Lichess
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={castCcrl} onChange={(e) => setCastCcrl(e.target.checked)} /> ccrl.live
+              </label>
+            </div>
             <div className="flex flex-col gap-2">
               <button className="btn btn-primary justify-center h-9" disabled={busy || (!!editId && !editing) || !preview || preview.errors.length > 0} onClick={() => create("start")} data-testid="create-start">
                 <Play size={14} /> {editing ? "Save and start" : "Create and start"}

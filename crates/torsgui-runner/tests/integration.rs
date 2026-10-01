@@ -401,3 +401,182 @@ fn chess960_tournament_plays_start_positions() {
     assert_eq!(seen.len(), 3, "the three start positions are each played with both colours");
     eprintln!("chess960: {castled} castling moves replayed");
 }
+
+/// A minimal HTTP server answering like Lichess; records (path, body) of every request.
+fn mock_lichess() -> (String, std::sync::Arc<std::sync::Mutex<Vec<(String, String)>>>) {
+    use std::io::{Read, Write};
+    let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let base = format!("http://{}", l.local_addr().unwrap());
+    let log = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let log2 = log.clone();
+    std::thread::spawn(move || {
+        for s in l.incoming() {
+            let Ok(mut s) = s else { continue };
+            let mut buf = Vec::new();
+            let mut tmp = [0u8; 65536];
+            let (head, body) = loop {
+                let n = s.read(&mut tmp).unwrap_or(0);
+                buf.extend_from_slice(&tmp[..n]);
+                let t = String::from_utf8_lossy(&buf).to_string();
+                if let Some((h, b)) = t.split_once("\r\n\r\n") {
+                    let len: usize = h.lines().find_map(|l| l.to_lowercase().strip_prefix("content-length:").map(|v| v.trim().parse().unwrap())).unwrap_or(0);
+                    if b.len() >= len {
+                        break (h.to_string(), b.to_string());
+                    }
+                }
+                if n == 0 {
+                    break (t, String::new());
+                }
+            };
+            let path = head.split_whitespace().nth(1).unwrap_or("").to_string();
+            log2.lock().unwrap().push((path.clone(), body));
+            let reply = if path == "/broadcast/new" {
+                r#"{"tour":{"id":"T1","url":"https://lichess.org/broadcast/test/T1"}}"#
+            } else if path.ends_with("/new") {
+                r#"{"round":{"id":"R1","url":"https://lichess.org/broadcast/test/games-1-60/R1"}}"#
+            } else {
+                r#"{"games":[]}"#
+            };
+            let _ = write!(s, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{reply}", reply.len());
+        }
+    });
+    (base, log)
+}
+
+#[test]
+fn ccrl_live_and_lichess_broadcast_from_the_runner() {
+    let _ = need_fastchess!();
+    let e = env().unwrap();
+    let port = std::net::UdpSocket::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let (base, http) = mock_lichess();
+    {
+        let store = e.ws.open().unwrap();
+        let mut s = store.settings().unwrap();
+        s.ccrl_live_port = port;
+        s.lichess_token = "lip_test".into();
+        s.tester_name = "Francesco Torsello".into();
+        s.site = "Milan".into();
+        store.save_settings(&s).unwrap();
+    }
+    let mut cfg = config(&e, "cast", &[("Opp A", "")], 2, 1, 40);
+    cfg.tc = "3+0.05".into();
+    let id = create(&e, cfg, false);
+    let tdir = e.ws.tournament_dir(&id);
+    torsgui_core::broadcast::write_config(&tdir, &torsgui_core::broadcast::BroadcastConfig { lichess: true, ccrl_live: true }).unwrap();
+    let mut child = runner_cmd(&e, &id).env("TORSGUI_LICHESS_URL", &base).spawn().unwrap();
+    // a viewer like ccrl.live (node-tlcv): log on, acknowledge every message
+    let c = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+    c.set_read_timeout(Some(Duration::from_millis(300))).unwrap();
+    let addr = format!("127.0.0.1:{port}");
+    let mut got: Vec<String> = Vec::new();
+    let mut buf = [0u8; 4096];
+    let end = Instant::now() + Duration::from_secs(120);
+    while Instant::now() < end {
+        if got.is_empty() {
+            let _ = c.send_to(b"LOGONv15:test", &addr);
+        }
+        if let Ok((n, _)) = c.recv_from(&mut buf) {
+            let m = String::from_utf8_lossy(&buf[..n]).to_string();
+            if let Some(rest) = m.strip_prefix('<') {
+                let (id, text) = rest.split_once('>').unwrap();
+                let _ = c.send_to(format!("ACK: {id}").as_bytes(), &addr);
+                if !got.iter().any(|g| g == text) || !text.contains("TIME") {
+                    got.push(text.to_string());
+                }
+            }
+        }
+        if child.try_wait().unwrap().is_some() {
+            break;
+        }
+    }
+    let st = child.wait().unwrap();
+    assert!(st.success());
+    assert_eq!(state(&e, &id), TState::Completed);
+    assert!(got.iter().any(|m| m.starts_with("SITE: Test gauntlet cast")), "{got:?}");
+    assert!(got.iter().any(|m| m == "WPLAYER: Seed 1.0" || m == "WPLAYER: Opp A"), "{got:?}");
+    assert!(got.iter().any(|m| m.starts_with("FEN: ")), "{got:?}");
+    assert!(got.iter().filter(|m| m.starts_with("WMOVE: ") || m.starts_with("BMOVE: ")).count() > 10, "{got:?}");
+    assert!(got.iter().any(|m| m.starts_with("result: ")), "{got:?}");
+    // Lichess: one broadcast, one round, pushes with the finished games
+    let log = http.lock().unwrap().clone();
+    assert_eq!(log.iter().filter(|(p, _)| p == "/broadcast/new").count(), 1, "{:?}", log.iter().map(|x| &x.0).collect::<Vec<_>>());
+    assert_eq!(log.iter().filter(|(p, _)| p == "/broadcast/T1/new").count(), 1);
+    let last = log.iter().filter(|(p, _)| p == "/api/broadcast/round/R1/push").last().expect("a push").1.clone();
+    assert!(last.contains("[Round \"1\"]") && last.contains("[Round \"2\"]"), "{last}");
+    assert!(!last.contains("[Result \"*\"]"), "the last push carries the final results: {last}");
+    assert!(last.contains("[%clk "), "{last}");
+    let bs = torsgui_core::broadcast::read_state(&tdir);
+    assert_eq!(bs.lichess_url.as_deref(), Some("https://lichess.org/broadcast/test/T1"));
+    assert_eq!(bs.boards.len(), 2);
+    assert_eq!(bs.lichess_error, None);
+}
+
+/// Interoperability with the real viewer of ccrl.live (node-tlcv by Jay Honnold): run with
+/// `NODE_TLCV=<checkout with npm run build done> cargo test -- --ignored node_tlcv`.
+#[test]
+#[ignore]
+fn node_tlcv_shows_the_runner_games() {
+    let _ = need_fastchess!();
+    let Ok(tlcv) = std::env::var("NODE_TLCV") else {
+        eprintln!("NODE_TLCV not set: skipping");
+        return;
+    };
+    let e = env().unwrap();
+    let port = std::net::UdpSocket::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    {
+        let store = e.ws.open().unwrap();
+        let mut s = store.settings().unwrap();
+        s.ccrl_live_port = port;
+        store.save_settings(&s).unwrap();
+    }
+    let mut cfg = config(&e, "tlcv", &[("Opp A", "")], 2, 1, 60);
+    cfg.tc = "5+0.05".into();
+    let id = create(&e, cfg, false);
+    torsgui_core::broadcast::write_config(&e.ws.tournament_dir(&id), &torsgui_core::broadcast::BroadcastConfig { lichess: false, ccrl_live: true }).unwrap();
+    let mut runner = runner_cmd(&e, &id).spawn().unwrap();
+    std::thread::sleep(Duration::from_secs(1));
+    // node-tlcv in ephemeral mode (it cannot bind the broadcast port on the same host)
+    let cdir = e.ws.root.join("tlcv-config");
+    let pdir = e.ws.root.join("tlcv-pgns");
+    std::fs::create_dir_all(&cdir).unwrap();
+    std::fs::create_dir_all(&pdir).unwrap();
+    std::fs::write(cdir.join("config.json"), format!(r#"{{"connections":[{{"connection":"127.0.0.1:{port}","ephemeral":true}}]}}"#)).unwrap();
+    let http = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let mut node = Command::new("node")
+        .arg("build/src/main.js")
+        .current_dir(&tlcv)
+        .env("TLCV_PASSWORD", "test")
+        .env("PORT", http.to_string())
+        .env("CONFIG_DIR", &cdir)
+        .env("PGNS_DIR", &pdir)
+        .env("LOG_LEVEL", "info")
+        .stdout(std::fs::File::create(e.ws.root.join("tlcv.log")).unwrap())
+        .stderr(std::fs::File::create(e.ws.root.join("tlcv.err")).unwrap())
+        .spawn()
+        .unwrap();
+    let st = runner.wait().unwrap();
+    std::thread::sleep(Duration::from_secs(2));
+    let _ = node.kill();
+    assert!(st.success());
+    let log = std::fs::read_to_string(e.ws.root.join("tlcv.log")).unwrap_or_default();
+    let saved: Vec<String> = walk(&pdir).into_iter().filter(|p| p.extension().is_some_and(|x| x == "pgn")).map(|p| std::fs::read_to_string(p).unwrap()).collect();
+    println!("node-tlcv log tail:\n{}", log.lines().rev().take(25).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n"));
+    println!("PGNs saved by node-tlcv: {}\n{}", saved.len(), saved.first().cloned().unwrap_or_default());
+    assert!(!saved.is_empty(), "node-tlcv saved no game");
+    assert!(saved.iter().any(|p| p.contains("1-0") || p.contains("0-1") || p.contains("1/2-1/2")));
+    assert!(log.contains("Updated game"), "node-tlcv applied no move");
+    assert!(!log.contains("Failed to parse"), "a move was not understood");
+}
+
+fn walk(d: &Path) -> Vec<PathBuf> {
+    let mut v = Vec::new();
+    for e in std::fs::read_dir(d).into_iter().flatten().flatten() {
+        let p = e.path();
+        if p.is_dir() {
+            v.extend(walk(&p));
+        } else {
+            v.push(p);
+        }
+    }
+    v
+}

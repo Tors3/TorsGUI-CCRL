@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.4.0] - 2026-10-01
+
+### Added
+- **Live broadcast on Lichess**: one broadcast per tournament (created with the first game,
+  description with tester, TC, hash, book and engines), rounds of 60 games, every game pushed
+  with clocks and evaluations, finished games with their result. Token, check and visibility in
+  Settings → Live broadcast.
+- **Live broadcast on ccrl.live**: TorsGUI is a TLCS-compatible server (the protocol of Tom's
+  Live Chess Server, as read by node-tlcv): one broadcast per lane on its own UDP port, with
+  players, moves, depth/score/PV, clocks, results and the crosstable; tested against the real
+  node-tlcv. Settings: first port, firewall rule, public IP and the message for Jay.
+- Broadcast switches per tournament (wizard and tournament page, tab *Live broadcast*) with
+  links, viewers per lane and errors. The broadcast runs in the runner: it goes on with the
+  GUI closed.
+
+### Compatibility
+- Tournaments created or paused with 0.3.x resume with 0.4.0 (tested: a gauntlet paused with
+  0.3.2 at 5/16 games finished with 0.4.0 at 16/16, no duplicates). Settings are kept; the new
+  ones get defaults.
+
 ## [0.3.2] - 2026-10-01
 
 ### Fixed

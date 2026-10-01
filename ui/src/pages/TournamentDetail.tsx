@@ -10,6 +10,7 @@ import type { TournamentDetail } from "../bindings/TournamentDetail";
 import { GameViewer, type GameRef } from "../components/GameViewer";
 import { GamesTable } from "../components/GamesTable";
 import { ExportTournamentFile } from "../components/TournamentFileDialog";
+import { TournamentBroadcast } from "../components/Broadcast";
 import { TournamentActions } from "../components/TournamentActions";
 import { Empty, ErrorBox, Field, Kpi, PageHeader, Panel, ProgressBar, Result, Seg, StateChip, Tip, Warn, Wdl, WdlBar } from "../components/ui";
 import { call, usePoll } from "../lib/api";
@@ -438,6 +439,11 @@ export function TournamentDetailPage() {
           <Tabs.Trigger className="tab" value="decisive">Decisive ({st.decisive.length})</Tabs.Trigger>
           <Tabs.Trigger className="tab" value="terms">Terminations</Tabs.Trigger>
           <Tabs.Trigger className="tab" value="config">Configuration</Tabs.Trigger>
+          {!r.imported && (
+            <Tabs.Trigger className="tab" value="broadcast" data-testid="tab-broadcast">
+              Live broadcast
+            </Tabs.Trigger>
+          )}
         </Tabs.List>
         <Tabs.Content value="standings">
           <Standings d={d} order={order} setOrder={setOrder} />
@@ -453,6 +459,11 @@ export function TournamentDetailPage() {
         </Tabs.Content>
         <Tabs.Content value="terms">
           <Terminations d={d} />
+        </Tabs.Content>
+        <Tabs.Content value="broadcast">
+          <Panel title="Live broadcast (Lichess, ccrl.live)">
+            <TournamentBroadcast id={r.id} />
+          </Panel>
         </Tabs.Content>
         <Tabs.Content value="config">
           <Config d={d} refresh={refresh} />

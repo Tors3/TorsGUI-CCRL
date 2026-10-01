@@ -94,6 +94,12 @@ pub struct Settings {
     pub prefer_avx512: bool,
     /// PGN files or folders outside the workspace shown in the game archive.
     pub archive_paths: Vec<String>,
+    /// Lichess API token (scopes study:read, study:write) for live broadcasts.
+    pub lichess_token: String,
+    /// Visibility of new Lichess broadcasts: public, unlisted or private.
+    pub lichess_visibility: String,
+    /// First UDP port of the ccrl.live (TLCS-compatible) broadcast: lane N uses port + N.
+    pub ccrl_live_port: u16,
 }
 
 impl Settings {
@@ -136,6 +142,9 @@ impl Default for Settings {
             allow_avx512: false,
             prefer_avx512: false,
             archive_paths: Vec::new(),
+            lichess_token: String::new(),
+            lichess_visibility: "public".into(),
+            ccrl_live_port: 16001,
         }
     }
 }
