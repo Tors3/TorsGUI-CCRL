@@ -1,6 +1,6 @@
-import { Calculator, Check, ListPlus, Play, Plus, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Calculator, Check, ListPlus, Play, Plus, Save, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import type { EngineEntry } from "../bindings/EngineEntry";
 import type { NominalTc } from "../bindings/NominalTc";
@@ -13,6 +13,7 @@ import type { TcResult } from "../bindings/TcResult";
 import type { Topology } from "../bindings/Topology";
 import type { TournamentConfig } from "../bindings/TournamentConfig";
 import type { TournamentKind } from "../bindings/TournamentKind";
+import type { TournamentDetail } from "../bindings/TournamentDetail";
 import type { TournamentRecord } from "../bindings/TournamentRecord";
 import type { Variant } from "../bindings/Variant";
 import type { BookSpec } from "../bindings/BookSpec";
@@ -32,6 +33,11 @@ function splitOpenings(games: number, passes: number, nodes: number): number[] |
 
 export function Wizard() {
   const nav = useNavigate();
+  // /tournaments/:id/edit: the same screen edits a tournament that has not played yet
+  const { id: editId } = useParams();
+  const [editing, setEditing] = useState<TournamentRecord | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const keepLanes = useRef(false);
   const { data: engines } = usePoll<EngineEntry[]>("engines_list", {}, 0);
   const { data: topo } = usePoll<Topology>("topology", {}, 0);
   const { data: settings } = usePoll<Settings>("settings_get", {}, 0);
@@ -79,17 +85,63 @@ export function Wizard() {
     setFactor((f) => (f === 0.86 && settings.default_factor !== 1 ? settings.default_factor : f));
   }, [settings]);
   useEffect(() => {
-    if (!topo) return;
+    if (!topo || editId) return;
     setNodes(topo.nodes.map((n) => n.id));
-  }, [topo]);
+  }, [topo, editId]);
   useEffect(() => {
     if (hashAuto) setHash((settings?.hash_per_thread_mb ?? 512) * threads);
   }, [threads, hashAuto, settings]);
   useEffect(() => {
     if (!topo) return;
+    if (keepLanes.current) {
+      keepLanes.current = false;
+      return;
+    }
     const n = topo.nodes.find((x) => x.id === nodes[0]);
     if (n) setLanes(Math.max(1, Math.floor(n.physical_cores / (2 * threads))));
   }, [threads, topo, nodes]);
+
+  // edit mode: load the tournament once the engines, the topology and the settings are known
+  useEffect(() => {
+    if (!editId || editing || !engines || !topo || !settings) return;
+    call<TournamentDetail>("tournament_get", { id: editId, order: "config" })
+      .then((d) => {
+        const r = d.summary.record;
+        if (r.imported) throw new Error("imported tournaments are read-only");
+        if (r.state === "running") throw new Error("pause or stop the tournament before editing it");
+        if (d.summary.progress.done > 0) throw new Error("games were already played: only tournaments that have not started can be edited here");
+        const c = r.config;
+        const ids = new Set(engines.map((e) => e.id));
+        const pick = (role: string) => c.participants.filter((p) => p.role === role && p.engine_id != null && ids.has(p.engine_id)).map((p) => p.engine_id!);
+        const missing = c.participants.filter((p) => p.engine_id == null || !ids.has(p.engine_id)).map((p) => p.name);
+        if (missing.length) toast.warning(`Not in the engine library any more: ${missing.join(", ")}`);
+        keepLanes.current = true;
+        setKind(c.kind);
+        setList(c.ccrl_list || "Blitz");
+        setVariant(c.variant);
+        setSeeds(pick("seed"));
+        setOpps(pick("opponent"));
+        setThreads(c.threads);
+        setHashAuto(c.hash_mb === (settings.hash_per_thread_mb ?? 512) * c.threads);
+        setHash(c.hash_mb);
+        setTc(c.tc);
+        setGames(c.games_per_pairing);
+        setPasses(c.passes);
+        setNodes(c.nodes);
+        setLanes(c.lanes_per_node);
+        setPlacement(c.placement);
+        setBook(c.book);
+        setBookStart(c.book_start);
+        setSyzygy(c.syzygy_path);
+        setSite(c.site);
+        setEventAuto(false);
+        setEventName(c.event);
+        setAdj(c.adjudication);
+        setExtra(c.extra_args.join(" "));
+        setEditing(r);
+      })
+      .catch((e) => setEditError((e as Error).message));
+  }, [editId, editing, engines, topo, settings]);
 
   // Chess960 needs start positions: generate the default book (all 960, seed 1) when the
   // current book is not an EPD
@@ -126,9 +178,11 @@ export function Wizard() {
 
   const rpp = splitOpenings(games, passes, Math.max(1, nodes.length));
   const toParticipant = (e: EngineEntry, role: "seed" | "opponent"): Participant => {
-    const opts: Record<string, string> = { Threads: "${THREADS}", Hash: "${HASH}", ...e.default_options };
+    // an edited tournament keeps the options and arguments it had for this engine
+    const was = editing?.config.participants.find((p) => p.engine_id === e.id);
+    const opts: Record<string, string> = was ? { ...was.options } : { Threads: "${THREADS}", Hash: "${HASH}", ...e.default_options };
     const r = ratings[e.display_name];
-    return { name: e.display_name, cmd: e.path, dir: e.dir, args: "", options: opts, role, engine_id: e.id, has_syzygy: e.has_syzygy, uci_id: e.uci_id, rating: r?.rating ?? null, rating_estimated: r?.estimated ?? false };
+    return { name: e.display_name, cmd: e.path, dir: e.dir, args: was?.args ?? "", options: opts, role, engine_id: e.id, has_syzygy: e.has_syzygy, uci_id: e.uci_id, rating: r?.rating ?? null, rating_estimated: r?.estimated ?? false };
   };
   const config: TournamentConfig | null = adj
     ? {
@@ -199,6 +253,14 @@ export function Wizard() {
     if (!config) return;
     setBusy(true);
     try {
+      if (editing) {
+        const rec = await call<TournamentRecord>("tournament_update", { id: editing.id, config: { ...editing.config, ...config, max_retries: editing.config.max_retries, max_slot_attempts: editing.config.max_slot_attempts, startup_ms: editing.config.startup_ms, fastchess: editing.config.fastchess, log_level: editing.config.log_level } });
+        if (mode === "queue" && editing.state !== "queued") await call("queue_add", { id: rec.id });
+        if (mode === "start") await call("tournament_start", { id: rec.id });
+        toast.success(`${rec.name}: ${rec.expected_games} games, ${mode === "queue" ? "saved and queued" : mode === "start" ? "saved and started" : "changes saved"}`);
+        nav(`/tournaments/${encodeURIComponent(rec.id)}`);
+        return;
+      }
       const rec = await call<TournamentRecord>("tournament_create", { config, enqueue: mode === "queue" });
       if (mode === "start") await call("tournament_start", { id: rec.id });
       toast.success(`${rec.name}: ${rec.expected_games} games ${mode === "queue" ? "queued" : mode === "start" ? "started" : "created"}`);
@@ -217,7 +279,13 @@ export function Wizard() {
 
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader help="create-a-gauntlet" title="New tournament" sub="Every opening is played twice with colours reversed; openings are split into disjoint blocks per node, pass and pairing." />
+      <PageHeader
+        help="create-a-gauntlet"
+        title={editId ? `Edit ${editing?.name ?? "tournament"}` : "New tournament"}
+        sub={editId ? "Change anything before the first game; Save keeps it as it is (draft or queued), or save and queue / start it." : "Every opening is played twice with colours reversed; openings are split into disjoint blocks per node, pass and pairing."}
+      />
+      {editError && <ErrorBox error={editError} />}
+      {editId && !editing && !editError && <div className="muted text-[12px]">Loading the tournament…</div>}
       <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 360px" }}>
         <div className="flex flex-col gap-3 min-w-0">
           <Panel title="1 · Type">
@@ -547,15 +615,15 @@ export function Wizard() {
               )}
             </Panel>
             <div className="flex flex-col gap-2">
-              <button className="btn btn-primary justify-center h-9" disabled={busy || !preview || preview.errors.length > 0} onClick={() => create("start")} data-testid="create-start">
-                <Play size={14} /> Create and start
+              <button className="btn btn-primary justify-center h-9" disabled={busy || (!!editId && !editing) || !preview || preview.errors.length > 0} onClick={() => create("start")} data-testid="create-start">
+                <Play size={14} /> {editing ? "Save and start" : "Create and start"}
               </button>
               <div className="grid grid-cols-2 gap-2">
-                <button className="btn justify-center" disabled={busy || !preview || preview.errors.length > 0} onClick={() => create("queue")}>
-                  <ListPlus size={14} /> Create &amp; queue
+                <button className="btn justify-center" disabled={busy || (!!editId && !editing) || !preview || preview.errors.length > 0} onClick={() => create("queue")}>
+                  <ListPlus size={14} /> {editing ? "Save & queue" : "Create & queue"}
                 </button>
-                <button className="btn justify-center" disabled={busy || !preview || preview.errors.length > 0} onClick={() => create("draft")} data-testid="create-draft">
-                  <Plus size={14} /> Save draft
+                <button className="btn justify-center" disabled={busy || (!!editId && !editing) || !preview || preview.errors.length > 0} onClick={() => create("draft")} data-testid="create-draft">
+                  {editing ? <Save size={14} /> : <Plus size={14} />} {editing ? "Save changes" : "Save draft"}
                 </button>
               </div>
             </div>

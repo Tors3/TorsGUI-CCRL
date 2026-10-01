@@ -1,0 +1,65 @@
+# CCRL 40/15 Rating List - All engines (best versions only), computed on September 28, 2026
+# Snapshot bundled with TorsGUI (top 62); fetch or import the page for the full, current list.
+rank,name,rating,plus,minus,score,games
+1,Stockfish 19 64-bit 4CPU,3650,17,17,53.7,667
+2,Reckless 0.9.0 64-bit 4CPU,3644,12,12,54.9,1569
+3,PlentyChess 7.0.0 64-bit 4CPU,3643,11,11,55.8,1770
+4,pawnocchio 2.0.1 64-bit 4CPU,3641,14,14,52.7,1132
+5,Torch v4d 64-bit 4CPU,3639,12,12,53.5,1414
+6,Integral v8 64-bit 4CPU,3638,18,18,50.8,580
+7,Cinder 0.6.1 64-bit 4CPU,3636,16,16,51.1,762
+7,Coda 0.9.4 64-bit 4CPU,3636,20,20,50.4,448
+7,Obsidian 16.0 64-bit 4CPU,3636,10,10,53.7,2199
+10,Alexandria 9.0.0 64-bit 4CPU,3635,12,12,52.8,1518
+11,Stormphrax 8.0.0 64-bit 4CPU,3634,14,14,51.2,1043
+12,Hobbes 3.0 64-bit 4CPU,3633,15,15,50.3,850
+13,Triumviratus 6.0 64-bit 4CPU,3632,17,17,49.6,708
+13,Viridithas 19.0.1 64-bit 4CPU,3632,12,12,53.3,1404
+15,Caissa 2.0 64-bit 4CPU,3631,22,22,49.7,380
+16,Astra 7.0 64-bit 4CPU,3629,14,14,50.7,1114
+17,Berserk 14 64-bit 4CPU,3628,13,13,50.9,1174
+18,Dragon by Komodo 3.3 64-bit 4CPU,3626,8,8,54.8,5905
+18,Tarnished 6.0-Eternal 64-bit 4CPU,3626,14,14,50.5,1105
+20,Halogen 16 64-bit 4CPU,3625,12,12,51.7,1484
+21,Quanticade Cronus 3.0 64-bit 4CPU,3623,11,11,51.6,2012
+22,Clover 9.0 64-bit 4CPU,3620,14,14,51.4,1093
+23,PZChessBot 7.1 64-bit 4CPU,3619,16,16,51.3,716
+24,Raphael 4.2 64-bit 4CPU,3616,17,17,48.8,690
+25,Horsie 1.1 64-bit 4CPU,3615,12,12,51.5,1462
+26,Fritz 20 64-bit 4CPU,3608,13,13,50.7,1167
+26,Ginkgo 5.40 64-bit 4CPU,3608,14,14,51.0,1018
+26,Icarus 1.1.1 64-bit 4CPU,3608,18,18,50.2,624
+29,Starzix 6.0 64-bit 4CPU,3606,10,10,51.1,2188
+30,Lizard 11.2 64-bit 4CPU,3604,13,13,51.1,1242
+31,RubiChess 20240817 64-bit 4CPU,3603,11,11,51.0,1993
+31,Uralochka 3.42a 64-bit 4CPU,3603,16,16,51.0,763
+33,Ethereal 14.25 64-bit 4CPU,3599,8,8,50.5,4364
+34,Booot 7.4 64-bit 4CPU,3594,14,14,50.6,1068
+35,Titan 1.1.0 64-bit 4CPU,3589,11,11,49.4,1869
+36,Gaia 4.1.3 64-bit 4CPU,3588,14,14,50.4,1034
+37,Seer 2.8.0 64-bit 4CPU,3585,10,10,49.2,2219
+38,Arasan 25.2 64-bit 4CPU,3583,15,15,48.4,846
+38,Chess System Tal 2.00 Elo 64-bit 4CPU,3583,9,9,50.2,3374
+38,Devre 7.0 64-bit,3583,17,17,51.1,653
+38,Renegade 1.2.0 64-bit 4CPU,3583,14,14,49.2,1008
+42,Igel 3.6.0 64-bit 4CPU,3579,14,14,49.3,1012
+42,Rebel 16.3 64-bit 4CPU,3579,12,12,49.1,1431
+44,Tcheran 12.0 64-bit 4CPU,3578,17,17,49.8,683
+45,Velvet 8.1.1 64-bit 4CPU,3577,13,13,48.8,1280
+46,Minke 7.0.0 64-bit,3576,17,17,53.0,656
+47,Revenge 4.0 64-bit 4CPU,3575,15,15,49.0,811
+48,rofChade 3.1 64-bit 4CPU,3573,11,11,49.1,2093
+49,Motor 0.9.0 64-bit,3571,9,9,51.3,2421
+50,Deep Shredder 14 64-bit 4CPU,3570,18,18,47.7,609
+51,Cataphract 1.5 64-bit 4CPU,3569,17,17,49.2,690
+51,Clarity 7.2.0 64-bit 4CPU,3569,12,12,48.0,1380
+53,Pseudo 1.1 64-bit 4CPU,3568,16,16,49.6,771
+54,Spaghet BologNNese 1.0 64-bit 4CPU,3564,14,14,48.5,1014
+55,Heimdall 1.4.2 64-bit 4CPU,3561,15,15,48.3,966
+55,Koivisto 9.0 64-bit 4CPU,3561,9,9,49.2,3446
+57,Peacekeeper 3.01 64-bit 4CPU,3557,15,15,48.8,822
+58,Elixir 3.0 64-bit 4CPU,3555,15,15,49.3,828
+58,Fire 9.3 64-bit 4CPU,3555,14,14,48.5,996
+60,Ynode 0234 64-bit 4CPU,3552,17,17,48.8,660
+61,Deep Sjeng 3.6 a16 64-bit 4CPU,3546,15,15,50.1,810
+62,Prune 4.0.1 64-bit,3545,14,14,50.3,892

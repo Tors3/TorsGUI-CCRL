@@ -1,0 +1,434 @@
+[
+ {
+  "name": "akimbo",
+  "repo": "jw1912/akimbo",
+  "ccrl_name": "akimbo",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "Alexandria",
+  "repo": "PGG106/Alexandria",
+  "ccrl_name": "Alexandria",
+  "tested_tag": "v9.0.0",
+  "tested_asset": "Alexandria-9.0-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Altair",
+  "repo": "Alex2262/AltairChessEngine",
+  "ccrl_name": "Altair",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "Arasan",
+  "repo": "jdart1/arasan-chess",
+  "ccrl_name": "Arasan",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "Astra",
+  "repo": "h1me01/Astra",
+  "ccrl_name": "Astra",
+  "tested_tag": "7.0",
+  "tested_asset": "astra-7.0-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Avalanche",
+  "repo": "SnowballSH/Avalanche",
+  "ccrl_name": "Avalanche",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "Berserk",
+  "repo": "jhonnold/berserk",
+  "ccrl_name": "Berserk",
+  "tested_tag": "14",
+  "tested_asset": "berserk-14-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Black Marlin",
+  "repo": "jnlt3/blackmarlin",
+  "ccrl_name": "Black Marlin",
+  "tested_tag": "9.0",
+  "tested_asset": "blackmarlin-windows-x86-64-v3.exe",
+  "notes": "verified by TorsGUI's reference tests (x86-64-v3 build)"
+ },
+ {
+  "name": "Caissa",
+  "repo": "Witek902/Caissa",
+  "ccrl_name": "Caissa",
+  "tested_tag": "2.0",
+  "tested_asset": "caissa-2.0-x64-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Carp",
+  "repo": "dede1751/carp",
+  "ccrl_name": "Carp",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "Cinder",
+  "repo": "brunocodutra/cinder",
+  "ccrl_name": "Cinder",
+  "tested_tag": "v0.6.1",
+  "tested_asset": "cinder-v0.6.1-windows-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Clover",
+  "repo": "lucametehau/CloverEngine",
+  "ccrl_name": "Clover",
+  "tested_tag": "v9.0",
+  "tested_asset": "Clover.9.0-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Coda",
+  "repo": "adamtwiss/coda",
+  "ccrl_name": "Coda",
+  "tested_tag": "v0.9.3",
+  "tested_asset": "coda-0.9.3-windows-x86-64-v3.exe",
+  "notes": "verified by TorsGUI's reference tests (x86-64-v3 build)"
+ },
+ {
+  "name": "Devre",
+  "repo": "OmerFarukTutkun/Devre",
+  "ccrl_name": "Devre",
+  "tested_tag": "v7.0",
+  "tested_asset": "devre-7.0-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Ethereal",
+  "repo": "AndyGrant/Ethereal",
+  "ccrl_name": "Ethereal",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "newer versions are commercial; GitHub has the open-source releases"
+ },
+ {
+  "name": "Frozenight",
+  "repo": "MinusKelvin/frozenight",
+  "ccrl_name": "Frozenight",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "Halogen",
+  "repo": "KierenP/Halogen",
+  "ccrl_name": "Halogen",
+  "tested_tag": "v16",
+  "tested_asset": "Halogen-16.0.0-windows-x86_64-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Hobbes",
+  "repo": "kelseyde/hobbes-chess-engine",
+  "ccrl_name": "Hobbes",
+  "tested_tag": "3.0",
+  "tested_asset": "hobbes-windows-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Horsie",
+  "repo": "liamt19/Horsie",
+  "ccrl_name": "Horsie",
+  "tested_tag": "v1.1",
+  "tested_asset": "horsie-1_1-v3.exe",
+  "notes": "verified by TorsGUI's reference tests (x86-64-v3 build)"
+ },
+ {
+  "name": "Igel",
+  "repo": "vshcherbyna/igel",
+  "ccrl_name": "Igel",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "Integral",
+  "repo": "aronpetko/integral",
+  "ccrl_name": "Integral",
+  "tested_tag": "v8",
+  "tested_asset": "integral_avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Koivisto",
+  "repo": "Luecx/Koivisto",
+  "ccrl_name": "Koivisto",
+  "tested_tag": "v9.0",
+  "tested_asset": "Koivisto_9.0-windows-avx2-pgo.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2-pgo build)"
+ },
+ {
+  "name": "Lc0",
+  "repo": "LeelaChessZero/lc0",
+  "ccrl_name": "Lc0",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "GPU engine (CCRL lists it with the GPU and the network); needs a network file"
+ },
+ {
+  "name": "Leorik",
+  "repo": "lithander/Leorik",
+  "ccrl_name": "Leorik",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "Lizard",
+  "repo": "liamt19/Lizard",
+  "ccrl_name": "Lizard",
+  "tested_tag": "v11.2",
+  "tested_asset": "Lizard-11_2-win.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Minic",
+  "repo": "tryingsomestuff/Minic",
+  "ccrl_name": "Minic",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "Minke",
+  "repo": "enfmarinho/Minke",
+  "ccrl_name": "Minke",
+  "tested_tag": "v7.0.0",
+  "tested_asset": "minke-v7.0.0-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Motor",
+  "repo": "martinnovaak/motor",
+  "ccrl_name": "Motor",
+  "tested_tag": "v0.9.0",
+  "tested_asset": "motor_090_avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Obsidian",
+  "repo": "gab8192/Obsidian",
+  "ccrl_name": "Obsidian",
+  "tested_tag": "v16.0",
+  "tested_asset": "Obsidian160-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Patricia",
+  "repo": "Adam-Kulju/Patricia",
+  "ccrl_name": "Patricia",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "pawnocchio",
+  "repo": "JonathanHallstrom/pawnocchio",
+  "ccrl_name": "pawnocchio",
+  "tested_tag": "v2.0.1",
+  "tested_asset": "pawnocchio-2.0.1-windows-x86_64_v3.exe",
+  "notes": "verified by TorsGUI's reference tests (x86-64-v3 build)"
+ },
+ {
+  "name": "PlentyChess",
+  "repo": "Yoshie2000/PlentyChess",
+  "ccrl_name": "PlentyChess",
+  "tested_tag": "b-v7.0.0",
+  "tested_asset": "PlentyChess-7.0.0-windows-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Princhess",
+  "repo": "princesslana/princhess",
+  "ccrl_name": "Princhess",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "PZChessBot",
+  "repo": "kevlu8/PZChessBot",
+  "ccrl_name": "PZChessBot",
+  "tested_tag": "v7.1",
+  "tested_asset": "pzchessbot-win-avx2-pext.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2-pext build)"
+ },
+ {
+  "name": "Quanticade",
+  "repo": "Quanticade/Quanticade",
+  "ccrl_name": "Quanticade",
+  "tested_tag": "Cronus-3.0",
+  "tested_asset": "Quanticade-Windows-clang-x86-64-bmi2.exe",
+  "notes": "verified by TorsGUI's reference tests (bmi2 build)"
+ },
+ {
+  "name": "Raphael",
+  "repo": "Orbital-Web/Raphael",
+  "ccrl_name": "Raphael",
+  "tested_tag": "v4.2.0",
+  "tested_asset": "Raphael-4.2.0-Windows-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Reckless",
+  "repo": "codedeliveryservice/Reckless",
+  "ccrl_name": "Reckless",
+  "tested_tag": "v0.9.0",
+  "tested_asset": "reckless-windows-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Renegade",
+  "repo": "pkrisz99/Renegade",
+  "ccrl_name": "Renegade",
+  "tested_tag": "v1.3.1",
+  "tested_asset": "Renegade_1.3.1_windows_x86-64-bmi2.exe",
+  "notes": "verified by TorsGUI's reference tests (**bmi2** build)"
+ },
+ {
+  "name": "RubiChess",
+  "repo": "Matthies/RubiChess",
+  "ccrl_name": "RubiChess",
+  "tested_tag": "20240817",
+  "tested_asset": "RubiChess-20240817_x86-64-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Seer",
+  "repo": "connormcmonigle/seer-nnue",
+  "ccrl_name": "Seer",
+  "tested_tag": "v2.8.0",
+  "tested_asset": "seer_v2.8_x64_avx2_popcnt.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2-popcnt build)"
+ },
+ {
+  "name": "Sirius",
+  "repo": "mcthouacbb/Sirius",
+  "ccrl_name": "Sirius",
+  "tested_tag": "v9.0",
+  "tested_asset": "sirius-9.0-windows-x86-64-v3.exe",
+  "notes": "verified by TorsGUI's reference tests (x86-64-v3 build)"
+ },
+ {
+  "name": "Smallbrain",
+  "repo": "Disservin/Smallbrain",
+  "ccrl_name": "Smallbrain",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "Starzix",
+  "repo": "zzzzz151/Starzix",
+  "ccrl_name": "Starzix",
+  "tested_tag": "6.1",
+  "tested_asset": "Starzix-6.1-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Stash",
+  "repo": "mhouppin/stash-bot",
+  "ccrl_name": "Stash",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "Stockfish",
+  "repo": "official-stockfish/Stockfish",
+  "ccrl_name": "Stockfish",
+  "tested_tag": "sf_19",
+  "tested_asset": "stockfish-windows-x86-64-universal.exe",
+  "notes": "from version 19 GitHub has only universal builds (they run AVX-512 where available); verified by TorsGUI's reference tests (universal build)"
+ },
+ {
+  "name": "Stormphrax",
+  "repo": "Ciekce/Stormphrax",
+  "ccrl_name": "Stormphrax",
+  "tested_tag": "v8.0.0",
+  "tested_asset": "stormphrax-8.0.0-avx2-bmi2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2-bmi2 build)"
+ },
+ {
+  "name": "Tarnished",
+  "repo": "Bobingstern/Tarnished",
+  "ccrl_name": "Tarnished",
+  "tested_tag": "v6.0",
+  "tested_asset": "tarnished-6.0-eternal_x86-64-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Texel",
+  "repo": "peterosterlund2/texel",
+  "ccrl_name": "Texel",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "Titan",
+  "repo": "jeff-pow/Titan",
+  "ccrl_name": "Titan",
+  "tested_tag": "v1.1.0",
+  "tested_asset": "Titan-x64-windows-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Triumviratus",
+  "repo": "Tors3/Triumviratus",
+  "ccrl_name": "Triumviratus",
+  "tested_tag": "v7.0",
+  "tested_asset": "Triumviratus_7.0_avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Velvet",
+  "repo": "mhonert/velvet-chess",
+  "ccrl_name": "Velvet",
+  "tested_tag": "v8.1.1",
+  "tested_asset": "velvet-v8.1.1-x86_64-avx2.exe",
+  "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Viridithas",
+  "repo": "cosmobobak/viridithas",
+  "ccrl_name": "Viridithas",
+  "tested_tag": "v20.0.0",
+  "tested_asset": "viridithas-20-win-x86-64-v3.exe",
+  "notes": "verified by TorsGUI's reference tests (x86-64-v3 build)"
+ },
+ {
+  "name": "Weiss",
+  "repo": "TerjeKir/weiss",
+  "ccrl_name": "Weiss",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ },
+ {
+  "name": "Willow",
+  "repo": "Adam-Kulju/Willow",
+  "ccrl_name": "Willow",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": ""
+ }
+]

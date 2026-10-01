@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.2] - 2026-10-01
+
+### Fixed
+- **CCRL lists**: the 40/15 and FRC lists were not read. The CCRL tables have a two-row
+  header (Rating = Elo / + / −) and tied ranks (`14-15`); columns are now aligned with the
+  header's `colspan` and tied rows are kept. Pages are requested like a browser, from the
+  current addresses (`computerchess.org.uk/<list>/`), with fallbacks to `/ccrl/`, `www.` and
+  the site's text export; a failure lists every address tried.
+
+### Added
+- **Bundled CCRL lists**: Blitz, 40/15 and FRC (best versions, September 2026) are available
+  from the first start, offline, for ratings, opponents and CCRL names; *Fetch all* and
+  *Bundled lists* on the CCRL page; *Open a saved page* in Manual import.
+- **Edit a tournament before it starts**: the Edit button on a draft opens the wizard with
+  its settings; save, save and queue, or save and start.
+- **Known engines**: 54 public GitHub repositories in *Add from GitHub* (most tested by
+  TorsGUI, with the Blitz rating and whether the engine is in the library); one click lists
+  the releases.
+
 ## [0.3.1] - 2026-10-01
 
 ### Added

@@ -300,6 +300,7 @@ function Layout() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/tournaments" element={<Tournaments />} />
             <Route path="/tournaments/new" element={<Wizard />} />
+            <Route path="/tournaments/:id/edit" element={<Wizard key="edit" />} />
             <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
             <Route path="/live" element={<Live />} />
             <Route path="/games" element={<Games />} />

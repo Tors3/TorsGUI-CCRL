@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import type { AssetPolicy } from "../bindings/AssetPolicy";
 import type { BundledEngine } from "../bindings/BundledEngine";
 import type { EngineEntry } from "../bindings/EngineEntry";
+import type { KnownRepo } from "../bindings/KnownRepo";
 import type { Settings } from "../bindings/Settings";
 import type { Release } from "../bindings/Release";
 import type { RepoRef } from "../bindings/RepoRef";
@@ -29,11 +30,16 @@ function GithubDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
     if (data) list();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [personal?.allow, personal?.prefer]);
-  const list = async () => {
+  const [known, setKnown] = useState<KnownRepo[]>();
+  const [kq, setKq] = useState("");
+  useEffect(() => {
+    if (open && !known) call<KnownRepo[]>("known_repos").then(setKnown).catch(() => setKnown([]));
+  }, [open, known]);
+  const list = async (u: string = url) => {
     setBusy("list");
     setError(undefined);
     try {
-      const d = await call<ReleasesResp>("github_releases", { url, ...policyArgs });
+      const d = await call<ReleasesResp>("github_releases", { url: u, ...policyArgs });
       setData(d);
       const t = d.repo.tag ?? d.latest_stable ?? d.releases[0]?.release.tag;
       setTag(t ?? undefined);
@@ -79,10 +85,48 @@ function GithubDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
       <div className="flex flex-col gap-3">
         <div className="flex gap-2">
           <input className="input" placeholder="https://github.com/owner/repo  or  owner/repo  or a release URL" value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && list()} data-testid="github-url" />
-          <button className="btn" onClick={list} disabled={!url || !!busy}>
+          <button className="btn" onClick={() => list()} disabled={!url || !!busy}>
             {busy === "list" ? <Spinner /> : <PackagePlus size={14} />} List releases
           </button>
         </div>
+        {known && known.length > 0 && (
+          <details className="rounded-md" style={{ background: "var(--bg-2)" }} open={!data} data-testid="known-repos">
+            <summary className="cursor-pointer px-3 py-2 text-[12.5px] font-medium">
+              Known engines ({known.length} public repositories) <span className="muted font-normal">· click one to list its releases</span>
+            </summary>
+            <div className="px-3 pb-3 flex flex-col gap-2">
+              <input className="input" placeholder="Filter engines" value={kq} onChange={(e) => setKq(e.target.value)} data-testid="known-filter" />
+              <div className="grid gap-1.5 overflow-auto max-h-[220px]" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))" }}>
+                {known
+                  .filter((k) => !kq || `${k.name} ${k.repo}`.toLowerCase().includes(kq.toLowerCase()))
+                  .sort((a, b) => (b.blitz?.[1] ?? 0) - (a.blitz?.[1] ?? 0))
+                  .map((k) => (
+                    <button
+                      key={k.repo}
+                      className="text-left rounded px-2 py-1 border hover:bg-[var(--hover)]"
+                      style={{ borderColor: url === k.repo ? "var(--accent)" : "var(--border)" }}
+                      title={`${k.repo}${k.tested_tag ? ` · tested: ${k.tested_tag} ${k.tested_asset ?? ""}` : ""}${k.notes ? `\n${k.notes}` : ""}`}
+                      onClick={() => {
+                        setUrl(k.repo);
+                        list(k.repo);
+                      }}
+                      data-testid={`known-${k.name}`}
+                    >
+                      <div className="flex items-center justify-between gap-1 text-[12.5px]">
+                        <span className="font-medium truncate">{k.name}</span>
+                        <span className="flex gap-1 shrink-0">
+                          {k.installed && <span className="chip chip-win">in library</span>}
+                          {k.tested_tag && <span className="chip">tested {k.tested_tag}</span>}
+                        </span>
+                      </div>
+                      <div className="muted text-[11px] truncate mono">{k.repo}</div>
+                      {k.blitz && <div className="muted text-[11px] truncate">Blitz {k.blitz[1]} · {k.blitz[0]}</div>}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          </details>
+        )}
         <p className="muted text-[12px]">
           Official releases only. TorsGUI proposes a build and explains why; <b>click another row to choose it yourself</b>. CCRL rule: the Windows <b>AVX2</b> build (x86-64-v3 counts as AVX2); never AVX-512, VNNI or x86-64-v4; bmi2 or generic builds are taken but flagged; never 32-bit; nothing is compiled. When the API is rate-limited TorsGUI falls back to the <span className="mono">releases/latest</span> redirect and the HTML asset listing.
         </p>

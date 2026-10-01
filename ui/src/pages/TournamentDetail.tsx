@@ -1,5 +1,5 @@
 import * as Tabs from "@radix-ui/react-tabs";
-import { ArrowDownUp, Download, MessageSquareText } from "lucide-react";
+import { ArrowDownUp, Download, MessageSquareText, Pencil } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -407,6 +407,13 @@ export function TournamentDetailPage() {
             <Link className="btn" to={`/export?id=${encodeURIComponent(r.id)}&post=1`}>
               <MessageSquareText size={13} /> Post
             </Link>
+            {!r.imported && p.done === 0 && r.state !== "running" && (
+              <Tip content="Change engines, time control, book, nodes… in the tournament wizard">
+                <Link className="btn" to={`/tournaments/${encodeURIComponent(r.id)}/edit`} data-testid="edit-tournament">
+                  <Pencil size={13} /> Edit
+                </Link>
+              </Tip>
+            )}
             <ExportTournamentFile id={r.id} />
             <TournamentActions t={d.summary} onDone={refresh} />
           </>

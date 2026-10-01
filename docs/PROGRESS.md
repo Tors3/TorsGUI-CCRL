@@ -105,4 +105,7 @@ Legend: [x] done and tested · [~] done, verified only partially (see FINAL_REPO
 - [x] Getting started (setup status, per-step actions) and demo tournament with the bundled demo engine (unit tests `demo::*`; Playwright creates and starts the demo)
 - [x] Bundled engines: Stockfish 10 and Triumviratus 7.0 AVX2 in the installers (CI, sha256 checked), one-click install, offline bench (unit tests `bundled::*`)
 - [x] Bundled CCRL opening books (9 PGN for fastchess + 9 CGB): install, default book, Settings panel, wizard menu (unit tests `bundled::book_tests::*`; Playwright)
+- [x] CCRL lists: colspan headers and tied ranks, fallback addresses and text export, bundled Blitz/40/15/FRC lists (unit tests `ccrl::*`; Playwright)
+- [x] Edit a tournament that has not started in the wizard (Playwright)
+- [x] 54 known engine repositories in Add from GitHub (unit tests `catalog::*`; Playwright)
 - [x] Error boundary: one failing screen no longer blanks the app

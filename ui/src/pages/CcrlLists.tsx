@@ -1,5 +1,5 @@
 import * as Tabs from "@radix-ui/react-tabs";
-import { CloudDownload, ClipboardPaste, Link2, Trash2 } from "lucide-react";
+import { CloudDownload, ClipboardPaste, FileUp, Link2, PackageOpen, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { CcrlList } from "../bindings/CcrlList";
@@ -48,12 +48,33 @@ function ImportDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
       <div className="flex flex-col gap-3">
         <div className="flex gap-3">
           <Field label="List">
-            <Seg value={list} onChange={setList} options={[{ value: "Blitz", label: "Blitz" }, { value: "40/15", label: "40/15" }]} />
+            <Seg value={list} onChange={setList} options={[{ value: "Blitz", label: "Blitz" }, { value: "40/15", label: "40/15" }, { value: "FRC", label: "FRC" }]} />
           </Field>
           <Field label="Variant">
             <Seg value={variant} onChange={setVariant} options={[{ value: "all", label: "All versions" }, { value: "best", label: "Best versions" }]} />
           </Field>
         </div>
+        <label className="btn self-start">
+          <FileUp size={14} /> Open a saved page (.html, .txt, .csv)
+          <input
+            type="file"
+            accept=".html,.htm,.txt,.csv"
+            className="hidden"
+            data-testid="ccrl-file"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              setText(await f.text());
+              const n = f.name.toLowerCase();
+              if (/frc|960/.test(n)) setList("FRC");
+              else if (/4040|40.?15/.test(n)) setList("40/15");
+              toast.info(`${f.name} loaded: check list and variant, then Import`);
+            }}
+          />
+        </label>
+        <p className="muted text-[12px] -mt-1">
+          In the browser: open the list on computerchess.org.uk, <b>Save page as… (HTML only)</b>, then open the file here.
+        </p>
         <Field label="Paste the table (copied from the CCRL page), HTML, or CSV (rank,name,rating or name,rating)" hint="CPU categories are read from the names (… 64-bit 8CPU); names without a CPU suffix are 1CPU.">
           <textarea className="textarea" rows={14} value={text} onChange={(e) => setText(e.target.value)} placeholder={"1  Stockfish 17 64-bit 8CPU  3791  +14 −14  ...\n2  ..."} data-testid="ccrl-paste" />
         </Field>
@@ -69,7 +90,7 @@ export function CcrlLists() {
   const { data: ts } = usePoll<TournamentSummary[]>("tournaments_list", {}, 0);
   const { data: aliases, refresh: refreshAliases } = usePoll<[string, string, string][]>("aliases_list", {}, 0);
   const [sel, setSel] = useState<number | null>(null);
-  const [cpu, setCpu] = useState("8");
+  const [cpu, setCpu] = useState("all");
   const [q, setQ] = useState("");
   const [imp, setImp] = useState(false);
   const [fetching, setFetching] = useState<string | null>(null);
@@ -96,7 +117,20 @@ export function CcrlLists() {
       toast.success(`${s.list} ${s.variant}: ${r.entries} entries`);
       refresh();
     } catch (e) {
-      toast.error(`${(e as Error).message}. Use manual import (paste the table).`);
+      toast.error((e as Error).message, { duration: 12000 });
+    } finally {
+      setFetching(null);
+    }
+  };
+  const fetchAll = async () => {
+    setFetching("all");
+    try {
+      const r = await call<{ done: { list: string; variant: string; entries: number }[]; failed: { list: string; variant: string; error: string }[] }>("ccrl_fetch_all");
+      if (r.done.length) toast.success(`Downloaded: ${r.done.map((d) => `${d.list} ${d.variant} (${d.entries})`).join(", ")}`);
+      if (r.failed.length) toast.error(`Not reachable: ${r.failed.map((d) => `${d.list} ${d.variant}`).join(", ")} — the bundled or previous lists stay in use`, { duration: 12000 });
+      refresh();
+    } catch (e) {
+      toast.error((e as Error).message);
     } finally {
       setFetching(null);
     }
@@ -143,7 +177,7 @@ export function CcrlLists() {
                     {l.list} · {l.variant}
                   </span>
                   <span className="block muted text-[11px]">
-                    {l.entries.length} engines · {l.source === "manual import" ? "manual" : "site"} · {l.fetched_at.slice(0, 10)}
+                    {l.entries.length} engines · {l.source === "manual import" ? "manual" : l.source.startsWith("bundled") ? `bundled (${l.source.match(/\(([^)]+)\)/)?.[1] ?? ""})` : "site"} · {l.fetched_at.slice(0, 10)}
                   </span>
                 </span>
                 <span
@@ -161,12 +195,29 @@ export function CcrlLists() {
             ))}
           </Panel>
           <Panel title="Fetch from the site" noPad>
+            <div className="flex gap-2 px-3 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
+              <button className="btn btn-sm btn-primary" disabled={!!fetching} onClick={fetchAll} data-testid="ccrl-fetch-all">
+                {fetching === "all" ? <Spinner size={12} /> : <CloudDownload size={13} />} Fetch all
+              </button>
+              <button
+                className="btn btn-sm"
+                title="Blitz, 40/15 and FRC (best versions) as bundled with TorsGUI"
+                onClick={async () => {
+                  await call("ccrl_load_snapshot");
+                  toast.success("Bundled CCRL lists restored");
+                  refresh();
+                }}
+                data-testid="ccrl-snapshot"
+              >
+                <PackageOpen size={13} /> Bundled lists
+              </button>
+            </div>
             {(sources ?? []).map((s) => (
               <button key={s.url} className="w-full text-left px-3 py-1.5 flex items-center gap-2 text-[12px] hover:bg-[var(--hover)]" style={{ borderBottom: "1px solid var(--border)" }} onClick={() => fetchSrc(s)} title={s.url}>
                 {fetching === s.url ? <Spinner size={12} /> : <CloudDownload size={13} />} {s.list} · {s.variant}
               </button>
             ))}
-            <div className="px-3 py-2 muted text-[11px]">The site layout can change: manual import is always available.</div>
+            <div className="px-3 py-2 muted text-[11px]">Each list tries several addresses and the site's text export. If the site refuses the download, the bundled lists stay in use; a page saved from the browser can be opened with Manual import.</div>
           </Panel>
         </div>
         <Panel

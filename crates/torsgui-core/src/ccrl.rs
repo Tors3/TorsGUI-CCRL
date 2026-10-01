@@ -59,18 +59,48 @@ pub struct ListSource {
     pub url: String,
 }
 
-/// Default URLs (editable in Settings; the site layout can change, manual
-/// import is always available).
+/// The CCRL site root. The lists live at `<root>/<dir>/` (the older `<root>/ccrl/<dir>/`
+/// paths are tried too).
+pub const CCRL_ROOT: &str = "https://computerchess.org.uk";
+
+/// (list, site directory)
+pub const LIST_DIRS: [(&str, &str); 3] = [("Blitz", "404"), ("40/15", "4040"), ("FRC", "404FRC")];
+
+/// Default sources: for every list the "best versions" index page and the complete list of
+/// all versions. Manual import (paste or a saved page) is always available.
 pub fn default_sources() -> Vec<ListSource> {
-    let base = "https://computerchess.org.uk/ccrl";
     let mut v = Vec::new();
-    for (list, dir) in [("Blitz", "404"), ("40/15", "4040")] {
-        for (variant, file) in [("all", "rating_list_all.html"), ("best", "rating_list_pure.html")] {
-            v.push(ListSource { list: list.into(), cpu: "mixed".into(), variant: variant.into(), url: format!("{base}/{dir}/{file}") });
+    for (list, dir) in LIST_DIRS {
+        for (variant, file) in [("best", ""), ("all", "rating_list_all.html")] {
+            v.push(ListSource { list: list.into(), cpu: "mixed".into(), variant: variant.into(), url: format!("{CCRL_ROOT}/{dir}/{file}") });
         }
     }
-    // Chess960 list (best effort, like the others: paste the table if the page differs)
-    v.push(ListSource { list: "FRC".into(), cpu: "mixed".into(), variant: "all".into(), url: format!("{base}/404FRC/rating_list_all.html") });
+    v
+}
+
+/// Every URL tried for a source, in order: the configured one, the same page with and
+/// without the `/ccrl/` prefix and with `www.`, then the site's plain-text export
+/// (`cgi/compare_engines.cgi?print=Rating list (text)`), which survives layout changes.
+pub fn candidate_urls(src: &ListSource) -> Vec<String> {
+    let mut v: Vec<String> = vec![src.url.clone()];
+    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^https?://(?:www\.)?computerchess\.org\.uk/(?:ccrl/)?([^/]+)/(.*)$").unwrap());
+    if let Some(c) = RE.captures(&src.url) {
+        let (dir, file) = (c[1].to_string(), c[2].to_string());
+        let files: Vec<String> = if file.is_empty() || file == "index.html" { vec![String::new(), "index.html".into()] } else { vec![file.clone()] };
+        for host in ["https://computerchess.org.uk", "https://www.computerchess.org.uk"] {
+            for prefix in ["", "/ccrl"] {
+                for f in &files {
+                    v.push(format!("{host}{prefix}/{dir}/{f}"));
+                }
+            }
+        }
+        let best = if src.variant == "all" { 0 } else { 1 };
+        for prefix in ["", "/ccrl"] {
+            v.push(format!("{CCRL_ROOT}{prefix}/{dir}/cgi/compare_engines.cgi?print=Rating+list+%28text%29&class=all+engines&only_best_in_class={best}"));
+        }
+    }
+    let mut seen = std::collections::HashSet::new();
+    v.retain(|u| seen.insert(u.clone()));
     v
 }
 
@@ -95,17 +125,28 @@ fn num(s: &str) -> Option<f64> {
 /// Parses rows of an HTML page (any table with Rank/Name/Rating-like headers).
 pub fn parse_html(html: &str) -> Vec<CcrlEntry> {
     static TR: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)<tr[^>]*>(.*?)</tr>").unwrap());
-    static TD: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)<t[dh][^>]*>(.*?)</t[dh]>").unwrap());
+    static TD: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)<t[dh]([^>]*)>(.*?)</t[dh]>").unwrap());
+    static SPAN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(?i)colspan\s*=\s*["']?(\d+)"#).unwrap());
     let mut header: Option<Vec<String>> = None;
     let mut out = Vec::new();
     for tr in TR.captures_iter(html) {
-        let cells: Vec<String> = TD.captures_iter(&tr[1]).map(|c| strip_tags(&c[1])).collect();
+        let cells: Vec<String> = TD.captures_iter(&tr[1]).map(|c| strip_tags(&c[2])).collect();
         if cells.is_empty() {
             continue;
         }
         let lower: Vec<String> = cells.iter().map(|c| c.to_lowercase()).collect();
         if lower.iter().any(|c| c == "rank" || c == "#") && lower.iter().any(|c| c.contains("name") || c.contains("engine")) {
-            header = Some(lower);
+            // CCRL: "Rating" spans three columns (Elo, +, -) in a second header row:
+            // expand every header cell by its colspan so the columns line up with the data
+            let mut h = Vec::new();
+            for c in TD.captures_iter(&tr[1]) {
+                let span = SPAN.captures(&c[1]).and_then(|m| m[1].parse::<usize>().ok()).unwrap_or(1).clamp(1, 8);
+                let name = strip_tags(&c[2]).to_lowercase();
+                for i in 0..span {
+                    h.push(if i == 0 { name.clone() } else { format!("{name} ({})", i + 1) });
+                }
+            }
+            header = Some(h);
             continue;
         }
         if let Some(e) = row_to_entry(&cells, header.as_deref()) {
@@ -113,7 +154,11 @@ pub fn parse_html(html: &str) -> Vec<CcrlEntry> {
         }
     }
     if out.is_empty() {
-        return parse_text(&strip_tags(&html.replace("<br>", "\n").replace("</tr>", "\n")));
+        // a text list (e.g. inside <pre>): keep the line breaks while removing the tags
+        static BR: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)<br\s*/?>|</tr>|</p>|</div>").unwrap());
+        let text = BR.replace_all(html, "\n");
+        let lines: Vec<String> = text.lines().map(strip_tags).collect();
+        return parse_text(&lines.join("\n"));
     }
     out
 }
@@ -130,7 +175,8 @@ fn row_to_entry(cells: &[String], header: Option<&[String]>) -> Option<CcrlEntry
             (r, n, t)
         }
     };
-    let rank: i64 = cells.get(ri)?.trim_end_matches('.').trim().parse().ok()?;
+    // tied ranks are written "14-15"
+    let rank: i64 = cells.get(ri)?.trim().split(['-', '\u{2013}', '.', ' ']).next()?.parse().ok()?;
     let name = cells.get(ni)?.trim().to_string();
     let rating = num(cells.get(rti)?)?;
     if name.is_empty() || !(500.0..6000.0).contains(&rating) {
@@ -180,18 +226,22 @@ pub fn parse_text(text: &str) -> Vec<CcrlEntry> {
             if lower.iter().any(|s| s == "name" || s == "rating") {
                 continue; // header
             }
+            // rank,name,rating[,plus[,minus[,score[,games]]]]  or  name,rating
+            let col = |i: usize| c.get(i).and_then(|x| num(x));
             let e = if c.len() >= 3 && c[0].parse::<i64>().is_ok() {
-                num(c[2]).map(|r| (c[0].parse().unwrap(), c[1].to_string(), r, c.get(3).and_then(|x| num(x))))
+                num(c[2]).map(|r| {
+                    let ep = col(3).map(f64::abs);
+                    let em = col(4).map(f64::abs).or(ep);
+                    CcrlEntry { rank: c[0].parse().unwrap(), name: c[1].to_string(), rating: r, err_plus: ep, err_minus: em, score: col(5), games: col(6).map(|g| g as i64) }
+                })
             } else if c.len() >= 2 {
                 auto_rank += 1;
-                num(c[1]).map(|r| (auto_rank, c[0].to_string(), r, None))
+                num(c[1]).map(|r| CcrlEntry { rank: auto_rank, name: c[0].to_string(), rating: r, err_plus: None, err_minus: None, games: None, score: None })
             } else {
                 None
             };
-            if let Some((rank, name, rating, err)) = e {
-                if !name.is_empty() {
-                    out.push(CcrlEntry { rank, name, rating, err_plus: err, err_minus: err, games: None, score: None });
-                }
+            if let Some(e) = e.filter(|e| !e.name.is_empty()) {
+                out.push(e);
             }
             continue;
         }
@@ -212,16 +262,54 @@ pub fn parse_text(text: &str) -> Vec<CcrlEntry> {
     out
 }
 
+/// Lists bundled with TorsGUI (the "best versions" pages of the CCRL site, transcribed on
+/// the date written in each file): ratings and CCRL names work offline, and when the site
+/// cannot be reached. (list, file, csv)
+pub const SNAPSHOTS: [(&str, &str, &str); 3] = [
+    ("Blitz", "blitz_best.csv", include_str!("../data/ccrl/blitz_best.csv")),
+    ("40/15", "4015_best.csv", include_str!("../data/ccrl/4015_best.csv")),
+    ("FRC", "frc_best.csv", include_str!("../data/ccrl/frc_best.csv")),
+];
+
+pub fn snapshot_lists() -> Vec<CcrlList> {
+    SNAPSHOTS
+        .iter()
+        .map(|(list, file, text)| {
+            let date = text.lines().next().and_then(|l| l.split("computed on ").nth(1)).unwrap_or("").trim().to_string();
+            CcrlList {
+                id: None,
+                list: list.to_string(),
+                cpu: "mixed".into(),
+                variant: "best".into(),
+                source: format!("bundled snapshot {file} ({date})"),
+                fetched_at: crate::store::now(),
+                entries: parse_text(text),
+            }
+        })
+        .collect()
+}
+
+/// Downloads a list, trying every candidate URL until one has rating rows.
 pub fn fetch(src: &ListSource) -> Result<CcrlList> {
-    let (st, html) = crate::github::get_text(&src.url, None)?;
-    if st != 200 {
-        bail!("{} returned HTTP {st}", src.url);
+    fetch_with(src, |u| crate::github::get_page(u))
+}
+
+pub fn fetch_with(src: &ListSource, get: impl Fn(&str) -> Result<(u16, String)>) -> Result<CcrlList> {
+    let mut tried = Vec::new();
+    for url in candidate_urls(src) {
+        match get(&url) {
+            Ok((200, body)) => {
+                let entries = parse_html(&body);
+                if entries.len() >= 5 {
+                    return Ok(CcrlList { id: None, list: src.list.clone(), cpu: src.cpu.clone(), variant: src.variant.clone(), source: url, fetched_at: crate::store::now(), entries });
+                }
+                tried.push(format!("{url}: no rating rows"));
+            }
+            Ok((st, _)) => tried.push(format!("{url}: HTTP {st}")),
+            Err(e) => tried.push(format!("{url}: {e}")),
+        }
     }
-    let entries = parse_html(&html);
-    if entries.is_empty() {
-        bail!("no rating rows recognised at {} (the site layout may have changed: use manual import)", src.url);
-    }
-    Ok(CcrlList { id: None, list: src.list.clone(), cpu: src.cpu.clone(), variant: src.variant.clone(), source: src.url.clone(), fetched_at: crate::store::now(), entries })
+    bail!("CCRL {} ({}) could not be downloaded; tried {}", src.list, src.variant, tried.join(" · "))
 }
 
 // ------------------------------------------------------------------ lookups
@@ -487,6 +575,79 @@ mod tests {
         assert_eq!(e.len(), 2);
         assert_eq!(e[1].name, "Obsidian 16.0 64-bit");
         assert_eq!(e[0].games, Some(1200));
+    }
+
+    #[test]
+    fn ccrl_page_with_two_header_rows_and_tied_ranks() {
+        // the layout of the CCRL index pages (2026): Rating spans Elo / + / -
+        let html = r#"<table><tr><th rowspan=2>Rank</th><th rowspan=2>Name</th><th colspan=3>Rating</th><th rowspan=2>Score</th><th rowspan=2>Average Opponent</th><th rowspan=2>Draws</th><th rowspan=2>Games</th><th rowspan=2>LOS</th></tr>
+<tr><th>Elo</th><th>+</th><th>&minus;</th></tr>
+<tr><td>13</td><td><a href="x">Viridithas 20.0.0 64-bit</a></td><td>3748</td><td>+12</td><td>&minus;12</td><td>50.2%</td><td>-1.2</td><td>91.4%</td><td>2047</td><td>61.9%</td></tr>
+<tr><td>14-15</td><td><a href="x">Caissa 1.22 64-bit 8CPU</a></td><td>3746</td><td>+12</td><td>&minus;12</td><td>55.2%</td><td>-32.8</td><td>83.6%</td><td>1976</td><td>48.6%</td></tr>
+<tr><td>14-15</td><td>Stormphrax 8.0.0 64-bit</td><td>3746</td><td>+12</td><td>-12</td><td>50.5%</td><td>-3.3</td><td>86.6%</td><td>2260</td><td>62.3%</td></tr></table>"#;
+        let e = parse_html(html);
+        assert_eq!(e.len(), 3);
+        assert_eq!((e[1].rank, e[1].name.as_str(), e[1].rating), (14, "Caissa 1.22 64-bit 8CPU", 3746.0));
+        assert_eq!(e[2].rank, 14);
+        assert_eq!(e[1].games, Some(1976));
+        assert_eq!(e[1].score, Some(55.2));
+        assert_eq!((e[1].err_plus, e[1].err_minus), (Some(12.0), Some(12.0)));
+    }
+
+    #[test]
+    fn bundled_snapshots() {
+        let l = snapshot_lists();
+        assert_eq!(l.len(), 3);
+        let n: Vec<usize> = l.iter().map(|x| x.entries.len()).collect();
+        assert_eq!(n, vec![115, 62, 111]);
+        for x in &l {
+            assert!(x.source.contains("2026"), "{}", x.source);
+            assert!(x.entries.windows(2).all(|w| w[0].rating >= w[1].rating), "{} sorted", x.list);
+            assert!(x.entries.iter().all(|e| e.games.unwrap_or(0) > 100 && e.err_plus.is_some()));
+        }
+        assert_eq!(l[0].entries[13].name, "Caissa 1.22 64-bit 8CPU");
+        assert_eq!(l[1].entries[0].name, "Stockfish 19 64-bit 4CPU");
+        assert_eq!(l[2].entries[0].rating, 4117.0);
+    }
+
+    #[test]
+    fn every_list_has_fallback_urls() {
+        let src = default_sources();
+        assert_eq!(src.len(), 6);
+        let s4040 = src.iter().find(|s| s.list == "40/15" && s.variant == "all").unwrap();
+        let c = candidate_urls(s4040);
+        assert_eq!(c[0], "https://computerchess.org.uk/4040/rating_list_all.html");
+        assert!(c.contains(&"https://computerchess.org.uk/ccrl/4040/rating_list_all.html".to_string()));
+        assert!(c.contains(&"https://www.computerchess.org.uk/4040/rating_list_all.html".to_string()));
+        assert!(c.iter().any(|u| u.contains("/4040/cgi/compare_engines.cgi") && u.ends_with("only_best_in_class=0")));
+        let best = src.iter().find(|s| s.list == "FRC" && s.variant == "best").unwrap();
+        let c = candidate_urls(best);
+        assert!(c.contains(&"https://computerchess.org.uk/404FRC/index.html".to_string()));
+        assert!(c.iter().any(|u| u.contains("/404FRC/cgi/") && u.ends_with("only_best_in_class=1")));
+        // an old configured URL still finds the new place
+        let old = ListSource { list: "40/15".into(), cpu: "mixed".into(), variant: "all".into(), url: "https://computerchess.org.uk/ccrl/4040/rating_list_all.html".into() };
+        assert!(candidate_urls(&old).contains(&"https://computerchess.org.uk/4040/rating_list_all.html".to_string()));
+    }
+
+    #[test]
+    fn fetch_falls_back_to_the_next_url() {
+        let src = default_sources().into_iter().find(|s| s.list == "40/15" && s.variant == "best").unwrap();
+        let rows: String = (1..=8).map(|i| format!("<tr><td>{i}</td><td>Engine{i} 1.0 64-bit 4CPU</td><td>{}</td><td>+10</td><td>-10</td></tr>", 3600 - i * 10)).collect();
+        let page = format!("<table><tr><th>Rank</th><th>Name</th><th>Rating</th><th>+</th><th>-</th></tr>{rows}</table>");
+        let l = fetch_with(&src, |u| if u.contains("/ccrl/4040/") { Ok((200, page.clone())) } else if u.contains("www.") { Ok((200, "<html>blocked</html>".into())) } else { Ok((403, String::new())) }).unwrap();
+        assert_eq!(l.entries.len(), 8);
+        assert!(l.source.contains("/ccrl/4040/"));
+        let err = fetch_with(&src, |_| Ok((403, String::new()))).unwrap_err().to_string();
+        assert!(err.contains("HTTP 403") && err.contains("compare_engines.cgi"), "{err}");
+    }
+
+    #[test]
+    fn text_list_inside_pre() {
+        let html = "<html><body><pre>\n   1 Stockfish 19 64-bit 8CPU      3820  +15  -15   70.1%  -120.3   48.7%   1520\n   2 PlentyChess 8.0.0 64-bit 8CPU  3700  +14  -14   55.0%   -30.1   60.2%   1400\n</pre></body></html>";
+        let e = parse_html(html);
+        assert_eq!(e.len(), 2);
+        assert_eq!(e[0].name, "Stockfish 19 64-bit 8CPU");
+        assert_eq!(e[1].rating, 3700.0);
     }
 
     #[test]

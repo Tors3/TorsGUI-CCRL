@@ -69,6 +69,21 @@ fn agent(follow_redirects: bool) -> ureq::Agent {
         .into()
 }
 
+/// A web page (not the GitHub API): browser-like headers, so sites that refuse unknown
+/// clients (the CCRL pages) answer as they do in a browser.
+pub fn get_page(url: &str) -> Result<(u16, String)> {
+    let mut resp = agent(true)
+        .get(url)
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36 TorsGUI")
+        .header("Accept", "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8")
+        .header("Accept-Language", "en-US,en;q=0.8")
+        .call()
+        .map_err(|e| anyhow!("GET {url}: {e}"))?;
+    let status = resp.status().as_u16();
+    let body = resp.body_mut().with_config().limit(64 * 1024 * 1024).read_to_string().unwrap_or_default();
+    Ok((status, body))
+}
+
 pub fn get_text(url: &str, token: Option<&str>) -> Result<(u16, String)> {
     let mut req = agent(true).get(url).header("Accept", "application/vnd.github+json");
     if let Some(t) = token.filter(|t| !t.is_empty()) {

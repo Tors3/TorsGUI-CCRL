@@ -166,6 +166,9 @@ impl App {
 
     pub fn call(&self, cmd: &str, a: Value) -> Result<Value> {
         let store = self.ws.open()?;
+        if cmd.starts_with("ccrl_") && cmd != "ccrl_delete_list" {
+            ensure_ccrl_snapshots(&store)?;
+        }
         match cmd {
             // ---------------------------------------------------------- app
             "app_info" => {
@@ -300,7 +303,17 @@ impl App {
                 if t.done_games > 0 && (cfg.participants.len() != t.config.participants.len() || cfg.rounds_per_pass != t.config.rounds_per_pass || cfg.passes != t.config.passes || cfg.book_start != t.config.book_start || cfg.nodes.len() != t.config.nodes.len()) {
                     bail!("games were already played: engines, openings and nodes can no longer change (they define the slots)");
                 }
+                if t.imported {
+                    bail!("imported tournaments are read-only");
+                }
+                if let Some(e) = self.preview(&cfg).errors.first() {
+                    bail!("{e}");
+                }
                 store.update_config(&id, &cfg, scheduler::expected_games(&cfg) as u32)?;
+                let dir = self.ws.tournament_dir(&id);
+                std::fs::create_dir_all(&dir)?;
+                std::fs::write(dir.join("config.json"), serde_json::to_string_pretty(&cfg)?)?;
+                store.push_event("info", "tournament_updated", Some(&id), &format!("{} edited ({} games)", cfg.name, scheduler::expected_games(&cfg)))?;
                 ok(store.tournament(&id)?)
             }
             "tournament_delete" => {
@@ -550,6 +563,18 @@ impl App {
                 ok(json!({"repo": r, "latest_stable": latest, "releases": with_sel, "policy": policy}))
             }
             "github_install" => ok(self.github_install(&store, &a)?),
+            "known_repos" => {
+                ensure_ccrl_snapshots(&store)?;
+                let engines = store.engines()?;
+                let lists = store.ccrl_lists()?;
+                let blitz: Vec<&ccrl::CcrlEntry> = lists.iter().filter(|l| l.list == "Blitz").flat_map(|l| l.entries.iter()).collect();
+                let mut v = crate::catalog::known_repos();
+                for r in v.iter_mut() {
+                    r.installed = engines.iter().any(|e| crate::catalog::is_family(&e.display_name, &r.ccrl_name) || e.source_url.to_lowercase().contains(&format!("github.com/{}", r.repo.to_lowercase())));
+                    r.blitz = blitz.iter().filter(|e| crate::catalog::is_family(&e.name, &r.ccrl_name)).max_by(|a, b| a.rating.total_cmp(&b.rating)).map(|e| (e.name.clone(), e.rating));
+                }
+                ok(v)
+            }
             "job_status" => ok(self.jobs.lock().unwrap().get(&arg::<String>(&a, "id")?).cloned()),
             "fastchess_install" => {
                 let s = store.settings()?;
@@ -563,9 +588,33 @@ impl App {
             "ccrl_sources" => ok(ccrl::default_sources()),
             "ccrl_fetch" => {
                 let src: ccrl::ListSource = arg(&a, "source")?;
-                let l = ccrl::fetch(&src)?;
+                let l = ccrl::fetch(&src).map_err(|e| anyhow::anyhow!("{e}. The bundled snapshot of the list stays in use; a saved page (.html) can be imported by hand"))?;
                 store.save_ccrl_list(&l)?;
-                ok(json!({"entries": l.entries.len()}))
+                ok(json!({"entries": l.entries.len(), "source": l.source}))
+            }
+            "ccrl_fetch_all" => {
+                // every list in turn; a list that cannot be downloaded keeps what it has
+                let mut done = Vec::new();
+                let mut failed = Vec::new();
+                for src in ccrl::default_sources() {
+                    match ccrl::fetch(&src) {
+                        Ok(l) => {
+                            store.save_ccrl_list(&l)?;
+                            done.push(json!({"list": src.list, "variant": src.variant, "entries": l.entries.len()}));
+                        }
+                        Err(e) => failed.push(json!({"list": src.list, "variant": src.variant, "error": e.to_string()})),
+                    }
+                }
+                store.push_event(if failed.is_empty() { "success" } else { "warn" }, "ccrl_fetched", None, &format!("CCRL lists: {} downloaded, {} not reachable", done.len(), failed.len()))?;
+                ok(json!({"done": done, "failed": failed}))
+            }
+            "ccrl_load_snapshot" => {
+                let mut n = 0;
+                for l in ccrl::snapshot_lists() {
+                    store.save_ccrl_list(&l)?;
+                    n += 1;
+                }
+                ok(n)
             }
             "ccrl_import_text" => {
                 let text: String = arg(&a, "text")?;
@@ -1629,4 +1678,16 @@ fn game_row(g: &pgn::Game) -> GameRow {
         opening: g.headers.get_or("Opening", "").into(),
         round: g.slot().map(|s| format!("n{} p{} r{}", s.node, s.pass, s.round)).unwrap_or_default(),
     }
+}
+
+/// The bundled CCRL lists are loaded for every list that has none yet (first start, or
+/// after deleting the last one), so ratings and CCRL names work offline.
+fn ensure_ccrl_snapshots(store: &crate::store::Store) -> Result<()> {
+    let have: std::collections::HashSet<String> = store.conn.prepare("SELECT DISTINCT list FROM ccrl_lists")?.query_map([], |r| r.get::<_, String>(0))?.collect::<Result<_, _>>()?;
+    for l in ccrl::snapshot_lists() {
+        if !have.contains(&l.list) {
+            store.save_ccrl_list(&l)?;
+        }
+    }
+    Ok(())
 }

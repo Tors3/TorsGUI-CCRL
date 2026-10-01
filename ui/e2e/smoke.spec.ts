@@ -164,6 +164,47 @@ test("bundled CCRL opening books: install, then pick one in the wizard", async (
   await expect(page.getByTestId("book")).toHaveValue(/LowDraw1000\.pgn$/);
 });
 
+test("a draft is edited in the tournament wizard", async ({ page }) => {
+  await page.goto("/#/tournaments/new");
+  await page.getByLabel(/seed Mock Alpha/).check();
+  await page.getByLabel(/opponent Mock Bravo/).check();
+  await page.getByTestId("games-per-pairing").fill("20");
+  await expect(page.getByTestId("total-games")).toHaveText("20");
+  await page.getByTestId("create-draft").click();
+  await expect(page).toHaveURL(/#\/tournaments\/[^/]+$/);
+  const id = decodeURIComponent(page.url().split("/tournaments/")[1]);
+  await page.getByTestId("edit-tournament").click();
+  await expect(page).toHaveURL(/\/edit$/);
+  await expect(page.getByTestId("games-per-pairing")).toHaveValue("20");
+  await expect(page.getByLabel(/seed Mock Alpha/)).toBeChecked();
+  await expect(page.getByLabel(/opponent Mock Bravo/)).toBeChecked();
+  await page.getByTestId("games-per-pairing").fill("40");
+  await expect(page.getByTestId("total-games")).toHaveText("40");
+  await page.getByTestId("create-draft").click(); // "Save changes" in edit mode
+  await expect(page).toHaveURL((u) => u.hash === `#/tournaments/${encodeURIComponent(id)}`);
+  const d = await (await page.request.post("/api/tournament_get", { data: { id } })).json();
+  expect(d.summary.record.config.games_per_pairing).toBe(40);
+  expect(d.summary.record.expected_games).toBe(40);
+  expect(d.summary.record.state).toBe("draft");
+  await page.request.post("/api/tournament_delete", { data: { id, delete_files: true } });
+});
+
+test("CCRL lists bundled with TorsGUI and the known engine repositories", async ({ page }) => {
+  const lists = await (await page.request.post("/api/ccrl_lists", { data: {} })).json();
+  const bundled = lists.filter((l: any) => l.source.startsWith("bundled snapshot"));
+  expect(bundled.map((l: any) => l.list).sort()).toEqual(["40/15", "Blitz", "FRC"]);
+  await page.goto("/#/ccrl");
+  await expect(page.getByText(/bundled \(September 2[68], 2026\)/).first()).toBeVisible();
+  await expect(page.getByTestId("ccrl-fetch-all")).toBeVisible();
+  const known = await (await page.request.post("/api/known_repos", { data: {} })).json();
+  expect(known.length).toBeGreaterThanOrEqual(30);
+  await page.goto("/#/engines");
+  await page.getByRole("button", { name: /Add from GitHub/ }).first().click();
+  await expect(page.getByTestId("known-repos")).toBeVisible();
+  await page.getByTestId("known-filter").fill("stock");
+  await expect(page.getByTestId("known-Stockfish")).toContainText("official-stockfish/Stockfish");
+});
+
 test("board appearance is applied and remembered", async ({ page }) => {
   await page.goto("/#/settings");
   await page.getByTestId("theme-marble").click();

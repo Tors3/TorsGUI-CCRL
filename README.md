@@ -76,9 +76,10 @@ illustrative sample (the site was not reachable from the build machine), not rea
    → run 1 and N parallel instances with the machine idle →
    the TC calculator gives the local time control (e.g. Blitz 2'+1" → `103+1` at f≈0.86).
 4. **Engines** → *Bundled engines* adds Stockfish 10 and Triumviratus 7.0; *Add from GitHub*
-   (paste the repository URL) for the others; each one is
+   (pick one of the 54 known engines or paste the repository URL) for the others; each one is
    downloaded, checked (sha256), verified (`uci` / `isready` / `go depth 12`) and named.
-5. **CCRL Lists** → fetch or paste the Blitz / 40/15 list.
+5. **CCRL Lists** → the Blitz, 40/15 and FRC lists come with TorsGUI; *Fetch all* updates them
+   (or open a page saved from the browser).
 6. **Tournaments → New**: pick the seed, *Suggest opponents*, TC, threads, games per pairing,
    nodes and lanes; check the live summary (games, ETA, RAM, cores) → *Create and start*.
 7. Follow it on the **Dashboard** and **Live**; close the window whenever you want.

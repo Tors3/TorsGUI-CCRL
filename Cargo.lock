@@ -4061,7 +4061,7 @@ checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
 
 [[package]]
 name = "torsgui"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "serde_json",
@@ -4115,7 +4115,7 @@ dependencies = [
 
 [[package]]
 name = "torsgui-server"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "serde_json",

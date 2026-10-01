@@ -107,7 +107,10 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
 
 ## 3. Engines
 
-- **Add from GitHub**: paste a repository or release URL. TorsGUI lists the releases (the
+- **Add from GitHub**: pick one of the **known engines** (54 public repositories: the engines
+  of the CCRL top lists whose releases are on GitHub, most of them already tested by TorsGUI,
+  with their best Blitz rating and whether they are in your library), or paste a repository or
+  release URL. TorsGUI lists the releases (the
   latest *stable* is preselected; when the API is rate-limited it falls back to the
   `releases/latest` redirect and the HTML asset listing) and classifies every asset with a
   reason: Windows **AVX2** (x86-64-v3 counts as AVX2) is chosen; AVX-512, VNNI, `avx512`,
@@ -141,10 +144,19 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
 
 ## 4. CCRL lists
 
-- **Fetch from the site** reads the Blitz and 40/15 lists (all and best versions) from
-  computerchess.org.uk when reachable. The layout can change: **Manual import** always works
-  — paste the table copied from the page, the HTML, or a CSV (`rank,name,rating` or
-  `name,rating`). CPU categories are read from the names (`… 64-bit 8CPU`; no suffix = 1CPU).
+- **Bundled lists**: TorsGUI ships the Blitz, 40/15 and FRC lists (best versions, the top
+  of each list as published at the end of September 2026), so ratings, opponents and the CCRL
+  names used to rename engines in the PGNs work offline from the first start. They are
+  replaced by any list you fetch or import; *Bundled lists* restores them.
+- **Fetch all** (or one list) reads the Blitz, 40/15 and FRC lists (best and all versions)
+  from computerchess.org.uk. Every list tries several addresses (`/4040/`, `/ccrl/4040/`,
+  `www.`) and then the site's plain-text export; the two-row header of the CCRL tables and
+  tied ranks (`14-15`) are understood. When the site refuses the download the bundled or
+  previous list stays in use and the message lists every address tried.
+- **Manual import** always works: *Open a saved page* (in the browser: *Save page as…*, HTML
+  only), paste the table copied from the page, the HTML, or a CSV
+  (`rank,name,rating[,plus,minus,score,games]` or `name,rating`). CPU categories are read from
+  the names (`… 64-bit 8CPU`; no suffix = 1CPU).
 - The table marks which list engines are in your library.
 - **Name matching**: fuzzy matching ("Integral v8" ↔ "Integral 8", build tags and `64-bit`
   ignored); confirm a candidate to store the alias.
@@ -181,6 +193,12 @@ openings on 2 nodes → 8 and 7), openings used, concurrent games, busy threads 
 cores, RAM needed vs installed, estimated game duration and ETA, errors and warnings, and the
 exact fastchess command of the first game. **Create and start**, **Create & queue** or **Save
 draft**.
+
+**Editing a tournament**: a draft (or a queued or stopped tournament that has not played a
+game yet) has an **Edit** button on its page. It opens the same wizard with every setting
+loaded (engines, list, TC, games, nodes, lanes, book, event…); **Save changes** keeps its
+state, **Save & queue** and **Save and start** also queue or start it. Engine options and
+arguments of the tournament are kept.
 
 How openings are assigned: every opening is played twice with colours reversed in the same
 pairing. Openings are split into disjoint blocks per node partition, pass and pairing with the
