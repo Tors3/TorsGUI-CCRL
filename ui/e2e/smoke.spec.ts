@@ -171,7 +171,8 @@ test("a draft is edited in the tournament wizard", async ({ page }) => {
   await page.getByTestId("games-per-pairing").fill("20");
   await expect(page.getByTestId("total-games")).toHaveText("20");
   await page.getByTestId("create-draft").click();
-  await expect(page).toHaveURL(/#\/tournaments\/[^/]+$/);
+  // wait for the tournament page (the wizard's own URL is /tournaments/new)
+  await expect(page.getByTestId("edit-tournament")).toBeVisible();
   const id = decodeURIComponent(page.url().split("/tournaments/")[1]);
   await page.getByTestId("edit-tournament").click();
   await expect(page).toHaveURL(/\/edit$/);
