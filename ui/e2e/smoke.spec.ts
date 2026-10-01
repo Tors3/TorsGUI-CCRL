@@ -127,8 +127,15 @@ test("getting started: live steps and the demo tournament", async ({ page }) => 
   await page.goto("/#/");
   await page.goto("/#/start");
   await expect(page.getByTestId("step-tester")).toHaveAttribute("data-done", "yes");
-  await expect(page.getByTestId("step-fastchess")).toHaveAttribute("data-done", "yes");
   await expect(page.getByTestId("setup-progress")).toContainText("/7 done");
+  const st = await (await page.request.post("/api/setup_status", { data: {} })).json();
+  await expect(page.getByTestId("step-fastchess")).toHaveAttribute("data-done", st.fastchess ? "yes" : "no");
+  if (!st.fastchess) {
+    // without fastchess (CI browser job) the demo cannot start: the button says why
+    await expect(page.getByTestId("demo-standard")).toBeDisabled();
+    await expect(page.getByText("install fastchess first")).toBeVisible();
+    return;
+  }
   await page.getByTestId("demo-standard").click();
   await expect(page.getByTestId("demo-tour")).toBeVisible();
   const list = await (await page.request.post("/api/tournaments_list", { data: {} })).json();
