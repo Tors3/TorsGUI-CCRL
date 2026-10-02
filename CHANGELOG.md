@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.4.1] - 2026-10-02
 
 ### Added
 - **CCRL ratings in Engines**: Blitz, 40/15 and FRC rating of every engine (CPU category,
