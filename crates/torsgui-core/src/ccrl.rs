@@ -557,6 +557,41 @@ fn newest_first<'a>(lists: &'a [CcrlList], list: &str) -> Vec<&'a CcrlEntry> {
     ls.into_iter().flat_map(|l| l.entries.iter()).collect()
 }
 
+/// How CCRL writes an engine in `list` (without "64-bit" and "NCPU"), and where the spelling
+/// comes from: the same version in that list, the same version in another list, or the
+/// engine's name as written in that list followed by our version. None: not in any list.
+pub fn list_spelling(lists: &[CcrlList], list: &str, aliases: &HashMap<String, String>, name: &str) -> Option<(String, String)> {
+    let canon = aliases.get(name).cloned().unwrap_or_else(|| name.to_string());
+    let key = base_key(&canon);
+    if let Some(e) = newest_first(lists, list).into_iter().find(|e| base_key(&e.name) == key) {
+        return Some((names::ccrl_base(&e.name), format!("as in the CCRL {list} list")));
+    }
+    let mut others: Vec<&CcrlList> = lists.iter().filter(|l| !l.list.eq_ignore_ascii_case(list)).collect();
+    others.sort_by(|a, b| b.fetched_at.cmp(&a.fetched_at));
+    if let Some((l, e)) = others.iter().flat_map(|l| l.entries.iter().map(move |e| (l, e))).find(|(_, e)| base_key(&e.name) == key) {
+        return Some((names::ccrl_base(&e.name), format!("as in the CCRL {} list", l.list)));
+    }
+    // a version not listed yet: the engine's name as the list writes it, our version
+    let fam = family(&canon);
+    if fam.is_empty() {
+        return None;
+    }
+    let all: Vec<&CcrlEntry> = newest_first(lists, list).into_iter().chain(others.iter().flat_map(|l| l.entries.iter())).collect();
+    let listed = all.into_iter().find(|e| family(&e.name) == fam)?;
+    let split = |n: &str| -> (String, String) {
+        let toks: Vec<&str> = n.split_whitespace().collect();
+        let i = toks.iter().position(|t| !version_of(t).is_empty()).unwrap_or(toks.len());
+        (toks[..i].join(" "), toks[i..].join(" "))
+    };
+    let (their_name, _) = split(&names::ccrl_base(&listed.name));
+    let (_, our_version) = split(canon.trim());
+    if their_name.is_empty() {
+        return None;
+    }
+    let spelled = if our_version.is_empty() { their_name } else { format!("{their_name} {our_version}") };
+    Some((spelled, format!("engine name as in the CCRL lists ({}), version not listed yet", names::ccrl_base(&listed.name))))
+}
+
 pub const RATING_LISTS: [&str; 3] = ["Blitz", "40/15", "FRC"];
 
 /// The CCRL rating of every engine in every list: the same version (1CPU first,
@@ -787,5 +822,31 @@ mod tests {
             assert_eq!(r[0].rating, 3640.0);
             assert_eq!(RatingIndex::new(&ls, "Blitz", HashMap::new(), 50.0).rating("Stockfish 17", 1).rating, Some(3640.0));
         }
+    }
+
+    #[test]
+    fn export_names_follow_the_ccrl_spelling_of_the_list() {
+        let e = |rank, name: &str| CcrlEntry { rank, name: name.into(), rating: 3700.0, err_plus: None, err_minus: None, games: None, score: None };
+        let l = |list: &str, entries| CcrlList { id: None, list: list.into(), cpu: "mixed".into(), variant: "best".into(), source: String::new(), fetched_at: "2026-09-01".into(), entries };
+        let lists = vec![
+            l("Blitz", vec![e(1, "Integral 8 64-bit"), e(2, "pawnocchio 2.0 64-bit"), e(3, "Horsie 1.1.0 64-bit 8CPU")]),
+            l("40/15", vec![e(1, "Integral v8 64-bit 4CPU"), e(2, "Horsie 1.1 64-bit 4CPU")]),
+        ];
+        let none = HashMap::new();
+        let sp = |list: &str, n: &str| list_spelling(&lists, list, &none, n).map(|x| x.0);
+        // each list writes the same version its own way
+        assert_eq!(sp("Blitz", "Integral v8").as_deref(), Some("Integral 8"));
+        assert_eq!(sp("40/15", "Integral 8").as_deref(), Some("Integral v8"));
+        assert_eq!(sp("Blitz", "Horsie 1.1").as_deref(), Some("Horsie 1.1.0"));
+        assert_eq!(sp("40/15", "Horsie 1.1.0").as_deref(), Some("Horsie 1.1"));
+        // not in the 40/15 list: the Blitz spelling
+        assert_eq!(sp("40/15", "Pawnocchio 2.0").as_deref(), Some("pawnocchio 2.0"));
+        // a new version: the engine's name as listed, our version
+        assert_eq!(sp("Blitz", "Pawnocchio 2.1.0").as_deref(), Some("pawnocchio 2.1.0"));
+        assert!(list_spelling(&lists, "Blitz", &none, "Pawnocchio 2.1.0").unwrap().1.contains("not listed"));
+        assert_eq!(sp("Blitz", "Nobody 1"), None);
+        // aliases count
+        let al = HashMap::from([("Integral-dev".to_string(), "Integral 8".to_string())]);
+        assert_eq!(list_spelling(&lists, "Blitz", &al, "Integral-dev").unwrap().0, "Integral 8");
     }
 }

@@ -21,6 +21,12 @@ pub fn ccrl_name(name: &str, cpus: u32) -> String {
     n
 }
 
+/// Name without the export suffixes: `'Integral 8 64-bit 4CPU' -> 'Integral 8'`.
+pub fn ccrl_base(name: &str) -> String {
+    let n = CPU_SUFFIX.replace(name.trim(), "").to_string();
+    BIT64.replace(&n, "").trim().to_string()
+}
+
 /// Canonical CCRL-style display name `<Engine> <version>` from a folder-like
 /// name (`Stockfish_19` -> `Stockfish 19`).
 pub fn display_name(engine: &str, version: &str) -> String {

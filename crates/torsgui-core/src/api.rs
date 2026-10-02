@@ -1399,6 +1399,7 @@ impl App {
         let t = store.tournament(id)?.context("not found")?;
         let s = store.settings()?;
         let seed = t.config.seeds().first().map(|p| p.name.clone()).or_else(|| t.config.participants.first().map(|p| p.name.clone())).unwrap_or_default();
+        let (ccrl_names, name_sources) = self.ccrl_spellings(store, &t.config)?;
         Ok(ExportOptions {
             tester: s.tester_name.clone(),
             site: s.site.clone(),
@@ -1410,7 +1411,25 @@ impl App {
             book: t.config.book_name(),
             egtb: t.config.syzygy_pieces(),
             make_zip: true,
+            ccrl_names,
+            name_sources,
         })
+    }
+
+    /// How CCRL writes each player of the tournament in its list (see `ccrl::list_spelling`).
+    fn ccrl_spellings(&self, store: &crate::store::Store, cfg: &TournamentConfig) -> Result<(std::collections::BTreeMap<String, String>, std::collections::BTreeMap<String, String>)> {
+        ensure_ccrl_snapshots(store)?;
+        let lists = store.ccrl_lists()?;
+        let aliases: HashMap<String, String> = store.aliases()?.into_iter().map(|(a, c, _)| (a, c)).collect();
+        let list = if cfg.ccrl_list.is_empty() { "Blitz" } else { cfg.ccrl_list.as_str() };
+        let mut names = std::collections::BTreeMap::new();
+        let mut sources = std::collections::BTreeMap::new();
+        for p in &cfg.participants {
+            let (n, how) = ccrl::list_spelling(&lists, list, &aliases, &p.name).unwrap_or_else(|| (crate::names::ccrl_base(&p.name), "not in the CCRL lists: as in TorsGUI".into()));
+            names.insert(p.name.clone(), n);
+            sources.insert(p.name.clone(), how);
+        }
+        Ok((names, sources))
     }
 
     fn forum_post(&self, store: &crate::store::Store, id: &str, kind: PostKind, tpl: Option<&str>) -> Result<Value> {
@@ -1427,7 +1446,7 @@ impl App {
         let summary = self.summary(t.clone(), false);
         let per_opp = if opps > 0 { st.total.games / opps.max(1) } else { 0 };
         let c = PostContext {
-            seed_export: crate::names::ccrl_name(&seed, t.config.threads),
+            seed_export: crate::names::ccrl_name(self.ccrl_spellings(store, &t.config)?.0.get(&seed).unwrap_or(&seed), t.config.threads),
             kind_label: kind_label(t.config.kind).into(),
             total_games: st.total.games,
             expected_games: t.expected_games,

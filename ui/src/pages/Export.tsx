@@ -123,7 +123,12 @@ export function ExportPage() {
     refreshSettings();
   };
   const set = <K extends keyof ExportOptions>(k: K, v: ExportOptions[K]) => opts && setOpts({ ...opts, [k]: v });
-  const eventPreview = opts ? `${opts.seed.replace(/\s+\d+CPU$/, "")}${/64-bit$/.test(opts.seed) ? "" : " 64-bit"}${opts.threads > 1 ? ` ${opts.threads}CPU` : ""} - <Mon D>` : "";
+  // as names::ccrl_name, from the CCRL spelling when there is one
+  const exportName = (n: string) => {
+    const b = (opts?.ccrl_names[n]?.trim() || n).replace(/\s+\d+CPU$/, "");
+    return `${b}${/64-bit$/.test(b) ? "" : " 64-bit"}${opts && opts.threads > 1 ? ` ${opts.threads}CPU` : ""}`;
+  };
+  const eventPreview = opts ? `${exportName(opts.seed)} - <Mon D>` : "";
   const base = opts ? `[${opts.tester} ${opts.date}] ${res?.event ?? eventPreview} (hash ${opts.hash_mb}MB) (book ${opts.book}) (egtb ${opts.egtb}-man)` : "";
   return (
     <div className="flex flex-col gap-3 fade-in">
@@ -180,6 +185,42 @@ export function ExportPage() {
                     <input type="checkbox" checked={copyOut} onChange={(e) => setCopyOut(e.target.checked)} /> copy to the output folder
                   </label>
                 </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="kpi-label">Names in the PGN (as CCRL writes them in its list)</div>
+                <table className="tbl" data-testid="export-names">
+                  <thead>
+                    <tr>
+                      <th>Played as</th>
+                      <th>CCRL name</th>
+                      <th>In the export</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {opts.players.map((p) => {
+                      const changed = (opts.ccrl_names[p]?.trim() || p) !== p;
+                      return (
+                        <tr key={p}>
+                          <td className="muted">{p}</td>
+                          <td>
+                            <input
+                              className="input"
+                              style={{ minWidth: 180 }}
+                              value={opts.ccrl_names[p] ?? p}
+                              onChange={(e) => set("ccrl_names", { ...opts.ccrl_names, [p]: e.target.value })}
+                              aria-label={`CCRL name of ${p}`}
+                            />
+                            <div className="muted text-[11px]">{opts.name_sources[p] ?? ""}</div>
+                          </td>
+                          <td className="mono text-[12px]">
+                            {exportName(p)}
+                            {changed && <span className="chip chip-accent ml-1.5">renamed</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
               <div className="panel p-2.5 flex flex-col gap-1 text-[12px]" style={{ background: "var(--bg-2)" }}>
                 <div>

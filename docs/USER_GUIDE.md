@@ -269,7 +269,12 @@ opening(round) = start + round − 1
   (date of the first game), `Site` = your location, players `<Engine> <version> 64-bit` (+ ` NCPU`),
   Round renumbered 1..N. Every finished game once (duplicates dropped, keeping the first by
   GameEndTime), sorted by end time; TimeControl and every other tag stay exactly as played.
-- The output is byte-identical to `tools/export_ccrl.py` on the same PGNs.
+- **Names as CCRL writes them**: every player is renamed to the spelling of the tournament's
+  CCRL list (the lists do not always agree: Blitz has `Integral 8`, 40/15 `Integral v8`), else
+  of another list, else, for a version not listed yet, the engine's name as listed followed by
+  its version (`pawnocchio 2.1`). The table *Names in the PGN* shows where each name comes from
+  and the final name; any of them can be corrected by hand before **Build export**.
+- With the names unchanged, the output is byte-identical to `tools/export_ccrl.py` on the same PGNs.
 - **Forum post**: BBCode templates (finished, announcement, progress) with placeholders; the
   default "finished" post has a heading, one line of conditions, the result in bold, the
   per-opponent `[code]` table ordered by list rating and a closing line naming the next queued

@@ -11,7 +11,7 @@ use chrono::{Datelike, NaiveDate};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -31,6 +31,12 @@ pub struct ExportOptions {
     pub book: String,
     pub egtb: u32,
     pub make_zip: bool,
+    /// Player name in the PGNs -> how CCRL writes it (without "64-bit" / "NCPU").
+    #[serde(default)]
+    pub ccrl_names: BTreeMap<String, String>,
+    /// Where each CCRL spelling comes from (shown next to it).
+    #[serde(default)]
+    pub name_sources: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
@@ -147,17 +153,17 @@ pub fn build(files: &[PathBuf], o: &ExportOptions) -> Result<(String, String, us
     if sel.blocks.is_empty() {
         bail!("no finished game");
     }
-    let seed = ccrl_name(&o.seed, o.threads);
+    let export_name = |n: &str| ccrl_name(o.ccrl_names.get(n).map(|s| s.trim()).filter(|s| !s.is_empty()).unwrap_or(n), o.threads);
+    let seed = export_name(&o.seed);
     let event = event_name(&seed, &sel.blocks)?;
-    let names: HashMap<String, String> =
-        o.players.iter().map(|n| (n.clone(), ccrl_name(n, o.threads))).collect();
+    let names: HashMap<String, String> = o.players.iter().map(|n| (n.clone(), export_name(n))).collect();
     let mut out = Vec::with_capacity(sel.blocks.len());
     for (i, (b, _)) in sel.blocks.iter().enumerate() {
         let b = EVENT_LINE.replace_all(b, |_: &regex::Captures| format!("[Event \"{event}\"]"));
         let b = SITE_LINE.replace_all(&b, |_: &regex::Captures| format!("[Site \"{}\"]", o.site));
         let b = ROUND_LINE.replace_all(&b, |_: &regex::Captures| format!("[Round \"{}\"]", i + 1));
         let b = PLAYER_LINE.replace_all(&b, |c: &regex::Captures| {
-            let n = names.get(&c[2]).cloned().unwrap_or_else(|| ccrl_name(&c[2], o.threads));
+            let n = names.get(&c[2]).cloned().unwrap_or_else(|| export_name(&c[2]));
             format!("[{} \"{}\"]", &c[1], n)
         });
         out.push(b.to_string());
@@ -232,5 +238,35 @@ mod tests {
             zip_name(base),
             "Francesco_Torsello_2026-09-28_Triumviratus_7.0_64-bit_8CPU_-_Sep_27_hash_4096MB_book_avt-book-2026_egtb_5-man.zip"
         );
+    }
+
+    #[test]
+    fn players_take_their_ccrl_spelling() {
+        let dir = std::env::temp_dir().join(format!("torsgui-export-names-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let pgn = dir.join("g.pgn");
+        let game = |w: &str, b: &str, end: &str| format!("[Event \"x\"]\n[Site \"pc\"]\n[Date \"2026.09.27\"]\n[Round \"1\"]\n[White \"{w}\"]\n[Black \"{b}\"]\n[Result \"1-0\"]\n[GameEndTime \"{end}\"]\n\n1. e4 e5 1-0\n\n");
+        std::fs::write(&pgn, game("Pawnocchio 2.1", "Integral v8", "2026-09-27T10:00:00") + &game("Integral v8", "Pawnocchio 2.1", "2026-09-27T11:00:00")).unwrap();
+        let o = ExportOptions {
+            tester: "T".into(),
+            site: "Milan".into(),
+            date: "2026-09-28".into(),
+            seed: "Pawnocchio 2.1".into(),
+            players: vec!["Pawnocchio 2.1".into(), "Integral v8".into()],
+            threads: 4,
+            hash_mb: 512,
+            book: "b".into(),
+            egtb: 5,
+            make_zip: false,
+            ccrl_names: BTreeMap::from([("Pawnocchio 2.1".to_string(), "pawnocchio 2.1".to_string()), ("Integral v8".to_string(), "Integral 8".to_string())]),
+            name_sources: BTreeMap::new(),
+        };
+        let (text, event, n, _, players) = build(&[pgn], &o).unwrap();
+        assert_eq!(n, 2);
+        assert_eq!(event, "pawnocchio 2.1 64-bit 4CPU - Sep 27");
+        assert!(text.contains("[White \"pawnocchio 2.1 64-bit 4CPU\"]") && text.contains("[Black \"Integral 8 64-bit 4CPU\"]"));
+        assert!(!text.contains("Integral v8"));
+        assert_eq!(players, vec!["Integral 8 64-bit 4CPU", "pawnocchio 2.1 64-bit 4CPU"]);
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

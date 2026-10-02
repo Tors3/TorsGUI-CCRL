@@ -6,6 +6,9 @@
 - **CCRL ratings in Engines**: Blitz, 40/15 and FRC rating of every engine (CPU category,
   rank and games in the tooltip; `≈` when the version is not listed yet), synchronised with
   the stored CCRL lists, **Update CCRL ratings** button, sortable columns, search.
+- **CCRL names in the export**: players are written as the tournament's CCRL list writes them
+  (another list, or the listed engine name with the new version, when needed), shown and
+  editable in *Export → Names in the PGN*; the forum post uses the same seed name.
 - **New tournament**: search over name/author/build, Elo range filter, sort by name or rating,
   **Closest to seed**.
 

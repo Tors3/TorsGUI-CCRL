@@ -12,4 +12,12 @@ seed: string,
 /**
  * Player names of the tournament (seed + opponents) as written in the PGNs.
  */
-players: Array<string>, threads: number, hash_mb: number, book: string, egtb: number, make_zip: boolean, };
+players: Array<string>, threads: number, hash_mb: number, book: string, egtb: number, make_zip: boolean, 
+/**
+ * Player name in the PGNs -> how CCRL writes it (without "64-bit" / "NCPU").
+ */
+ccrl_names: { [key in string]: string }, 
+/**
+ * Where each CCRL spelling comes from (shown next to it).
+ */
+name_sources: { [key in string]: string }, };
