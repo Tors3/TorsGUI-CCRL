@@ -108,6 +108,12 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
 
 ## 3. Engines
 
+- **CCRL ratings and search**: the library shows every engine's rating in the CCRL **Blitz**,
+  **40/15** and **FRC** lists (the same version, 1CPU first, otherwise its CPU category is
+  shown; `≈` = this version is not in the list yet, the latest listed version is shown). The
+  ratings follow the lists in *CCRL lists*: **Update CCRL ratings** downloads them again (the
+  bundled lists stay in use when the site is not reachable). Click a column header to sort, and
+  search by name, author, build or `id name`.
 - **Add from GitHub**: pick one of the **known engines** (73 public repositories: the engines
   of the CCRL top lists whose releases are on GitHub, covering every open-source engine of the
   Blitz top 60; 36 of them already tested by TorsGUI,
@@ -180,7 +186,10 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
    anchor; anchors do not play each other), round robin or match; the CCRL list; the event
    (automatic CCRL naming, e.g. `CCRL Blitz gauntlet Triumviratus 7.0 8CPU`).
 2. *Engines*: the seed(s) and the opponents, or **Suggest opponents** from the list. Ratings
-   in the target CPU category are shown (estimated ones marked).
+   in the target CPU category are shown (estimated ones marked). **Search** engines, keep only
+   an **Elo range** (*from*–*to*; the engines already chosen stay visible), sort by name or
+   rating (column headers), or **Closest to seed** to list the opponents by distance from the
+   seed's rating.
 3. *Conditions*: threads, hash (512 MB × threads by default), games per pairing (even, a
    multiple of passes × 2), passes, time control (or compute it from the nominal TC and the
    factor), book, book start, Syzygy path, site, adjudication (defaults `-draw movenumber=35

@@ -166,7 +166,7 @@ impl App {
 
     pub fn call(&self, cmd: &str, a: Value) -> Result<Value> {
         let store = self.ws.open()?;
-        if cmd.starts_with("ccrl_") && cmd != "ccrl_delete_list" {
+        if (cmd.starts_with("ccrl_") && cmd != "ccrl_delete_list") || cmd == "engines_ccrl" {
             ensure_ccrl_snapshots(&store)?;
         }
         match cmd {
@@ -585,6 +585,13 @@ impl App {
 
             // ---------------------------------------------------------- CCRL
             "ccrl_lists" => ok(store.ccrl_lists()?),
+            "engines_ccrl" => {
+                let lists = store.ccrl_lists()?;
+                let aliases: HashMap<String, String> = store.aliases()?.into_iter().map(|(a, c, _)| (a, c)).collect();
+                let engines: Vec<(i64, String)> = store.engines()?.into_iter().filter_map(|e| Some((e.id?, e.display_name))).collect();
+                let when = lists.iter().map(|l| l.fetched_at.clone()).max().unwrap_or_default();
+                ok(json!({"ratings": ccrl::engine_ratings(&lists, &aliases, &engines), "fetched_at": when}))
+            }
             "ccrl_sources" => ok(ccrl::default_sources()),
             "ccrl_fetch" => {
                 let src: ccrl::ListSource = arg(&a, "source")?;

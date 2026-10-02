@@ -221,9 +221,10 @@ test("live broadcast: settings and the tournament's Lichess / ccrl.live switches
   await expect(page.getByTestId("broadcast-lichess")).not.toBeChecked();
   await page.getByTestId("broadcast-ccrl").check();
   await expect(page.getByTestId("broadcast-ccrl")).toBeChecked();
-  const b = await (await page.request.post("/api/broadcast_get", { data: { id: t.record.id } })).json();
-  expect(b.config).toEqual({ lichess: false, ccrl_live: true });
-  expect(b.first_port).toBe(16001);
+  // the switch answers at once, the saved setting follows
+  const get = async () => (await page.request.post("/api/broadcast_get", { data: { id: t.record.id } })).json();
+  await expect.poll(async () => (await get()).config).toEqual({ lichess: false, ccrl_live: true });
+  expect((await get()).first_port).toBe(16001);
   await page.getByTestId("broadcast-ccrl").uncheck();
   await expect(page.getByTestId("broadcast-ccrl")).not.toBeChecked();
 });
@@ -294,4 +295,39 @@ test("every screen renders without errors", async ({ page }) => {
     await page.waitForTimeout(600);
   }
   expect(errors).toEqual([]);
+});
+
+test("engines: CCRL ratings, search and sort; wizard search, Elo range and sorting", async ({ page }) => {
+  const r = await (await page.request.post("/api/engines_ccrl", { data: {} })).json();
+  const blitz = r.ratings.filter((x: any) => x.list === "Blitz" && x.exact).sort((a: any, b: any) => b.rating - a.rating);
+  expect(blitz.length).toBeGreaterThan(3);
+  const engines = await (await page.request.post("/api/engines_list", { data: {} })).json();
+  const top = blitz[0];
+  const name = engines.find((e: any) => e.id === top.engine_id).display_name;
+  await page.goto("/#/engines");
+  await expect(page.getByTestId(`elo-Blitz-${top.engine_id}`)).toContainText(top.rating.toLocaleString("en-US"));
+  const rows = page.getByTestId("engines-table").locator("tbody tr");
+  await page.getByTestId("sort-Blitz").click();
+  await expect(rows.first()).toContainText(name);
+  await page.getByTestId("sort-Blitz").click();
+  await expect(rows.first()).not.toContainText(name);
+  await page.getByTestId("engines-search").fill(name);
+  await expect(rows.filter({ hasText: name }).first()).toBeVisible();
+  await page.getByTestId("engines-search").fill("no such engine zzz");
+  await expect(page.getByText(/No engine matches/)).toBeVisible();
+
+  await page.goto("/#/tournaments/new");
+  await page.getByTestId("wizard-search").fill("mock bravo");
+  await expect(page.getByLabel(/opponent Mock Bravo/)).toBeVisible();
+  await expect(page.getByLabel(`opponent ${name}`, { exact: true })).toHaveCount(0);
+  await page.getByTestId("wizard-search").fill("");
+  await page.getByTestId("elo-min").fill(String(Math.floor(top.rating)));
+  await expect(page.getByLabel(`opponent ${name}`, { exact: true })).toBeVisible();
+  await expect(page.getByLabel(/opponent Mock Bravo/)).toHaveCount(0);
+  await page.getByTestId("elo-min").fill("");
+  await page.getByTestId("sort-rating").click();
+  const elo = async (i: number) => Number((await page.locator('[data-testid^="wizard-elo-"]').nth(i).innerText()).replace(/[^0-9]/g, "").slice(0, 4));
+  await expect.poll(() => elo(0)).toBeGreaterThan(3000);
+  expect(await elo(0)).toBeGreaterThanOrEqual(await elo(1));
+  expect(await elo(1)).toBeGreaterThanOrEqual(await elo(2));
 });

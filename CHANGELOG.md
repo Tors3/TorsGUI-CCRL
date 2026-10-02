@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+- **CCRL ratings in Engines**: Blitz, 40/15 and FRC rating of every engine (CPU category,
+  rank and games in the tooltip; `≈` when the version is not listed yet), synchronised with
+  the stored CCRL lists, **Update CCRL ratings** button, sortable columns, search.
+- **New tournament**: search over name/author/build, Elo range filter, sort by name or rating,
+  **Closest to seed**.
+
 ### Fixed
 - Settings → Live broadcast: **Check** now saves a valid Lichess token at once. Before, a token
   checked but not saved with "Save settings" made the tournament's Lichess switch fail with an

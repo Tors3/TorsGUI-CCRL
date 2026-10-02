@@ -1,4 +1,4 @@
-import { Calculator, Check, ListPlus, Play, Plus, Save, Sparkles } from "lucide-react";
+import { Calculator, Check, Crosshair, ListPlus, Play, Plus, Save, Search, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ import type { TournamentRecord } from "../bindings/TournamentRecord";
 import type { Variant } from "../bindings/Variant";
 import type { BookSpec } from "../bindings/BookSpec";
 import type { WizardPreview } from "../bindings/WizardPreview";
+import { cmpNum, EloCell, matchesEngine, SortTh, useEngineRatings, type RatingList, type SortDir } from "../components/EngineRatings";
 import { ErrorBox, Field, Modal, PageHeader, Panel, Seg, Spinner, Tip, Warn } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { duration, num } from "../lib/format";
@@ -77,6 +78,10 @@ export function Wizard() {
   const [busy, setBusy] = useState(false);
   const [suggest, setSuggest] = useState<Suggestion[]>([]);
   const [q, setQ] = useState("");
+  const [sort, setSort] = useState<["name" | "rating" | "near", SortDir]>(["name", "asc"]);
+  const [eloMin, setEloMin] = useState("");
+  const [eloMax, setEloMax] = useState("");
+  const { ratings: libRatings } = useEngineRatings();
 
   useEffect(() => {
     if (!settings) return;
@@ -285,7 +290,28 @@ export function Wizard() {
   };
 
   const toggle = (arr: number[], set: (v: number[]) => void, id: number) => set(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
-  const filtered = (engines ?? []).filter((e) => !q || e.display_name.toLowerCase().includes(q.toLowerCase()));
+  // rating in the target list and CPU category, else the CCRL rating shown in Engines
+  const libRating = (e: EngineEntry) => libRatings.get(e.id!)?.[list as RatingList];
+  const eloOf = (e: EngineEntry) => ratings[e.display_name]?.rating ?? libRating(e)?.rating ?? null;
+  const seedElos = seedEngines.map(eloOf).filter((x): x is number => x != null);
+  const seedElo = seedElos.length ? seedElos.reduce((a, b) => a + b, 0) / seedElos.length : null;
+  const lo = eloMin.trim() ? +eloMin : null;
+  const hi = eloMax.trim() ? +eloMax : null;
+  const filtered = (engines ?? [])
+    .filter((e) => matchesEngine(e, q))
+    .filter((e) => {
+      // the engines already chosen always stay visible
+      if (seeds.includes(e.id!) || opps.includes(e.id!) || (lo == null && hi == null)) return true;
+      const r = eloOf(e);
+      return r != null && (lo == null || r >= lo) && (hi == null || r <= hi);
+    })
+    .sort((a, b) =>
+      sort[0] === "name"
+        ? (sort[1] === "asc" ? 1 : -1) * a.display_name.localeCompare(b.display_name, undefined, { numeric: true, sensitivity: "base" })
+        : sort[0] === "near" && seedElo != null
+          ? cmpNum(eloOf(a) == null ? null : Math.abs(eloOf(a)! - seedElo), eloOf(b) == null ? null : Math.abs(eloOf(b)! - seedElo), "asc")
+          : cmpNum(eloOf(a), eloOf(b), sort[1]),
+    );
   const multiSeed = kind === "multi_gauntlet";
   const seedMode = kind === "gauntlet" || kind === "multi_gauntlet";
 
@@ -345,7 +371,25 @@ export function Wizard() {
             title={`2 · Engines — ${seedMode ? `${seedEngines.length} seed${multiSeed ? "s" : ""}, ${oppEngines.length} opponents` : `${seedEngines.length + oppEngines.length} engines`}`}
             actions={
               <>
-                <input className="input" style={{ width: 180 }} placeholder="Filter engines" value={q} onChange={(e) => setQ(e.target.value)} />
+                <div className="relative">
+                  <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 muted" />
+                  <input className="input" style={{ width: 170, paddingLeft: 26 }} placeholder="Search engines" value={q} onChange={(e) => setQ(e.target.value)} data-testid="wizard-search" />
+                </div>
+                <Tip content={`Only engines rated in this range (CCRL ${list}); the engines already chosen stay visible`}>
+                  <div className="flex items-center gap-1 text-[12px] muted">
+                    Elo
+                    <input className="input tnum" style={{ width: 64 }} placeholder="from" inputMode="numeric" value={eloMin} onChange={(e) => setEloMin(e.target.value.replace(/[^0-9]/g, ""))} data-testid="elo-min" />
+                    –
+                    <input className="input tnum" style={{ width: 64 }} placeholder="to" inputMode="numeric" value={eloMax} onChange={(e) => setEloMax(e.target.value.replace(/[^0-9]/g, ""))} data-testid="elo-max" />
+                  </div>
+                </Tip>
+                {seedMode && (
+                  <Tip content={seedElo != null ? `Sort by distance from the seed's rating (${num(seedElo)})` : "Choose a seed with a CCRL rating first"}>
+                    <button className={`btn btn-sm ${sort[0] === "near" ? "btn-primary" : ""}`} disabled={seedElo == null} onClick={() => setSort(sort[0] === "near" ? ["rating", "desc"] : ["near", "asc"])} data-testid="sort-near">
+                      <Crosshair size={13} /> Closest to seed
+                    </button>
+                  </Tip>
+                )}
                 {seedMode && (
                   <Tip content={`Top engines of the CCRL ${list} ${threads}CPU list (latest version in the list) that are installed and support ${threads} threads`}>
                     <button className="btn btn-sm" onClick={doSuggest}>
@@ -363,12 +407,16 @@ export function Wizard() {
                   <tr>
                     {seedMode && <th>Seed</th>}
                     <th>{seedMode ? "Opponent" : "Plays"}</th>
-                    <th>Engine</th>
+                    <SortTh k="name" sort={sort} setSort={setSort} first="asc">
+                      Engine
+                    </SortTh>
                     <th>Build</th>
                     <th className="r">Threads max</th>
                     <th>Syzygy</th>
                     <th>960</th>
-                    <th className="r">Rating ({threads}CPU)</th>
+                    <SortTh k="rating" sort={sort} setSort={setSort} right>
+                      CCRL {list} ({threads}CPU)
+                    </SortTh>
                     <th>Status</th>
                   </tr>
                 </thead>
@@ -399,9 +447,10 @@ export function Wizard() {
                         </td>
                         <td>{e.has_syzygy ? "yes" : <span className="muted">no</span>}</td>
                         <td>{e.chess960 ? <span className="chip chip-accent">960</span> : <span className="muted">—</span>}</td>
-                        <td className="r tnum">
-                          {r?.rating != null ? num(r.rating) : <span className="muted">—</span>}
+                        <td className="r tnum" data-testid={`wizard-elo-${e.id}`}>
+                          {r?.rating != null ? num(r.rating) : <EloCell r={libRating(e)} />}
                           {r?.estimated && <span className="chip chip-warn ml-1" title={r.note}>est.</span>}
+                          {sort[0] === "near" && seedElo != null && eloOf(e) != null && !seeds.includes(e.id!) && <span className="muted text-[11px] ml-1">({eloOf(e)! - seedElo >= 0 ? "+" : ""}{num(eloOf(e)! - seedElo)})</span>}
                         </td>
                         <td>
                           {!e.path ? (

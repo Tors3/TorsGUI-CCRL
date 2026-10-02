@@ -1,4 +1,4 @@
-import { CheckCircle2, Copy, FileText, FolderOpen, Pencil, PackagePlus, RefreshCw, Trash2, XCircle } from "lucide-react";
+import { CheckCircle2, Copy, FileText, FolderOpen, Pencil, PackagePlus, RefreshCw, Search, Trash2, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { AssetPolicy } from "../bindings/AssetPolicy";
@@ -9,6 +9,7 @@ import type { Settings } from "../bindings/Settings";
 import type { Release } from "../bindings/Release";
 import type { RepoRef } from "../bindings/RepoRef";
 import type { Selection } from "../bindings/Selection";
+import { cmpNum, EloCell, matchesEngine, RATING_LISTS, SortTh, useEngineRatings, type RatingList, type SortDir } from "../components/EngineRatings";
 import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, Spinner, Tip } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 
@@ -254,6 +255,33 @@ export function Engines() {
   const [impPath, setImpPath] = useState("");
   const [busy, setBusy] = useState<number | null>(null);
   const engines = data ?? [];
+  const { ratings, fetchedAt, refresh: refreshRatings } = useEngineRatings();
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<["name" | RatingList, SortDir]>(["name", "asc"]);
+  const [syncing, setSyncing] = useState(false);
+  useEffect(() => {
+    refreshRatings();
+  }, [data, refreshRatings]);
+  const shown = engines
+    .filter((e) => matchesEngine(e, q))
+    .sort((a, b) =>
+      sort[0] === "name"
+        ? (sort[1] === "asc" ? 1 : -1) * a.display_name.localeCompare(b.display_name, undefined, { numeric: true, sensitivity: "base" })
+        : cmpNum(ratings.get(a.id!)?.[sort[0]]?.rating, ratings.get(b.id!)?.[sort[0]]?.rating, sort[1]),
+    );
+  const syncCcrl = async () => {
+    setSyncing(true);
+    try {
+      const r = await call<{ done: unknown[]; failed: unknown[] }>("ccrl_fetch_all");
+      if (r.done.length) toast.success(`CCRL lists updated (${r.done.length})${r.failed.length ? `, ${r.failed.length} not reachable` : ""}`);
+      else toast.error("computerchess.org.uk is not reachable: the lists in CCRL lists stay in use (bundled or imported)");
+      refreshRatings();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSyncing(false);
+    }
+  };
   const { data: bl } = usePoll<{ engines: BundledEngine[] }>("bundled_list", {}, 0);
   const bundled = (bl?.engines ?? []).filter((b) => b.present && b.role !== "bench");
   const verify = async (e: EngineEntry) => {
@@ -337,7 +365,23 @@ export function Engines() {
         }
       />
       <ErrorBox error={error} />
-      <Panel noPad>
+      <Panel
+        noPad
+        title={q ? `${shown.length} of ${engines.length} engines` : "Library"}
+        actions={
+          <>
+            <div className="relative">
+              <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 muted" />
+              <input className="input" style={{ width: 240, paddingLeft: 26 }} placeholder="Search engines, authors, builds" value={q} onChange={(e) => setQ(e.target.value)} data-testid="engines-search" />
+            </div>
+            <Tip content={`CCRL ratings come from the lists in CCRL lists${fetchedAt ? ` (latest: ${fetchedAt.slice(0, 10)})` : ""}. Update downloads them again; ≈ means this version is not in the list yet and the latest listed version is shown.`}>
+              <button className="btn btn-sm" onClick={syncCcrl} disabled={syncing} data-testid="engines-ccrl-sync">
+                {syncing ? <Spinner size={12} /> : <RefreshCw size={12} />} Update CCRL ratings
+              </button>
+            </Tip>
+          </>
+        }
+      >
         {engines.length === 0 ? (
           <Empty>The library is empty. Add engines from their official GitHub releases, from a local file, or rebuild the library from an existing REPORT.md.</Empty>
         ) : (
@@ -345,7 +389,14 @@ export function Engines() {
             <table className="tbl" data-testid="engines-table">
               <thead>
                 <tr>
-                  <th>Engine</th>
+                  <SortTh k="name" sort={sort} setSort={setSort} first="asc">
+                    Engine
+                  </SortTh>
+                  {RATING_LISTS.map((l) => (
+                    <SortTh key={l} k={l} sort={sort} setSort={setSort} right>
+                      CCRL {l}
+                    </SortTh>
+                  ))}
                   <th>Build</th>
                   <th>id name</th>
                   <th className="r">Threads max</th>
@@ -358,7 +409,14 @@ export function Engines() {
                 </tr>
               </thead>
               <tbody>
-                {engines.map((e) => (
+                {shown.length === 0 && (
+                  <tr>
+                    <td colSpan={13} className="muted">
+                      No engine matches “{q}”.
+                    </td>
+                  </tr>
+                )}
+                {shown.map((e) => (
                   <tr key={e.id}>
                     <td className="font-medium">
                       {e.release_url ? (
@@ -377,6 +435,11 @@ export function Engines() {
                         {e.asset}
                       </div>
                     </td>
+                    {RATING_LISTS.map((l) => (
+                      <td key={l} className="r" data-testid={`elo-${l}-${e.id}`}>
+                        <EloCell r={ratings.get(e.id!)?.[l]} />
+                      </td>
+                    ))}
                     <td className="mono">{e.build || "—"}</td>
                     <td className="mono muted">{e.uci_id || "—"}</td>
                     <td className="r tnum">{e.threads_max ?? "—"}</td>

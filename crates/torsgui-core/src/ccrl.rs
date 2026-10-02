@@ -338,7 +338,7 @@ pub struct RatingLookup {
 
 impl<'a> RatingIndex<'a> {
     pub fn new(lists: &'a [CcrlList], list: &str, aliases: HashMap<String, String>, default_gap: f64) -> Self {
-        let entries = lists.iter().filter(|l| l.list.eq_ignore_ascii_case(list)).flat_map(|l| l.entries.iter()).collect();
+        let entries = newest_first(lists, list);
         RatingIndex { entries, aliases, default_gap }
     }
 
@@ -534,6 +534,67 @@ pub fn match_names(query: &str, list: &[CcrlEntry]) -> Vec<names::MatchCandidate
     names::best_matches(query, &names, 5)
 }
 
+/// CCRL rating of a library engine in one list (Blitz, 40/15, FRC).
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
+pub struct EngineListRating {
+    pub engine_id: i64,
+    pub list: String,
+    /// Name in the CCRL list.
+    pub ccrl_name: String,
+    pub rating: f64,
+    pub rank: i64,
+    pub cpus: u32,
+    pub games: Option<i64>,
+    /// false: this version is not in the list, the rating is the latest version of the same engine.
+    pub exact: bool,
+}
+
+/// Entries of one list, the most recently downloaded lists first (the first match wins).
+fn newest_first<'a>(lists: &'a [CcrlList], list: &str) -> Vec<&'a CcrlEntry> {
+    let mut ls: Vec<&CcrlList> = lists.iter().filter(|l| l.list.eq_ignore_ascii_case(list)).collect();
+    ls.sort_by(|a, b| b.fetched_at.cmp(&a.fetched_at));
+    ls.into_iter().flat_map(|l| l.entries.iter()).collect()
+}
+
+pub const RATING_LISTS: [&str; 3] = ["Blitz", "40/15", "FRC"];
+
+/// The CCRL rating of every engine in every list: the same version (1CPU first,
+/// otherwise the smallest CPU category), else the latest version of the same
+/// engine in the list, marked not exact.
+pub fn engine_ratings(lists: &[CcrlList], aliases: &HashMap<String, String>, engines: &[(i64, String)]) -> Vec<EngineListRating> {
+    let mut out = Vec::new();
+    for list in RATING_LISTS {
+        let entries = newest_first(lists, list);
+        if entries.is_empty() {
+            continue;
+        }
+        let keys: Vec<(String, String)> = entries.iter().map(|e| (base_key(&e.name), family(&e.name))).collect();
+        for (id, name) in engines {
+            let canon = aliases.get(name).cloned().unwrap_or_else(|| name.clone());
+            let key = base_key(&canon);
+            let fam = family(&canon);
+            // smallest CPU category; on a tie the first one, from the newest list
+            let by_cpu = |a: &&CcrlEntry, b: &&CcrlEntry| a.cpus().cmp(&b.cpus());
+            let exact = entries.iter().zip(&keys).filter(|(_, (k, _))| *k == key).map(|(e, _)| *e).min_by(by_cpu);
+            let (e, is_exact) = match exact {
+                Some(e) => (e, true),
+                None if !fam.is_empty() => {
+                    let same: Vec<&CcrlEntry> = entries.iter().zip(&keys).filter(|(_, (_, f))| *f == fam).map(|(e, _)| *e).collect();
+                    let Some(latest) = same.iter().map(|e| version_of(&e.name)).max_by(|a, b| compare_versions(a, b)) else { continue };
+                    match same.into_iter().filter(|e| version_of(&e.name) == latest).min_by(by_cpu) {
+                        Some(e) => (e, false),
+                        None => continue,
+                    }
+                }
+                None => continue,
+            };
+            out.push(EngineListRating { engine_id: *id, list: list.to_string(), ccrl_name: e.name.clone(), rating: e.rating, rank: e.rank, cpus: e.cpus(), games: e.games, exact: is_exact });
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -691,5 +752,40 @@ mod tests {
         let t = thresholds(&[(3600.0, 30)], &[&e], &[5]);
         assert_eq!(t[0].points_needed, 15.5);
         assert!(t[0].reachable);
+    }
+
+    #[test]
+    fn library_engines_get_their_ccrl_ratings() {
+        let e = |rank, name: &str, rating| CcrlEntry { rank, name: name.into(), rating, err_plus: None, err_minus: None, games: Some(500), score: None };
+        let r_lists = || vec![CcrlList { id: None, list: "Blitz".into(), cpu: "mixed".into(), variant: "all".into(), source: String::new(), fetched_at: String::new(), entries: vec![e(2, "Stockfish 17 64-bit", 3640.0)] }];
+        let blitz = CcrlList { id: None, list: "Blitz".into(), cpu: "mixed".into(), variant: "all".into(), source: String::new(), fetched_at: String::new(),
+            entries: vec![e(1, "Stockfish 17 64-bit 8CPU", 3800.0), e(2, "Stockfish 17 64-bit", 3640.0), e(3, "Stockfish 16 64-bit", 3620.0), e(9, "Berserk 13 64-bit 4CPU", 3650.0), e(20, "Ethereal 14 64-bit", 3500.0), e(21, "Ethereal 13 64-bit", 3450.0)] };
+        let l4015 = CcrlList { list: "40/15".into(), entries: vec![e(1, "Stockfish 17 64-bit 4CPU", 3700.0)], ..blitz.clone() };
+        let aliases = HashMap::from([("SF dev".to_string(), "Stockfish 16".to_string())]);
+        let engines = vec![(1, "Stockfish 17".to_string()), (2, "Berserk 13".into()), (3, "Ethereal 15".into()), (4, "Nobody 1".into()), (5, "SF dev".into())];
+        let r = engine_ratings(&[blitz, l4015], &aliases, &engines);
+        let get = |id, list: &str| r.iter().find(|x| x.engine_id == id && x.list == list);
+        // the same version, 1CPU before 8CPU
+        let sf = get(1, "Blitz").unwrap();
+        assert_eq!((sf.rating, sf.cpus, sf.rank, sf.exact), (3640.0, 1, 2, true));
+        // only a 4CPU entry
+        assert_eq!(get(1, "40/15").unwrap().cpus, 4);
+        assert_eq!(get(2, "Blitz").unwrap().cpus, 4);
+        // a newer version than the list: the latest version, not exact
+        let eth = get(3, "Blitz").unwrap();
+        assert_eq!((eth.ccrl_name.as_str(), eth.exact), ("Ethereal 14 64-bit", false));
+        assert!(get(4, "Blitz").is_none());
+        assert!(get(3, "40/15").is_none());
+        // aliases count
+        assert_eq!(get(5, "Blitz").unwrap().rating, 3620.0);
+        assert!(get(5, "Blitz").unwrap().exact);
+        // with two lists the newest one wins, here and in the wizard ratings
+        let old_list = CcrlList { fetched_at: "2026-01-01".into(), entries: vec![e(5, "Stockfish 17 64-bit", 3600.0)], ..r_lists()[0].clone() };
+        let new_list = CcrlList { fetched_at: "2026-09-01".into(), ..r_lists()[0].clone() };
+        for ls in [vec![old_list.clone(), new_list.clone()], vec![new_list, old_list]] {
+            let r = engine_ratings(&ls, &HashMap::new(), &[(1, "Stockfish 17".to_string())]);
+            assert_eq!(r[0].rating, 3640.0);
+            assert_eq!(RatingIndex::new(&ls, "Blitz", HashMap::new(), 50.0).rating("Stockfish 17", 1).rating, Some(3640.0));
+        }
     }
 }
