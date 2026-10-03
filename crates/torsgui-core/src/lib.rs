@@ -2,6 +2,7 @@
 //! and the detached runner are thin shells around this crate.
 
 pub mod analysis;
+pub mod analyze;
 pub mod api;
 pub mod assets;
 pub mod bench;
@@ -32,5 +33,7 @@ pub mod scheduler;
 pub mod stats;
 pub mod store;
 pub mod tc;
+pub mod suite;
 pub mod tournament_file;
+pub mod uci;
 pub mod util;

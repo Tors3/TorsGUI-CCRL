@@ -58,6 +58,163 @@
   color-scheme: light;
 }
 
+/* sober neutral greys */
+:root[data-theme="graphite"] {
+  --bg: #121212;
+  --bg-2: #161616;
+  --panel: #1b1b1b;
+  --panel-2: #212121;
+  --hover: #2a2a2a;
+  --border: #2c2c2c;
+  --border-strong: #3a3a3a;
+  --text: #e4e4e4;
+  --text-2: #b8b8b8;
+  --muted: #8a8a8a;
+  --accent: #6f8296;
+  --accent-2: #8b9cae;
+  --accent-bg: rgba(139, 156, 174, 0.14);
+  --win: #74a982;
+  --win-bg: rgba(116, 169, 130, 0.14);
+  --draw: #a0a0a0;
+  --draw-bg: rgba(160, 160, 160, 0.12);
+  --loss: #c47b7b;
+  --loss-bg: rgba(196, 123, 123, 0.14);
+  --warn: #c4a464;
+  --warn-bg: rgba(196, 164, 100, 0.14);
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+/* sober and warm, light */
+:root[data-theme="paper"] {
+  --bg: #f3f0e8;
+  --bg-2: #ece8de;
+  --panel: #fbf9f4;
+  --panel-2: #f4f1e9;
+  --hover: #ebe6da;
+  --border: #ddd6c6;
+  --border-strong: #cbc2ae;
+  --text: #2b2822;
+  --text-2: #4c473d;
+  --muted: #7a7366;
+  --accent: #3e5c7d;
+  --accent-2: #2f4a68;
+  --accent-bg: rgba(62, 92, 125, 0.1);
+  --win: #3f7a4f;
+  --win-bg: rgba(63, 122, 79, 0.1);
+  --draw: #6e685c;
+  --draw-bg: rgba(110, 104, 92, 0.1);
+  --loss: #a8473d;
+  --loss-bg: rgba(168, 71, 61, 0.1);
+  --warn: #8f6a1c;
+  --warn-bg: rgba(143, 106, 28, 0.12);
+  --shadow: 0 8px 30px rgba(60, 50, 30, 0.12);
+  color-scheme: light;
+}
+/* Nord palette (nordtheme.com) */
+:root[data-theme="nord"] {
+  --bg: #242933;
+  --bg-2: #272c36;
+  --panel: #2e3440;
+  --panel-2: #353b49;
+  --hover: #3b4252;
+  --border: #3b4252;
+  --border-strong: #4c566a;
+  --text: #eceff4;
+  --text-2: #d8dee9;
+  --muted: #9aa5b8;
+  --accent: #5e81ac;
+  --accent-2: #81a1c1;
+  --accent-bg: rgba(136, 192, 208, 0.13);
+  --win: #a3be8c;
+  --win-bg: rgba(163, 190, 140, 0.14);
+  --draw: #b4bccb;
+  --draw-bg: rgba(216, 222, 233, 0.1);
+  --loss: #bf616a;
+  --loss-bg: rgba(191, 97, 106, 0.15);
+  --warn: #ebcb8b;
+  --warn-bg: rgba(235, 203, 139, 0.14);
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}
+/* pure black */
+:root[data-theme="midnight"] {
+  --bg: #000000;
+  --bg-2: #050505;
+  --panel: #0a0a0c;
+  --panel-2: #111114;
+  --hover: #17171c;
+  --border: #1d1d22;
+  --border-strong: #2a2a31;
+  --text: #e6e6ea;
+  --text-2: #b0b0b8;
+  --muted: #7a7a85;
+  --accent: #5b7cfa;
+  --accent-2: #7e98ff;
+  --accent-bg: rgba(91, 124, 250, 0.14);
+  --win: #3fb97a;
+  --win-bg: rgba(63, 185, 122, 0.13);
+  --draw: #9a9aa5;
+  --draw-bg: rgba(154, 154, 165, 0.12);
+  --loss: #f06a6a;
+  --loss-bg: rgba(240, 106, 106, 0.13);
+  --warn: #e3b341;
+  --warn-bg: rgba(227, 179, 65, 0.13);
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
+}
+/* dark green */
+:root[data-theme="forest"] {
+  --bg: #0e1411;
+  --bg-2: #111915;
+  --panel: #151e19;
+  --panel-2: #1a251f;
+  --hover: #203028;
+  --border: #23322a;
+  --border-strong: #2f4237;
+  --text: #e3ece6;
+  --text-2: #b3c4b9;
+  --muted: #7f9387;
+  --accent: #4f9a72;
+  --accent-2: #6db58e;
+  --accent-bg: rgba(79, 154, 114, 0.14);
+  --win: #6cc08f;
+  --win-bg: rgba(108, 192, 143, 0.13);
+  --draw: #9fb0a5;
+  --draw-bg: rgba(159, 176, 165, 0.12);
+  --loss: #e07a6f;
+  --loss-bg: rgba(224, 122, 111, 0.13);
+  --warn: #d9b45a;
+  --warn-bg: rgba(217, 180, 90, 0.13);
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+/* black and white, strong borders */
+:root[data-theme="contrast"] {
+  --bg: #000000;
+  --bg-2: #000000;
+  --panel: #000000;
+  --panel-2: #0d0d0d;
+  --hover: #262626;
+  --border: #8a8a8a;
+  --border-strong: #c8c8c8;
+  --text: #ffffff;
+  --text-2: #ffffff;
+  --muted: #d0d0d0;
+  --accent: #3d7bff;
+  --accent-2: #8fb3ff;
+  --accent-bg: rgba(61, 123, 255, 0.28);
+  --win: #4ee68f;
+  --win-bg: rgba(78, 230, 143, 0.2);
+  --draw: #e0e0e0;
+  --draw-bg: rgba(224, 224, 224, 0.18);
+  --loss: #ff7070;
+  --loss-bg: rgba(255, 112, 112, 0.2);
+  --warn: #ffd04d;
+  --warn-bg: rgba(255, 208, 77, 0.2);
+  --shadow: 0 0 0 1px #c8c8c8;
+  color-scheme: dark;
+}
+
 @theme {
   --font-sans: "Inter", "Inter var", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -359,6 +516,74 @@ body {
 .nav-item.active svg {
   color: var(--accent);
 }
+.nav-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 4px 10px 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.nav-group:hover {
+  color: var(--text-2);
+}
+.sidebar-narrow .nav-item {
+  justify-content: center;
+  padding: 0;
+}
+.sidebar-narrow .nav-sep {
+  height: 1px;
+  margin: 6px 8px;
+  background: var(--border);
+}
+.theme-swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+}
+.theme-swatch:hover {
+  border-color: var(--border-strong);
+}
+.theme-swatch[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-bg);
+}
+.theme-preview {
+  display: flex;
+  height: 34px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+}
+.theme-preview > span {
+  flex: 1;
+}
+/* judgements of the game analysis */
+.j-inaccuracy {
+  color: #56b4e9;
+}
+.j-mistake {
+  color: var(--warn);
+}
+.j-blunder {
+  color: var(--loss);
+}
 .kbd {
   font-family: var(--font-mono);
   font-size: 10.5px;
@@ -658,6 +883,15 @@ cg-board {
 }
 .cols-main-side {
   grid-template-columns: minmax(0, 1fr) 300px;
+}
+.analysis-grid {
+  grid-template-columns: minmax(300px, 540px) minmax(320px, 1fr);
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .analysis-grid {
+    grid-template-columns: minmax(0, 560px);
+  }
 }
 .cols-main-wide-side {
   grid-template-columns: minmax(0, 1fr) 400px;

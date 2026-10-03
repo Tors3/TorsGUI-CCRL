@@ -1,5 +1,30 @@
 # Changelog
 
+## [Unreleased] (0.5.1)
+
+### Added
+- **Game analysis** (*Analysis → Game analysis*, or **Analyse** in the game viewer): a game of
+  the archive, a pasted PGN, bare moves or a FEN, with an engine of the library. *Live engine*
+  analyses the position shown with 1–5 lines (arrows on the board); *Analyse the game* searches
+  every position for a fixed time and marks inaccuracies (?!), mistakes (?) and blunders (??)
+  with the best move and line, an evaluation graph, accuracy and ACPL per side.
+- **Test suites** (*Analysis → Test suites*): puzzles and mate finding for engines. EPD files or
+  pasted positions with `bm` / `am` / `dm`, several engines at once, time per position, engine
+  processes in parallel; results with the solve time per position, solved count, board with the
+  solution and the engines' moves; runs are kept. Built-in samples: mates in 1 to 7 and the first
+  20 *Win at Chess* positions (solutions checked with Stockfish 10).
+- **Manual seeding** for Swiss and cup tournaments: the *Seeding* panel of *New tournament*
+  reorders the seeds (by rating by default) and shows the first-round bracket, so strong engines
+  do not meet early.
+- **Colour themes**: System, Dark, Light, Graphite, Paper, Nord, Midnight, Forest, High contrast;
+  chosen at the bottom of the sidebar or in *Settings → Appearance* with previews (`t` cycles).
+
+### Changed
+- The sidebar is grouped into **Testing**, **Engines**, **Analysis** and **App** sections that
+  fold, and can be narrowed to icons only; the header shows the section of the page.
+- **Settings** are split into tabs: General, Appearance, Paths & fastchess, Opening books, Live
+  broadcast, CPU topology, Maintenance.
+
 ## [0.5.0] - 2026-10-03
 
 ### Added

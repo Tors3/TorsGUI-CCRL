@@ -1,4 +1,5 @@
-import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, FlipVertical2, Maximize2, Minimize2, Pause, Play } from "lucide-react";
+import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, FlipVertical2, Maximize2, Microscope, Minimize2, Pause, Play } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ViewerGame } from "../bindings/ViewerGame";
 import type { ViewerPly } from "../bindings/ViewerPly";
@@ -66,6 +67,7 @@ function PlayerBar({ name, engine, fen, side, clock, active }: { name?: string; 
 
 export function GameViewer({ game, onClose }: { game: GameRef | null; onClose: () => void }) {
   const prefs = useBoardPrefs();
+  const navigate = useNavigate();
   const [data, setData] = useState<ViewerGame>();
   const [error, setError] = useState<string>();
   const [ply, setPly] = useState(0);
@@ -239,6 +241,18 @@ export function GameViewer({ game, onClose }: { game: GameRef | null; onClose: (
                 {theater ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
               </button>
               <BoardSettingsButton />
+              <button
+                className="btn btn-sm ml-1"
+                title="Analyse this game with an engine"
+                onClick={() => {
+                  if (!game) return;
+                  onClose();
+                  navigate(`/analysis?source=${encodeURIComponent(game.source)}&index=${game.index}&ply=${ply}`);
+                }}
+                data-testid="viewer-analyse"
+              >
+                <Microscope size={13} /> Analyse
+              </button>
             </div>
             <div className="panel p-2 grid grid-cols-3 gap-2 text-[12px] tnum">
               <div>

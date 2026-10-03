@@ -149,7 +149,7 @@ test("getting started: live steps and the demo tournament", async ({ page }) => 
 test("bundled CCRL opening books: install, then pick one in the wizard", async ({ page }) => {
   const b = await (await page.request.post("/api/books_bundled", { data: {} })).json();
   expect(b.books.length).toBe(18);
-  await page.goto("/#/settings");
+  await page.goto("/#/settings?tab=books");
   const table = page.getByTestId("books-table");
   await expect(table.locator("tbody tr")).toHaveCount(18);
   await page.getByTestId("books-install").first().click();
@@ -208,6 +208,7 @@ test("CCRL lists bundled with TorsGUI and the known engine repositories", async 
 
 test("live broadcast: settings and the tournament's Lichess / ccrl.live switches", async ({ page }) => {
   await page.goto("/#/settings");
+  await page.getByTestId("settings-tab-broadcast").click();
   await expect(page.getByTestId("lichess-token")).toBeVisible();
   await expect(page.getByTestId("ccrl-live-port")).toHaveValue("16001");
   const list = await (await page.request.post("/api/tournaments_list", { data: {} })).json();
@@ -230,7 +231,7 @@ test("live broadcast: settings and the tournament's Lichess / ccrl.live switches
 });
 
 test("board appearance is applied and remembered", async ({ page }) => {
-  await page.goto("/#/settings");
+  await page.goto("/#/settings?tab=appearance");
   await page.getByTestId("theme-marble").click();
   await page.getByTestId("pieces-fantasy").click();
   await page.reload();
@@ -293,7 +294,7 @@ test("TC calculator reproduces the reference Blitz TC", async ({ page }) => {
 test("every screen renders without errors", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  for (const p of ["/", "/tournaments", "/live", "/games", "/engines", "/ccrl", "/bench", "/export", "/settings", "/logs", "/help", "/start"]) {
+  for (const p of ["/", "/tournaments", "/live", "/games", "/engines", "/ccrl", "/bench", "/export", "/settings", "/settings?tab=hardware", "/settings?tab=maintenance", "/logs", "/help", "/start", "/analysis", "/suites"]) {
     await page.goto(`/#${p}`);
     await page.waitForTimeout(600);
   }
@@ -450,10 +451,97 @@ test("Swiss and knockout tournaments from the wizard", async ({ page }) => {
   for (const n of ["Mock Alpha", "Mock Bravo", "Stockfish 19", "Caissa 2.0", "Berserk 14"]) await page.getByLabel(new RegExp(`opponent ${n}`)).first().check();
   await page.getByTestId("games-per-pairing").fill("2");
   await expect(page.getByTestId("total-games")).toHaveText("8");
+  // seeding by hand: Stockfish 19 (seed 1 by rating) moved down to seed 2
+  await expect(page.getByTestId("seed-order").locator("tbody tr").first()).toContainText("Stockfish 19");
+  await page.getByRole("button", { name: "seed Stockfish 19 down" }).click();
+  await expect(page.getByTestId("seed-order").locator("tbody tr").nth(1)).toContainText("Stockfish 19");
+  await expect(page.getByTestId("seed-preview")).toContainText("bye");
   await page.getByTestId("create-draft").click();
   await expect(page.getByTestId("tab-rounds")).toHaveText("Bracket");
   const id2 = decodeURIComponent(page.url().split("/tournaments/")[1]);
   await expect(page.getByTestId("rounds")).toContainText("Round 1 of 3");
   await expect(page.getByTestId("rounds")).toContainText("goes through");
+  const d2 = await (await page.request.post("/api/tournament_get", { data: { id: id2 } })).json();
+  expect(d2.summary.record.config.participants[1].name).toBe("Stockfish 19");
+  // the order is kept when the draft is edited
+  await page.goto(`/#/tournaments/${encodeURIComponent(id2)}/edit`);
+  await expect(page.getByTestId("seed-order").locator("tbody tr").nth(1)).toContainText("Stockfish 19");
   await page.request.post("/api/tournament_delete", { data: { id: id2, delete_files: true } });
+});
+
+test("sidebar sections, compact sidebar and colour themes", async ({ page }) => {
+  await page.goto("/#/");
+  const side = page.getByTestId("sidebar");
+  await expect(side.getByRole("group", { name: "Analysis" }).getByRole("link", { name: "Test suites" })).toBeVisible();
+  // a section folds, and stays open while one of its pages is shown
+  await page.getByTestId("nav-group-engines").click();
+  await expect(side.getByRole("link", { name: "CCRL Lists" })).toHaveCount(0);
+  await page.goto("/#/bench");
+  await expect(side.getByRole("link", { name: "CCRL Lists" })).toBeVisible();
+  await page.goto("/#/");
+  await page.getByTestId("nav-group-engines").click();
+  await expect(side.getByRole("link", { name: "CCRL Lists" })).toBeVisible();
+  // themes: from the sidebar and from Settings → Appearance, remembered
+  await page.getByTestId("theme-select").selectOption("graphite");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "graphite");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "graphite");
+  await page.goto("/#/settings?tab=appearance");
+  await page.getByTestId("app-theme-paper").click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "paper");
+  await expect(page.getByTestId("app-theme-paper")).toHaveAttribute("aria-pressed", "true");
+  await page.getByTestId("app-theme-dark").click();
+  // icons only
+  await page.getByTestId("sidebar-toggle").click();
+  await expect(side.getByRole("link", { name: "Game analysis" })).toBeVisible();
+  await expect(side.getByText("Game analysis")).toHaveCount(0);
+  await page.getByTestId("sidebar-toggle").click();
+  await expect(side.getByText("Game analysis")).toBeVisible();
+});
+
+test("test suites: mate finding with a library engine", async ({ page }) => {
+  await page.goto("/#/suites");
+  await expect(page.getByTestId("suite-mates")).toContainText("19 positions");
+  await page.getByTestId("suite-engines").getByLabel(/Mock Alpha/).check();
+  await page.getByTestId("suite-time").selectOption("100");
+  await expect(page.getByTestId("suite-preview")).toContainText("19 positions");
+  await page.getByTestId("suite-start").click();
+  await expect(page.getByTestId("suite-results").locator("tbody tr")).toHaveCount(19);
+  await expect(page.getByTestId("suite-solved")).toContainText("/19", { timeout: 60_000 });
+  await expect(page.getByTestId("suite-start")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId("suite-results").locator("tbody td", { hasText: "…" })).toHaveCount(0);
+  // pasted positions: a bad line is reported, the good one counted
+  await page.getByRole("button", { name: "Paste" }).click();
+  await page.getByTestId("suite-text").fill('6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - bm Rd8#; id "x";\nnot a position');
+  await expect(page.getByTestId("suite-preview")).toContainText("1 positions");
+  await expect(page.getByTestId("suite-preview")).toContainText("1 lines skipped");
+  const hist = await (await page.request.post("/api/suite_history", { data: {} })).json();
+  for (const h of hist) await page.request.post("/api/suite_delete", { data: { id: h.id } });
+});
+
+test("game analysis: pasted game, review and live engine", async ({ page }) => {
+  await page.goto("/#/analysis");
+  await page.getByTestId("analysis-text").fill("1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7# 1-0");
+  await page.getByTestId("analysis-load").click();
+  await expect(page.getByTestId("analysis-moves")).toContainText("Qxf7#");
+  await page.getByTestId("analysis-engine").selectOption({ label: "Mock Alpha 1.0" });
+  await page.getByRole("combobox", { name: "Time per move" }).selectOption("100");
+  await page.getByTestId("review-start").click();
+  await expect(page.getByTestId("review-summary")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId("review-start")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId("analysis-moves").locator("button .ev").last()).toHaveText(/M1/);
+  await page.getByTestId("analysis-live").check();
+  await page.keyboard.press("Home");
+  await expect(page.getByTestId("analysis-lines")).toContainText(/[a-h1-8]/);
+  await expect(page.getByTestId("analysis-lines").locator(".mono").first()).not.toBeEmpty();
+  await page.getByTestId("analysis-live").uncheck();
+  // a game of the archive opens here from the viewer
+  const sources = await (await page.request.post("/api/archive_sources", { data: {} })).json();
+  const src = sources.find((x: any) => x.games > 0);
+  await page.goto("/#/games");
+  await page.getByTestId("archive-source").filter({ hasText: src.label }).first().click();
+  await page.getByTestId("games-table").locator("tbody tr").first().click();
+  await page.getByTestId("viewer-analyse").click();
+  await expect(page).toHaveURL(/#\/analysis\?source=/);
+  await expect(page.getByTestId("analysis-moves").locator("button").first()).toBeVisible();
 });

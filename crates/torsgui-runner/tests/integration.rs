@@ -664,3 +664,97 @@ fn swiss_and_knockout_are_played_round_by_round() {
     assert!(raw >= 8 && raw == st.jobs.len(), "{raw} games, {} jobs", st.jobs.len());
     assert_eq!(rec.expected_games as usize, st.jobs.len());
 }
+
+/// Waits until `cmd` reports `running: false`.
+fn wait_idle(app: &torsgui_core::api::App, cmd: &str, secs: u64) -> serde_json::Value {
+    let end = std::time::Instant::now() + std::time::Duration::from_secs(secs);
+    loop {
+        let p = app.call(cmd, serde_json::json!({})).unwrap();
+        if p["running"] == false {
+            return p;
+        }
+        assert!(std::time::Instant::now() < end, "{cmd} still running: {p}");
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+#[test]
+fn test_suites_and_game_analysis_with_the_mock_engine() {
+    let dir = tempfile::tempdir().unwrap();
+    let app = torsgui_core::api::App::new(dir.path().join("ws")).unwrap();
+    let added = app.call("engine_add_local", serde_json::json!({"path": mock().to_string_lossy(), "engine": "Mock", "version": "1.0"})).unwrap();
+    let id = added["id"].as_i64().unwrap();
+    // a suite of pasted positions, two engines processes at a time
+    let text = "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - bm Rd8#; dm 1; id \"m1\";\n6rk/6pp/8/6N1/8/8/8/6K1 w - - bm Nf7#; id \"m2\";\n8/8/8/8/8/8/8/8 w - - bm e4;";
+    let pre = app.call("suite_preview", serde_json::json!({"config": {"text": text, "engines": [], "movetime_ms": 50, "threads": 1, "hash": 16, "concurrency": 1}})).unwrap();
+    assert_eq!(pre["positions"].as_array().unwrap().len(), 2);
+    assert_eq!(pre["errors"].as_array().unwrap().len(), 1);
+    app.call("suite_start", serde_json::json!({"config": {"text": text, "engines": [id], "movetime_ms": 50, "threads": 1, "hash": 16, "concurrency": 2}})).unwrap();
+    let p = wait_idle(&app, "suite_progress", 60);
+    assert_eq!(p["done"], 2, "{p}");
+    let run = &p["run"];
+    assert_eq!(run["finished"], true);
+    let res = run["engines"][0]["results"].as_array().unwrap();
+    assert!(res.iter().all(|r| r["bestmove"].as_str().unwrap().len() >= 4 && r["error"].is_null()), "{run}");
+    let hist = app.call("suite_history", serde_json::json!({})).unwrap();
+    assert_eq!(hist.as_array().unwrap().len(), 1);
+    app.call("suite_delete", serde_json::json!({"id": hist[0]["id"]})).unwrap();
+    assert!(app.call("suite_history", serde_json::json!({})).unwrap().as_array().unwrap().is_empty());
+    // a pasted game, analysed move by move
+    let g = app.call("analysis_load_text", serde_json::json!({"text": "1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7# 1-0"})).unwrap();
+    let moves: Vec<String> = g["plies"].as_array().unwrap().iter().map(|p| p["uci"].as_str().unwrap().to_string()).collect();
+    assert_eq!(moves.len(), 7);
+    app.call("analysis_game_start", serde_json::json!({"config": {"engine_id": id, "start_fen": g["start_fen"], "moves": moves, "movetime_ms": 20, "threads": 1, "hash": 16}})).unwrap();
+    let p = wait_idle(&app, "analysis_game_progress", 60);
+    assert!(p["error"].is_null(), "{p}");
+    let r = &p["result"];
+    assert_eq!(r["positions"].as_array().unwrap().len(), 8);
+    assert!(r["positions"].as_array().unwrap().iter().all(|x| !x.is_null()), "{r}");
+    // the final position is mate: Black is mated
+    assert_eq!(r["positions"][7]["score"]["mate"], 1);
+    assert!(app.call("analysis_load_text", serde_json::json!({"text": "8/8/8/8/8/8/8/8 w - - 0 1"})).is_err());
+    let fen = app.call("analysis_load_text", serde_json::json!({"text": "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1"})).unwrap();
+    assert_eq!(fen["plies"].as_array().unwrap().len(), 0);
+    // live analysis of one position
+    app.call("analysis_live", serde_json::json!({"request": {"engine_id": id, "fen": "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1", "multipv": 2, "threads": 1, "hash": 16}})).unwrap();
+    let end = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    loop {
+        let s = app.call("analysis_live_get", serde_json::json!({})).unwrap();
+        if !s["lines"].as_array().unwrap().is_empty() {
+            assert!(!s["lines"][0]["pv_san"].as_array().unwrap().is_empty(), "{s}");
+            break;
+        }
+        assert!(std::time::Instant::now() < end, "no live lines: {s}");
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    app.call("analysis_live_stop", serde_json::json!({})).unwrap();
+}
+
+/// The bundled mate suite with the real Stockfish 10 (`SF10=...`, or the bundled copy).
+#[test]
+fn stockfish_solves_the_mate_suite() {
+    let sf = std::env::var("SF10").ok().map(PathBuf::from).or_else(|| {
+        let p = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../src-tauri/resources/engines/stockfish_10_x64_linux");
+        (cfg!(target_os = "linux") && p.is_file()).then_some(p)
+    });
+    let Some(sf) = sf else {
+        eprintln!("SF10 not available: skipping");
+        return;
+    };
+    let dir = tempfile::tempdir().unwrap();
+    let app = torsgui_core::api::App::new(dir.path().join("ws")).unwrap();
+    let id = app.call("engine_add_local", serde_json::json!({"path": sf.to_string_lossy(), "engine": "Stockfish", "version": "10"})).unwrap()["id"].as_i64().unwrap();
+    app.call("suite_start", serde_json::json!({"config": {"builtin": "mates", "engines": [id], "movetime_ms": 300, "threads": 1, "hash": 32, "concurrency": 4}})).unwrap();
+    let p = wait_idle(&app, "suite_progress", 120);
+    let e = &p["run"]["engines"][0];
+    let total = p["run"]["positions"].as_array().unwrap().len() as u64;
+    assert!(e["solved"].as_u64().unwrap() + 2 >= total, "{}/{total}: {e}", e["solved"]);
+    // a blunder is found in a short game
+    let g = app.call("analysis_load_text", serde_json::json!({"text": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nd4 4. Nxe5 Qg5 5. Nxf7 Qxg2 6. Rf1 Qxe4+ 7. Be2 Nf3# 0-1"})).unwrap();
+    let moves: Vec<String> = g["plies"].as_array().unwrap().iter().map(|p| p["uci"].as_str().unwrap().to_string()).collect();
+    app.call("analysis_game_start", serde_json::json!({"config": {"engine_id": id, "start_fen": "", "moves": moves, "movetime_ms": 150, "threads": 1, "hash": 32}})).unwrap();
+    let p = wait_idle(&app, "analysis_game_progress", 120);
+    let r = &p["result"];
+    assert!(r["white"]["blunders"].as_u64().unwrap() >= 1, "{r}");
+    assert!(r["white"]["acpl"].as_f64().unwrap() > r["black"]["acpl"].as_f64().unwrap() || r["white"]["blunders"].as_u64() > r["black"]["blunders"].as_u64(), "{r}");
+}

@@ -7,7 +7,7 @@ TorsGUI is a desktop application for chess-engine testers who play games for the
 Python scripts, `.bat` files and scheduled tasks with one elegant, dense tool that:
 
 - plays **gauntlets, multi-seed gauntlets, round robins, matches, Swiss tournaments and
-  knockout cups** (rounds paired from the results) with
+  knockout cups** (rounds paired from the results, seeds by rating or by hand) with
   [fastchess](https://github.com/Disservin/fastchess) (one game per process, TorsGUI owns the scheduling);
 - keeps tournaments running in a **detached runner** that survives the GUI being closed,
   crashing or updating, and **resumes exactly where it was** after a reboot;
@@ -30,6 +30,12 @@ Python scripts, `.bat` files and scheduled tasks with one elegant, dense tool th
 - replays archived games on an animated board (minimal by default; 9 board themes including
   your own colours, 69 bundled piece sets plus any set you import; autoplay, theater mode),
   from its tournaments or any PGN file or folder;
+- **analyses games** with an engine of the library: live lines (MultiPV), evaluation graph,
+  inaccuracies / mistakes / blunders, accuracy and ACPL per side;
+- runs **test suites** (EPD puzzles and mate finding: `bm`, `am`, `dm`) on several engines,
+  with built-in mate and *Win at Chess* samples;
+- comes in **colour themes** (dark, light, the sober Graphite and Paper, Nord, pure black,
+  forest, high contrast, or following the system), with a sidebar grouped by task;
 - plays **Chess960 / Fischer Random** (and double Chess960): engines that support it are
   detected, start-position books are generated, games replay with 960 castling;
 - guides a new user: **Getting started** (setup steps with live status, a 3-minute demo
@@ -149,7 +155,14 @@ the bench test a 64-bit Stockfish 10 (`SF10`). Missing inputs skip those tests w
 - [Lichess](https://lichess.org) and its open [broadcast API](https://lichess.org/api#tag/Broadcasts)
   for the Lichess broadcasts.
 - [Stockfish](https://github.com/official-stockfish/Stockfish) (the SF10 bench used to
-  calibrate time controls).
+  calibrate time controls, and the engine that checked the solutions of the built-in test suites).
+- **Fred Reinfeld**, author of *Win at Chess* (1958), whose positions became the classic WAC
+  engine test, and the computer-chess community that keeps the EPD test suites alive.
+- [Lichess](https://lichess.org) again for the winning-chance curve and the inaccuracy / mistake /
+  blunder thresholds used by the game analysis, and the [Nord](https://www.nordtheme.com) palette
+  by Arctic Ice Studio & Sven Greb for the Nord colour theme.
+- **Mark Tang** and the testers who asked for the Cute Chess import, Swiss and cup tournaments,
+  manual seeding, test suites and game analysis.
 - [chessground](https://github.com/lichess-org/chessground) and the
   [lichess](https://github.com/lichess-org/lila) project for the board, and
   [sharechess](https://github.com/sharechess/sharechess) for the piece-set collection; every

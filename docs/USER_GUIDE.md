@@ -241,7 +241,9 @@ opening(round) = start + round − 1
 
 Their pairings depend on the results, so TorsGUI pairs one round at a time: when every game of
 a round is finished, the next round is paired and played (the runner goes on by itself). The
-engines are seeded by their CCRL rating (highest first). Each match is a mini-match of *Games /
+engines are seeded by their CCRL rating (highest first); the **Seeding** panel of *New
+tournament* changes the order by hand (arrows; *By rating* goes back), for example to keep two
+strong engines apart in the first rounds of a cup, and shows the first-round bracket. Each match is a mini-match of *Games /
 match* games: every opening twice with colours reversed.
 
 - **Swiss**: *Rounds* rounds. Round 1 pairs the top half against the bottom half; then engines
@@ -420,14 +422,58 @@ configured but never started ones become drafts.
 
 ## 12. Maintenance
 
-**Settings → Housekeeping**: disk usage per tournament, unused engines, superseded versions,
+**Settings → Maintenance**: disk usage per tournament, unused engines, superseded versions,
 log rotation of per-game engine logs. **Git sync** copies configurations and results (and
 exports) to a repository folder and can commit them (like `sync_repo.py`). **Logs** shows the
 event log and every runner, console and per-game log (last 96 KB, refreshed).
 
+## 13. Game analysis
+
+**Analysis → Game analysis** (or **Analyse** in the game viewer, which opens the game there at
+the same move). Paste a PGN, bare moves (`1. e4 e5 2. Nf3…`) or a FEN, or start from the initial
+position. Pick an engine of the library, its threads and hash.
+
+- **Live engine**: the engine analyses the position shown, with 1–5 lines (MultiPV); the best
+  moves are drawn as arrows and follow you as you move through the game (`←` `→` `Home` `End`,
+  `f` flip).
+- **Analyse the game**: every position is searched for the time chosen (0.1–10 s). The graph
+  shows the evaluation (White's view; click to jump), each move gets its evaluation and the
+  moves that lose winning chances are marked **?!** inaccuracy, **?** mistake, **??** blunder
+  (the same winning-chance thresholds as Lichess), with the engine's best move and line. For
+  each side: accuracy, average centipawn loss (ACPL) and the counts.
+
+## 14. Test suites
+
+**Analysis → Test suites** runs engines on EPD positions with a known answer: puzzles and mate
+finding. A position is solved when the engine's final move is a solution (`bm`), is not the
+move to avoid (`am`), or when it announces a mate at most as long as asked (`dm`, mate in N:
+another mate that short counts too).
+
+- Positions: two built-in samples (*Mate finding*, mates in 1 to 7; *Win at Chess*, the first
+  20 positions of Fred Reinfeld's classic test, solutions checked with Stockfish 10), any EPD
+  file (WAC, ECM, STS, Arasan, mate collections…) or pasted lines. Lines that cannot be read
+  are listed and skipped.
+- Engines: one or more, a time per position, threads, hash and how many engine processes run
+  at once.
+- Results: one column per engine, ✓ with the time the solution was found (and kept to the end)
+  or ✗ with the move played; solved count and percentage, the total solve time breaks ties.
+  Click a position to see it with the solution (green), the move to avoid (red) and the
+  engines' moves as arrows. Every run is kept (pick it in the list, or delete it).
+
+## 15. Look and navigation
+
+The sidebar groups the screens: **Testing** (tournaments, live games, archive, export),
+**Engines** (library, CCRL lists, bench), **Analysis** (game analysis, test suites) and **App**
+(settings, logs, help). Click a section title to fold it; *Icons only* narrows the sidebar
+for small screens. **Colour themes**: the list at the bottom of the sidebar or *Settings →
+Appearance* (with previews): System (follows the operating system), Dark, Light, the sober
+**Graphite** and **Paper**, Nord, Midnight (pure black), Forest and High contrast. Settings
+are split into sections (General, Appearance, Paths & fastchess, Opening books, Live broadcast,
+CPU topology, Maintenance).
+
 ## Keyboard
 
-`Ctrl K` or `/` command palette · `g` then `d t l a e c b x s o r h` to navigate (`a` = Games,
-`r` = Getting started, `h` = Help) ·
-`n` new tournament · `t` theme · in the game viewer `←` `→` `Home` `End`, `Space` play/pause,
+`Ctrl K` or `/` command palette · `g` then `d t l a e c b x s o r h y p` to navigate (`a` = Games,
+`r` = Getting started, `h` = Help, `y` = Game analysis, `p` = Test suites) ·
+`n` new tournament · `t` next colour theme · in the game viewer `←` `→` `Home` `End`, `Space` play/pause,
 `f` flip, `t` theater mode.

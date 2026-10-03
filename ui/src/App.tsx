@@ -3,6 +3,8 @@ import { Command } from "cmdk";
 import {
   Activity,
   BarChart3,
+  ChevronDown,
+  ChevronRight,
   CircleHelp,
   Crown,
   Rocket,
@@ -11,13 +13,16 @@ import {
   Gauge,
   LayoutDashboard,
   ListOrdered,
-  Moon,
+  Microscope,
+  Palette as PaletteIcon,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pause,
   Play,
   Plus,
+  Puzzle,
   ScrollText,
   Settings as SettingsIcon,
-  Sun,
   Swords,
   Trophy,
 } from "lucide-react";
@@ -45,39 +50,168 @@ import { SettingsPage } from "./pages/Settings";
 import { TournamentDetailPage } from "./pages/TournamentDetail";
 import { Tournaments } from "./pages/Tournaments";
 import { Wizard } from "./pages/Wizard";
+import { AnalysisPage } from "./pages/Analysis";
+import { SuitesPage } from "./pages/Suites";
+import { THEMES, useTheme, type ThemeId } from "./lib/theme";
 
-const NAV = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, key: "d" },
-  { to: "/tournaments", label: "Tournaments", icon: Trophy, key: "t" },
-  { to: "/live", label: "Live", icon: Activity, key: "l" },
-  { to: "/games", label: "Games", icon: Crown, key: "a" },
-  { to: "/engines", label: "Engines", icon: Cpu, key: "e" },
-  { to: "/ccrl", label: "CCRL Lists", icon: ListOrdered, key: "c" },
-  { to: "/bench", label: "Bench", icon: Gauge, key: "b" },
-  { to: "/export", label: "Export", icon: Download, key: "x" },
-  { to: "/settings", label: "Settings", icon: SettingsIcon, key: "s" },
-  { to: "/logs", label: "Logs", icon: ScrollText, key: "o" },
-  { to: "/start", label: "Getting started", icon: Rocket, key: "r" },
-  { to: "/help", label: "Help", icon: CircleHelp, key: "h" },
+type NavItem = { to: string; label: string; icon: typeof Trophy; key: string };
+
+/** The sidebar: pages grouped by what they are for. */
+const GROUPS: { id: string; label: string; items: NavItem[] }[] = [
+  { id: "home", label: "", items: [{ to: "/", label: "Dashboard", icon: LayoutDashboard, key: "d" }] },
+  {
+    id: "testing",
+    label: "Testing",
+    items: [
+      { to: "/tournaments", label: "Tournaments", icon: Trophy, key: "t" },
+      { to: "/live", label: "Live", icon: Activity, key: "l" },
+      { to: "/games", label: "Games", icon: Crown, key: "a" },
+      { to: "/export", label: "Export", icon: Download, key: "x" },
+    ],
+  },
+  {
+    id: "engines",
+    label: "Engines",
+    items: [
+      { to: "/engines", label: "Engines", icon: Cpu, key: "e" },
+      { to: "/ccrl", label: "CCRL Lists", icon: ListOrdered, key: "c" },
+      { to: "/bench", label: "Bench", icon: Gauge, key: "b" },
+    ],
+  },
+  {
+    id: "analysis",
+    label: "Analysis",
+    items: [
+      { to: "/analysis", label: "Game analysis", icon: Microscope, key: "y" },
+      { to: "/suites", label: "Test suites", icon: Puzzle, key: "p" },
+    ],
+  },
+  {
+    id: "app",
+    label: "App",
+    items: [
+      { to: "/settings", label: "Settings", icon: SettingsIcon, key: "s" },
+      { to: "/logs", label: "Logs", icon: ScrollText, key: "o" },
+      { to: "/start", label: "Getting started", icon: Rocket, key: "r" },
+      { to: "/help", label: "Help", icon: CircleHelp, key: "h" },
+    ],
+  },
 ];
+const NAV = GROUPS.flatMap((g) => g.items.map((i) => ({ ...i, group: g.label })));
+const isActive = (to: string, path: string) => (to === "/" ? path === "/" : path === to || path.startsWith(to + "/"));
 
-function useTheme() {
-  const [theme, setTheme] = useState<string>(() => {
+/** A per-viewer preference kept in localStorage. */
+function useLocal<T>(key: string, initial: T): [T, (v: T) => void] {
+  const [v, setV] = useState<T>(() => {
     try {
-      return localStorage.getItem("torsgui-theme") || "dark";
+      const x = localStorage.getItem(key);
+      return x == null ? initial : (JSON.parse(x) as T);
     } catch {
-      return "dark";
+      return initial;
     }
   });
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    try {
-      localStorage.setItem("torsgui-theme", theme);
-    } catch {
-      /* private mode */
-    }
-  }, [theme]);
-  return { theme, toggle: () => setTheme((t) => (t === "dark" ? "light" : "dark")) };
+  const set = useCallback(
+    (x: T) => {
+      setV(x);
+      try {
+        localStorage.setItem(key, JSON.stringify(x));
+      } catch {
+        /* private mode */
+      }
+    },
+    [key],
+  );
+  return [v, set];
+}
+
+function Sidebar() {
+  const loc = useLocation();
+  const { theme, setTheme, cycle } = useTheme();
+  const [narrow, setNarrow] = useLocal("torsgui-sidebar-narrow", false);
+  const [closed, setClosed] = useLocal<string[]>("torsgui-nav-closed", []);
+  const toggle = (id: string) => setClosed(closed.includes(id) ? closed.filter((x) => x !== id) : [...closed, id]);
+  return (
+    <aside
+      className={`${narrow ? "w-[54px] sidebar-narrow" : "w-[204px]"} shrink-0 flex flex-col gap-0.5 p-2 overflow-y-auto`}
+      style={{ background: "var(--bg-2)", borderRight: "1px solid var(--border)" }}
+      data-testid="sidebar"
+    >
+      <div className={`flex items-center gap-2 pt-1 pb-2 ${narrow ? "justify-center" : "px-2"}`}>
+        <img src="icon.svg" alt="" width={22} height={22} />
+        {!narrow && (
+          <div className="leading-tight">
+            <div className="font-semibold tracking-tight">TorsGUI</div>
+            <div className="text-[10.5px] muted">for CCRL testers</div>
+          </div>
+        )}
+      </div>
+      <nav className="flex flex-col gap-0.5" aria-label="Main">
+        {GROUPS.map((g) => {
+          const open = !g.label || narrow || !closed.includes(g.id) || g.items.some((i) => isActive(i.to, loc.pathname));
+          return (
+            <div key={g.id} className="flex flex-col gap-0.5" role="group" aria-label={g.label || "Home"}>
+              {g.label &&
+                (narrow ? (
+                  <div className="nav-sep" />
+                ) : (
+                  <button className="nav-group" onClick={() => toggle(g.id)} aria-expanded={open} data-testid={`nav-group-${g.id}`}>
+                    {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                    {g.label}
+                  </button>
+                ))}
+              {open &&
+                g.items.map((n) => (
+                  <NavLink
+                    key={n.to}
+                    to={n.to}
+                    end={n.to === "/"}
+                    title={narrow ? n.label : undefined}
+                    aria-label={narrow ? n.label : undefined}
+                    className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+                  >
+                    <n.icon size={16} />
+                    {!narrow && <span className="flex-1 truncate">{n.label}</span>}
+                  </NavLink>
+                ))}
+            </div>
+          );
+        })}
+      </nav>
+      <div className={`mt-auto flex flex-col gap-1.5 pt-3 ${narrow ? "items-center" : "px-1"}`}>
+        {narrow ? (
+          <button className="btn btn-sm btn-icon" onClick={cycle} title="Next theme (t)" aria-label="Next theme">
+            <PaletteIcon size={13} />
+          </button>
+        ) : (
+          <label className="flex items-center gap-2" title="Colour theme (more in Settings → Appearance)">
+            <PaletteIcon size={13} className="muted shrink-0" />
+            <select className="select" style={{ height: 24, fontSize: 12 }} value={theme} onChange={(e) => setTheme(e.target.value as ThemeId)} aria-label="Theme" data-testid="theme-select">
+              {THEMES.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <button
+          className={`btn btn-sm ${narrow ? "btn-icon" : ""}`}
+          onClick={() => setNarrow(!narrow)}
+          title={narrow ? "Expand the sidebar" : "Icons only"}
+          aria-label={narrow ? "Expand the sidebar" : "Collapse the sidebar"}
+          data-testid="sidebar-toggle"
+        >
+          {narrow ? (
+            <PanelLeftOpen size={13} />
+          ) : (
+            <span className="muted inline-flex items-center gap-1.5">
+              <PanelLeftClose size={13} /> Icons only
+            </span>
+          )}
+        </button>
+      </div>
+    </aside>
+  );
 }
 
 const TOAST_KINDS = new Set([
@@ -172,6 +306,7 @@ function Palette({ open, setOpen, toggleTheme }: { open: boolean; setOpen: (o: b
               {NAV.map((n) => (
                 <Command.Item key={n.to} onSelect={() => run(() => nav(n.to))}>
                   <n.icon size={15} /> {n.label}
+                  {n.group && <span className="muted text-[11px]">· {n.group}</span>}
                   <span className="ml-auto kbd">g {n.key}</span>
                 </Command.Item>
               ))}
@@ -184,7 +319,10 @@ function Palette({ open, setOpen, toggleTheme }: { open: boolean; setOpen: (o: b
                 <Play size={15} /> Start the queue
               </Command.Item>
               <Command.Item onSelect={() => run(toggleTheme)}>
-                <Sun size={15} /> Toggle light / dark theme <span className="ml-auto kbd">t</span>
+                <PaletteIcon size={15} /> Next colour theme <span className="ml-auto kbd">t</span>
+              </Command.Item>
+              <Command.Item onSelect={() => run(() => nav("/analysis"))}>
+                <Microscope size={15} /> Analyse a game or a position
               </Command.Item>
             </Command.Group>
             <Command.Group heading="Tournaments">
@@ -251,74 +389,63 @@ function Shortcuts({ setPalette, toggleTheme }: { setPalette: (o: boolean) => vo
 }
 
 function Layout() {
-  const { theme, toggle } = useTheme();
+  const { scheme, cycle } = useTheme();
   const [palette, setPalette] = useState(false);
   const loc = useLocation();
   useEventToasts();
-  const title = useMemo(() => NAV.find((n) => (n.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(n.to)))?.label ?? "", [loc.pathname]);
+  const cur = useMemo(() => NAV.find((n) => isActive(n.to, loc.pathname)), [loc.pathname]);
   return (
     <div className="flex h-full">
-      <aside className="w-[196px] shrink-0 flex flex-col gap-0.5 p-2.5" style={{ background: "var(--bg-2)", borderRight: "1px solid var(--border)" }}>
-        <div className="flex items-center gap-2 px-2 pt-1 pb-3">
-          <img src="icon.svg" alt="" width={22} height={22} />
-          <div className="leading-tight">
-            <div className="font-semibold tracking-tight">TorsGUI</div>
-            <div className="text-[10.5px] muted">for CCRL testers</div>
-          </div>
-        </div>
-        <nav className="flex flex-col gap-0.5" aria-label="Main">
-          {NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} end={n.to === "/"} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <n.icon size={16} />
-              <span className="flex-1">{n.label}</span>
-            </NavLink>
-          ))}
-        </nav>
-        <div className="mt-auto flex flex-col gap-1.5 px-1 pt-3">
-          <button className="btn btn-sm justify-between" onClick={() => setPalette(true)}>
-            <span className="muted">Commands</span>
-            <span className="kbd">Ctrl K</span>
-          </button>
-          <button className="btn btn-sm" onClick={toggle} aria-label="Toggle theme">
-            {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />} {theme === "dark" ? "Light" : "Dark"} theme
-          </button>
-        </div>
-      </aside>
+      <Sidebar />
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="h-[42px] shrink-0 flex items-center justify-between px-4" style={{ borderBottom: "1px solid var(--border)" }}>
-          <div className="flex items-center gap-2 text-[12.5px]">
-            <BarChart3 size={14} className="muted" />
+        <header className="h-[42px] shrink-0 flex items-center justify-between gap-3 px-4" style={{ borderBottom: "1px solid var(--border)" }}>
+          <div className="flex items-center gap-2 text-[12.5px] min-w-0">
+            <BarChart3 size={14} className="muted shrink-0" />
             <span className="muted">TorsGUI</span>
+            {cur?.group && (
+              <>
+                <span className="muted">/</span>
+                <span className="muted">{cur.group}</span>
+              </>
+            )}
             <span className="muted">/</span>
-            <span className="font-medium">{title}</span>
+            <span className="font-medium truncate">{cur?.label ?? ""}</span>
           </div>
-          <StatusPill />
+          <div className="flex items-center gap-2 min-w-0">
+            <button className="btn btn-sm shrink-0" onClick={() => setPalette(true)} title="Commands and search">
+              <span className="muted">Commands</span>
+              <span className="kbd">Ctrl K</span>
+            </button>
+            <StatusPill />
+          </div>
         </header>
         <main className="flex-1 min-h-0 overflow-auto p-4" key={loc.pathname.split("/")[1]}>
           <ErrorBoundary resetKey={loc.pathname}>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/tournaments" element={<Tournaments />} />
-            <Route path="/tournaments/new" element={<Wizard />} />
-            <Route path="/tournaments/:id/edit" element={<Wizard key="edit" />} />
-            <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
-            <Route path="/live" element={<Live />} />
-            <Route path="/games" element={<Games />} />
-            <Route path="/help" element={<Help />} />
-            <Route path="/start" element={<GettingStarted />} />
-            <Route path="/engines" element={<Engines />} />
-            <Route path="/ccrl" element={<CcrlLists />} />
-            <Route path="/bench" element={<Bench />} />
-            <Route path="/export" element={<ExportPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/logs" element={<Logs />} />
-          </Routes>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/tournaments" element={<Tournaments />} />
+              <Route path="/tournaments/new" element={<Wizard />} />
+              <Route path="/tournaments/:id/edit" element={<Wizard key="edit" />} />
+              <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
+              <Route path="/live" element={<Live />} />
+              <Route path="/games" element={<Games />} />
+              <Route path="/analysis" element={<AnalysisPage />} />
+              <Route path="/suites" element={<SuitesPage />} />
+              <Route path="/help" element={<Help />} />
+              <Route path="/start" element={<GettingStarted />} />
+              <Route path="/engines" element={<Engines />} />
+              <Route path="/ccrl" element={<CcrlLists />} />
+              <Route path="/bench" element={<Bench />} />
+              <Route path="/export" element={<ExportPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/logs" element={<Logs />} />
+            </Routes>
           </ErrorBoundary>
         </main>
       </div>
-      <Palette open={palette} setOpen={setPalette} toggleTheme={toggle} />
-      <Shortcuts setPalette={setPalette} toggleTheme={toggle} />
-      <Toaster theme={theme as "dark" | "light"} position="bottom-right" richColors closeButton />
+      <Palette open={palette} setOpen={setPalette} toggleTheme={cycle} />
+      <Shortcuts setPalette={setPalette} toggleTheme={cycle} />
+      <Toaster theme={scheme} position="bottom-right" richColors closeButton />
     </div>
   );
 }

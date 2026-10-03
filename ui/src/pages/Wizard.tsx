@@ -1,4 +1,4 @@
-import { Calculator, Check, Crosshair, ListPlus, Play, Plus, Save, Search, SlidersHorizontal, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowUp, Calculator, Check, Crosshair, ListPlus, Play, Plus, Save, Search, SlidersHorizontal, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -55,6 +55,8 @@ export function Wizard() {
   const [frcSpec, setFrcSpec] = useState<BookSpec>({ kind: "all", count: 200, seed: 1, include_standard: false });
   const [seeds, setSeeds] = useState<number[]>([]);
   const [opps, setOpps] = useState<number[]>([]);
+  /** Swiss / cup: seed order chosen by hand (engine ids, best seed first); null = by rating. */
+  const [seedOrder, setSeedOrder] = useState<number[] | null>(null);
   const [threads, setThreads] = useState(1);
   const [hash, setHash] = useState(512);
   const [hashAuto, setHashAuto] = useState(true);
@@ -134,6 +136,7 @@ export function Wizard() {
         setVariant(c.variant);
         setSeeds(pick("seed"));
         setOpps(pick("opponent"));
+        if (c.kind === "swiss" || c.kind === "knockout") setSeedOrder(c.participants.filter((p) => p.engine_id != null && ids.has(p.engine_id)).map((p) => p.engine_id!));
         setThreads(c.threads);
         setHashAuto(c.hash_mb === (settings.hash_per_thread_mb ?? 512) * c.threads);
         setHash(c.hash_mb);
@@ -200,6 +203,18 @@ export function Wizard() {
   const rpp = dynamicKind ? (games > 0 && games % 2 === 0 ? [games / 2] : null) : splitOpenings(games, passes, Math.max(1, nodes.length));
   // seeding of a Swiss / knockout: highest CCRL rating first
   const seedRating = (e: EngineEntry) => ratings[e.display_name]?.rating ?? libRatings.get(e.id!)?.[list as RatingList]?.rating ?? -1;
+  // the seed order: by rating, or as arranged by hand (engines added later go by rating at the end)
+  const byRating = [...seedEngines, ...oppEngines].sort((a, b) => seedRating(b) - seedRating(a) || a.display_name.localeCompare(b.display_name));
+  const seeded: EngineEntry[] = seedOrder
+    ? [...(seedOrder.map((i) => byRating.find((e) => e.id === i)).filter(Boolean) as EngineEntry[]), ...byRating.filter((e) => !seedOrder.includes(e.id!))]
+    : byRating;
+  const moveSeed = (i: number, d: number) => {
+    const ids = seeded.map((e) => e.id!);
+    const j = i + d;
+    if (j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    setSeedOrder(ids);
+  };
   const baseOptions = (e: EngineEntry): Record<string, string> => {
     const was = editing?.config.participants.find((p) => p.engine_id === e.id);
     return was ? { ...was.options } : { Threads: "${THREADS}", Hash: "${HASH}", ...e.default_options };
@@ -220,7 +235,7 @@ export function Wizard() {
         name: eventName.replace(/^CCRL /, "") || "Tournament",
         kind,
         participants: dynamicKind
-          ? [...seedEngines, ...oppEngines].sort((a, b) => seedRating(b) - seedRating(a) || a.display_name.localeCompare(b.display_name)).map((e, i) => toParticipant(e, i === 0 ? "seed" : "opponent"))
+          ? seeded.map((e, i) => toParticipant(e, i === 0 ? "seed" : "opponent"))
           : kind === "round_robin" || kind === "match"
             ? [...seedEngines, ...oppEngines].map((e, i) => toParticipant(e, i === 0 ? "seed" : "opponent")) : [...seedEngines.map((e) => toParticipant(e, "seed")), ...oppEngines.map((e) => toParticipant(e, "opponent"))],
         games_per_pairing: games,
@@ -523,6 +538,78 @@ export function Wizard() {
             </div>
             {suggest.length > 0 && <div className="px-3 py-2 muted text-[12px]">Suggested: {suggest.map((s) => `${s.rank}. ${s.list_name} (${num(s.rating)})`).join(" · ")}</div>}
           </Panel>
+          {dynamicKind && seeded.length >= 2 && (
+            <Panel
+              title={kind === "knockout" ? "Seeding · bracket of round 1" : "Seeding"}
+              actions={
+                <div className="flex items-center gap-2">
+                  <span className="muted text-[11.5px]">{seedOrder ? "arranged by hand" : `by ${list} rating`}</span>
+                  {seedOrder && (
+                    <button className="btn btn-sm" onClick={() => setSeedOrder(null)} data-testid="seed-by-rating">
+                      By rating
+                    </button>
+                  )}
+                </div>
+              }
+            >
+              <div className="grid gap-3 cols-fit">
+                <div>
+                  <table className="tbl" data-testid="seed-order">
+                    <thead>
+                      <tr>
+                        <th className="r">Seed</th>
+                        <th>Engine</th>
+                        <th className="r">Rating</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {seeded.map((e, i) => (
+                        <tr key={e.id}>
+                          <td className="r tnum">{i + 1}</td>
+                          <td className="font-medium">{e.display_name}</td>
+                          <td className="r tnum muted">{seedRating(e) > 0 ? num(seedRating(e)) : "—"}</td>
+                          <td className="r whitespace-nowrap">
+                            <button className="btn btn-ghost btn-icon btn-sm" disabled={i === 0} onClick={() => moveSeed(i, -1)} aria-label={`seed ${e.display_name} up`}>
+                              <ArrowUp size={12} />
+                            </button>
+                            <button className="btn btn-ghost btn-icon btn-sm" disabled={i === seeded.length - 1} onClick={() => moveSeed(i, 1)} aria-label={`seed ${e.display_name} down`}>
+                              <ArrowDown size={12} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="text-[12.5px] flex flex-col gap-1" data-testid="seed-preview">
+                  {kind === "knockout" ? (
+                    <>
+                      <div className="muted text-[11.5px]">Seed 1 and seed 2 can meet only in the final, seeds 1–4 only from the semi-finals: move the strong engines to the top so they do not meet early.</div>
+                      {firstRound(seeded.map((e) => e.display_name)).map(([a, b], k) => (
+                        <div key={k} className="flex gap-2">
+                          <span className="muted tnum w-5 text-right">{k + 1}.</span>
+                          <b>{a}</b>
+                          {b ? (
+                            <>
+                              <span className="muted">vs</span> <b>{b}</b>
+                            </>
+                          ) : (
+                            <span className="muted">bye (goes through)</span>
+                          )}
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <div className="muted">
+                      Round 1 pairs the top half with the bottom half (seed 1 – seed {Math.floor(seeded.length / 2) + 1}, seed 2 – seed {Math.floor(seeded.length / 2) + 2}…); later rounds pair equal scores.
+                      {seeded.length % 2 === 1 ? " With an odd number, the lowest seed rests first." : ""}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Panel>
+          )}
           <Panel title="3 · Conditions">
             <div className="grid gap-3 cond-grid">
               <Field label="Threads / engine">
@@ -855,4 +942,27 @@ export function Wizard() {
       </Modal>
     </div>
   );
+}
+
+/** Positions in a seeded bracket of `size` (8 → 1 8 4 5 2 7 3 6), as the scheduler does. */
+function bracketOrder(size: number): number[] {
+  let v = [1];
+  while (v.length < size) {
+    const m = v.length * 2 + 1;
+    v = v.flatMap((s) => [s, m - s]);
+  }
+  return v;
+}
+
+/** First-round matches of a cup: [higher seed, lower seed or null for a bye]. */
+export function firstRound(names: string[]): [string, string | null][] {
+  let size = 1;
+  while (size < names.length) size *= 2;
+  const o = bracketOrder(size);
+  const out: [string, string | null][] = [];
+  for (let k = 0; k < o.length; k += 2) {
+    const [a, b] = [o[k], o[k + 1]].sort((x, y) => x - y);
+    out.push([names[a - 1], b <= names.length ? names[b - 1] : null]);
+  }
+  return out;
 }

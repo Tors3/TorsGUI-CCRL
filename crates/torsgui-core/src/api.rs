@@ -3,6 +3,7 @@
 //! result types are exported to TypeScript with ts-rs (`ui/src/bindings`).
 
 use crate::analysis;
+use crate::analyze::{self, GameAnalysisConfig, GameAnalysisProgress, LiveAnalyzer, LiveRequest};
 use crate::bench::{self, BenchConfig, BenchProgress, BenchRun};
 use crate::ccrl::{self, CcrlList, RatingIndex};
 use crate::engines::{self, EngineEntry};
@@ -14,12 +15,14 @@ use crate::pgn::{self, Game};
 use crate::runner;
 use crate::scheduler;
 use crate::stats::{RowOrder, Standings};
+use crate::suite::{self, SuiteConfig, SuiteProgress};
 use crate::store::{Desired, Settings, TState, TournamentRecord, Workspace};
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 pub struct App {
@@ -29,6 +32,11 @@ pub struct App {
     cache: Mutex<HashMap<String, (String, Arc<analysis::Loaded>)>>,
     bench: Arc<Mutex<BenchProgress>>,
     jobs: Arc<Mutex<HashMap<String, Value>>>,
+    suite: Arc<Mutex<SuiteProgress>>,
+    suite_cancel: Arc<AtomicBool>,
+    game_analysis: Arc<Mutex<GameAnalysisProgress>>,
+    game_cancel: Arc<AtomicBool>,
+    live_analysis: LiveAnalyzer,
 }
 
 fn arg<T: DeserializeOwned>(a: &Value, k: &str) -> Result<T> {
@@ -163,6 +171,11 @@ impl App {
             cache: Mutex::new(HashMap::new()),
             bench: Arc::new(Mutex::new(BenchProgress::default())),
             jobs: Arc::new(Mutex::new(HashMap::new())),
+            suite: Arc::new(Mutex::new(SuiteProgress::default())),
+            suite_cancel: Arc::new(AtomicBool::new(false)),
+            game_analysis: Arc::new(Mutex::new(GameAnalysisProgress::default())),
+            game_cancel: Arc::new(AtomicBool::new(false)),
+            live_analysis: LiveAnalyzer::default(),
         })
     }
 
@@ -347,6 +360,94 @@ impl App {
                 let e = store.engine(id)?.context("engine not found")?;
                 let options: std::collections::BTreeMap<String, String> = arg(&a, "options")?;
                 ok(engines::check_options(&e.display_name, &options, &e.options, &e.dir))
+            }
+            // ---------------------------------------------------------- test suites
+            "suites_builtin" => ok(suite::builtin_list()),
+            "suite_preview" => {
+                let (name, parsed) = suite::load(&arg::<SuiteConfig>(&a, "config")?)?;
+                ok(json!({"name": name, "positions": parsed.positions, "errors": parsed.errors}))
+            }
+            "suite_start" => {
+                let cfg: SuiteConfig = arg(&a, "config")?;
+                let all = store.engines()?;
+                let engines: Vec<EngineEntry> = cfg.engines.iter().filter_map(|id| all.iter().find(|e| e.id == Some(*id)).cloned()).collect();
+                if let Some(e) = engines.iter().find(|e| e.path.is_empty() || !Path::new(&e.path).is_file()) {
+                    bail!("{}: executable not found ({})", e.display_name, e.path);
+                }
+                suite::load(&cfg)?;
+                {
+                    let mut p = self.suite.lock().unwrap();
+                    if p.running {
+                        bail!("a test suite is already running");
+                    }
+                    *p = SuiteProgress { running: true, ..Default::default() };
+                }
+                self.suite_cancel.store(false, Ordering::Relaxed);
+                let (prog, cancel, root) = (self.suite.clone(), self.suite_cancel.clone(), self.ws.root.clone());
+                std::thread::spawn(move || {
+                    let r = suite::run(&cfg, &engines, prog.clone(), cancel);
+                    let mut p = prog.lock().unwrap();
+                    p.running = false;
+                    match r {
+                        Ok(run) => {
+                            let _ = suite::save_run(&root, &run);
+                        }
+                        Err(e) => p.error = Some(format!("{e:#}")),
+                    }
+                });
+                ok(true)
+            }
+            "suite_progress" => ok(self.suite.lock().unwrap().clone()),
+            "suite_stop" => {
+                self.suite_cancel.store(true, Ordering::Relaxed);
+                ok(true)
+            }
+            "suite_history" => ok(suite::list_runs(&self.ws.root)),
+            "suite_delete" => {
+                suite::delete_run(&self.ws.root, &arg::<String>(&a, "id")?)?;
+                ok(true)
+            }
+            // ---------------------------------------------------------- game analysis
+            "analysis_load_text" => ok(load_game_text(&arg::<String>(&a, "text")?)?),
+            "analysis_game_start" => {
+                let cfg: GameAnalysisConfig = arg(&a, "config")?;
+                let e = store.engine(cfg.engine_id)?.context("engine not found")?;
+                analyze::boards(&cfg.start_fen, &cfg.moves)?;
+                {
+                    let mut p = self.game_analysis.lock().unwrap();
+                    if p.running {
+                        bail!("a game analysis is already running");
+                    }
+                    *p = GameAnalysisProgress { running: true, ..Default::default() };
+                }
+                self.game_cancel.store(false, Ordering::Relaxed);
+                let (prog, cancel) = (self.game_analysis.clone(), self.game_cancel.clone());
+                std::thread::spawn(move || {
+                    let r = analyze::run_game(&cfg, &e, prog.clone(), cancel);
+                    let mut p = prog.lock().unwrap();
+                    p.running = false;
+                    if let Err(e) = r {
+                        p.error = Some(format!("{e:#}"));
+                    }
+                });
+                ok(true)
+            }
+            "analysis_game_progress" => ok(self.game_analysis.lock().unwrap().clone()),
+            "analysis_game_stop" => {
+                self.game_cancel.store(true, Ordering::Relaxed);
+                ok(true)
+            }
+            "analysis_live" => {
+                let req: LiveRequest = arg(&a, "request")?;
+                let e = store.engine(req.engine_id)?.context("engine not found")?;
+                crate::chess960::parse_fen(&req.fen)?;
+                self.live_analysis.set(req, e);
+                ok(true)
+            }
+            "analysis_live_get" => ok(self.live_analysis.state.lock().unwrap().clone()),
+            "analysis_live_stop" => {
+                self.live_analysis.stop();
+                ok(true)
             }
             "tournament_delete" => {
                 let id: String = arg(&a, "id")?;
@@ -1951,4 +2052,28 @@ fn ensure_ccrl_snapshots(store: &crate::store::Store) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// A game from pasted text: a PGN (the first game) or a FEN.
+pub fn load_game_text(text: &str) -> Result<crate::live::ViewerGame> {
+    let t = text.trim();
+    if t.is_empty() {
+        bail!("paste a PGN or a FEN");
+    }
+    let pgn_text = if !t.contains('[') && t.contains('/') && t.split_whitespace().count() <= 6 {
+        crate::chess960::parse_fen(t)?;
+        format!("[Event \"Position\"]\n[FEN \"{t}\"]\n[SetUp \"1\"]\n\n*\n")
+    } else if t.contains('[') {
+        t.to_string()
+    } else {
+        // bare movetext
+        format!("[Event \"Game\"]\n\n{t}\n")
+    };
+    let games = pgn::parse_games(&pgn_text, Path::new("pasted.pgn"));
+    let g = games.first().context("no game found in the text")?;
+    let v = crate::live::viewer_game(g);
+    if v.plies.is_empty() && v.error.is_some() {
+        bail!("{}", v.error.unwrap_or_default());
+    }
+    Ok(v)
 }

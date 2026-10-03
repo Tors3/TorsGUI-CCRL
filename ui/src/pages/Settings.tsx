@@ -1,5 +1,6 @@
 import { CheckCircle2, Download, GitBranch, HardDrive, RotateCcw, Save, Server, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import type { Housekeeping } from "../bindings/Housekeeping";
 import type { Settings } from "../bindings/Settings";
@@ -11,6 +12,18 @@ import { ErrorBox, Field, PageHeader, Panel, Spinner } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { bytes } from "../lib/format";
 import type { AppInfo } from "../lib/types";
+import { THEMES, useTheme } from "../lib/theme";
+
+const SETTINGS_TABS = [
+  { id: "general", label: "General" },
+  { id: "appearance", label: "Appearance" },
+  { id: "paths", label: "Paths & fastchess" },
+  { id: "books", label: "Opening books" },
+  { id: "broadcast", label: "Live broadcast" },
+  { id: "hardware", label: "CPU topology" },
+  { id: "maintenance", label: "Maintenance" },
+] as const;
+type SettingsTab = (typeof SETTINGS_TABS)[number]["id"];
 
 function TopologyView({ t }: { t: Topology }) {
   return (
@@ -63,6 +76,9 @@ export function SettingsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string>();
   const [gitMsg, setGitMsg] = useState("");
+  const [params, setParams] = useSearchParams();
+  const tab = (SETTINGS_TABS.find((t) => t.id === params.get("tab"))?.id ?? "general") as SettingsTab;
+  const setTab = (t: SettingsTab) => setParams(t === "general" ? {} : { tab: t }, { replace: true });
   useEffect(() => {
     if (data) setS(data);
   }, [data]);
@@ -97,29 +113,13 @@ export function SettingsPage() {
       <input className={`input ${mono ? "mono" : ""}`} value={String(s[k] ?? "")} onChange={(e) => set(k, e.target.value as never)} />
     </Field>
   );
-  return (
-    <div className="flex flex-col gap-3 fade-in">
-      <PageHeader help="new-machine"
-        title="Settings"
-        sub={info ? `TorsGUI ${info.version} · workspace ${info.workspace} · ${info.os}` : ""}
-        actions={
-          <button className="btn btn-primary" onClick={save}>
-            <Save size={14} /> Save settings
-          </button>
-        }
-      />
-      <ErrorBox error={err} />
+  const panes: Record<SettingsTab, ReactNode> = {
+    general: (
       <div className="grid gap-3 cols-fit">
         <Panel title="Tester">
           <div className="grid grid-cols-2 gap-3">
             {txt("tester_name", "Tester name", "used in the export file name", false)}
             {txt("site", "Site", "your location (PGN Site tag)", false)}
-            <Field label="Theme">
-              <select className="select" value={s.theme} onChange={(e) => set("theme", e.target.value)}>
-                <option value="dark">Dark</option>
-                <option value="light">Light</option>
-              </select>
-            </Field>
             <Field label="Hash per thread (MB)" hint="CCRL rule: 512">
               <input className="input tnum" type="number" value={s.hash_per_thread_mb} onChange={(e) => set("hash_per_thread_mb", +e.target.value)} />
             </Field>
@@ -131,6 +131,55 @@ export function SettingsPage() {
             </Field>
           </div>
         </Panel>
+        <Panel title="Default adjudication">
+          <div className="grid grid-cols-3 gap-2 text-[12.5px]">
+            <label className="col-span-3 flex items-center gap-2">
+              <input type="checkbox" checked={s.adjudication.draw_enabled} onChange={(e) => set("adjudication", { ...s.adjudication, draw_enabled: e.target.checked })} /> Draw: from move / moves / |score| cp
+            </label>
+            {(["draw_movenumber", "draw_movecount", "draw_score"] as const).map((k) => (
+              <input key={k} className="input tnum" type="number" value={s.adjudication[k]} onChange={(e) => set("adjudication", { ...s.adjudication, [k]: +e.target.value })} aria-label={k} />
+            ))}
+            <label className="col-span-3 flex items-center gap-2">
+              <input type="checkbox" checked={s.adjudication.resign_enabled} onChange={(e) => set("adjudication", { ...s.adjudication, resign_enabled: e.target.checked })} /> Resign: moves / score cp / two-sided
+            </label>
+            {(["resign_movecount", "resign_score"] as const).map((k) => (
+              <input key={k} className="input tnum" type="number" value={s.adjudication[k]} onChange={(e) => set("adjudication", { ...s.adjudication, [k]: +e.target.value })} aria-label={k} />
+            ))}
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={s.adjudication.resign_twosided} onChange={(e) => set("adjudication", { ...s.adjudication, resign_twosided: e.target.checked })} /> two-sided
+            </label>
+          </div>
+        </Panel>
+        <Panel title="Engine builds">
+          <div className="flex flex-col gap-2.5 text-[12.5px]">
+            <p className="muted">
+              CCRL rule: the <b>AVX2</b> build, never AVX-512/VNNI/x86-64-v4. For your own tests you can allow AVX-512 builds: they are always marked <span className="chip chip-personal">not CCRL</span>, and the wizard warns when a tournament uses them.
+            </p>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={s.allow_avx512} onChange={(e) => setS({ ...s, allow_avx512: e.target.checked, prefer_avx512: e.target.checked && s.prefer_avx512 })} data-testid="allow-avx512" /> Allow AVX-512 builds (personal use)
+            </label>
+            <label className="flex items-center gap-2" style={{ opacity: s.allow_avx512 ? 1 : 0.5 }}>
+              <input type="checkbox" disabled={!s.allow_avx512} checked={s.prefer_avx512} onChange={(e) => set("prefer_avx512", e.target.checked)} /> Prefer them when this CPU supports AVX-512
+            </label>
+            <div className="muted text-[11.5px]">
+              This CPU: AVX-512 {topo ? (topo.has_avx512 ? "yes" : "no") : "…"}. Default for new downloads; the <i>Add from GitHub</i> dialog can switch it per engine.
+            </div>
+          </div>
+        </Panel>
+      </div>
+    ),
+    appearance: (
+      <div className="flex flex-col gap-3">
+        <Panel title="Colour theme" actions={<span className="muted text-[11.5px]">saved on this computer, applied immediately · shortcut t</span>}>
+          <ThemePicker />
+        </Panel>
+        <Panel title="Board appearance" actions={<span className="muted text-[11.5px]">saved on this computer, applied immediately</span>}>
+          <BoardAppearance />
+        </Panel>
+      </div>
+    ),
+    paths: (
+      <div className="grid gap-3 cols-fit">
         <Panel title="Paths">
           <div className="grid grid-cols-1 gap-2.5">
             {txt("engines_dir", "Engines folder", "downloads go to <folder>/<Repo>_<tag>")}
@@ -178,54 +227,20 @@ export function SettingsPage() {
           </div>
         </Panel>
       </div>
-      <Panel title="Live broadcast" actions={<span className="muted text-[11.5px]">Lichess and ccrl.live · choose per tournament (tournament → Live broadcast)</span>}>
-        <BroadcastSettings s={s} set={set} />
-      </Panel>
+    ),
+    books: (
       <Panel title="Opening books">
         <OpeningBooksPanel settings={s} onSettings={refresh} />
       </Panel>
-      <Panel title="CPU topology">{topo ? <TopologyView t={topo} /> : <Spinner />}</Panel>
-      <div className="grid gap-3 cols-2-1">
-        <Panel title="Board appearance" actions={<span className="muted text-[11.5px]">saved on this computer, applied immediately</span>}>
-          <BoardAppearance />
-        </Panel>
-        <Panel title="Engine builds">
-          <div className="flex flex-col gap-2.5 text-[12.5px]">
-            <p className="muted">
-              CCRL rule: the <b>AVX2</b> build, never AVX-512/VNNI/x86-64-v4. For your own tests you can allow AVX-512 builds: they are always marked <span className="chip chip-personal">not CCRL</span>, and the wizard warns when a tournament uses them.
-            </p>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={s.allow_avx512} onChange={(e) => setS({ ...s, allow_avx512: e.target.checked, prefer_avx512: e.target.checked && s.prefer_avx512 })} data-testid="allow-avx512" /> Allow AVX-512 builds (personal use)
-            </label>
-            <label className="flex items-center gap-2" style={{ opacity: s.allow_avx512 ? 1 : 0.5 }}>
-              <input type="checkbox" disabled={!s.allow_avx512} checked={s.prefer_avx512} onChange={(e) => set("prefer_avx512", e.target.checked)} /> Prefer them when this CPU supports AVX-512
-            </label>
-            <div className="muted text-[11.5px]">
-              This CPU: AVX-512 {topo ? (topo.has_avx512 ? "yes" : "no") : "…"}. Default for new downloads; the <i>Add from GitHub</i> dialog can switch it per engine.
-            </div>
-          </div>
-        </Panel>
-      </div>
+    ),
+    broadcast: (
+      <Panel title="Live broadcast" actions={<span className="muted text-[11.5px]">Lichess and ccrl.live · choose per tournament (tournament → Live broadcast)</span>}>
+        <BroadcastSettings s={s} set={set} />
+      </Panel>
+    ),
+    hardware: <Panel title="CPU topology">{topo ? <TopologyView t={topo} /> : <Spinner />}</Panel>,
+    maintenance: (
       <div className="grid gap-3 cols-fit">
-        <Panel title="Default adjudication">
-          <div className="grid grid-cols-3 gap-2 text-[12.5px]">
-            <label className="col-span-3 flex items-center gap-2">
-              <input type="checkbox" checked={s.adjudication.draw_enabled} onChange={(e) => set("adjudication", { ...s.adjudication, draw_enabled: e.target.checked })} /> Draw: from move / moves / |score| cp
-            </label>
-            {(["draw_movenumber", "draw_movecount", "draw_score"] as const).map((k) => (
-              <input key={k} className="input tnum" type="number" value={s.adjudication[k]} onChange={(e) => set("adjudication", { ...s.adjudication, [k]: +e.target.value })} aria-label={k} />
-            ))}
-            <label className="col-span-3 flex items-center gap-2">
-              <input type="checkbox" checked={s.adjudication.resign_enabled} onChange={(e) => set("adjudication", { ...s.adjudication, resign_enabled: e.target.checked })} /> Resign: moves / score cp / two-sided
-            </label>
-            {(["resign_movecount", "resign_score"] as const).map((k) => (
-              <input key={k} className="input tnum" type="number" value={s.adjudication[k]} onChange={(e) => set("adjudication", { ...s.adjudication, [k]: +e.target.value })} aria-label={k} />
-            ))}
-            <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={s.adjudication.resign_twosided} onChange={(e) => set("adjudication", { ...s.adjudication, resign_twosided: e.target.checked })} /> two-sided
-            </label>
-          </div>
-        </Panel>
         <Panel title="Housekeeping" actions={<HardDrive size={14} className="muted" />}>
           {hk ? (
             <div className="flex flex-col gap-2 text-[12px]">
@@ -271,6 +286,74 @@ export function SettingsPage() {
           </div>
         </Panel>
       </div>
+    ),
+  };
+  return (
+    <div className="flex flex-col gap-3 fade-in">
+      <PageHeader
+        help="new-machine"
+        title="Settings"
+        sub={info ? `TorsGUI ${info.version} · workspace ${info.workspace} · ${info.os}` : ""}
+        actions={
+          <button className="btn btn-primary" onClick={save}>
+            <Save size={14} /> Save settings
+          </button>
+        }
+      />
+      <ErrorBox error={err} />
+      <div className="tabs flex-wrap" role="tablist" aria-label="Settings sections">
+        {SETTINGS_TABS.map((t) => (
+          <button key={t.id} role="tab" className="tab" data-state={tab === t.id ? "active" : "inactive"} aria-selected={tab === t.id} onClick={() => setTab(t.id)} data-testid={`settings-tab-${t.id}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {panes[tab]}
     </div>
+  );
+}
+
+/** The app's colour themes, with a preview of each palette. */
+function ThemePicker() {
+  const { theme, setTheme } = useTheme();
+  return (
+    <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))" }} data-testid="theme-picker">
+      {THEMES.map((t) => {
+        const pal = t.id === "system" ? ["dark", "light"] : [t.id];
+        return (
+          <button key={t.id} className="theme-swatch" aria-pressed={theme === t.id} onClick={() => setTheme(t.id)} data-testid={`app-theme-${t.id}`}>
+            <div className="theme-preview">
+              {pal.map((p) => (
+                <ThemeColors key={p} id={p} />
+              ))}
+            </div>
+            <div className="text-[12.5px] font-medium">{t.label}</div>
+            <div className="muted text-[11px] leading-snug">{t.about}</div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Background, panel, text and accent of a palette (read from its CSS block). */
+function ThemeColors({ id }: { id: string }) {
+  const [c, setC] = useState<string[]>([]);
+  useEffect(() => {
+    // the tokens live on :root[data-theme=…]: switch for one synchronous style read
+    const root = document.documentElement;
+    const prev = root.dataset.theme;
+    root.dataset.theme = id;
+    const cs = getComputedStyle(root);
+    const v = ["--bg", "--panel-2", "--text-2", "--accent", "--win", "--loss"].map((k) => cs.getPropertyValue(k).trim());
+    root.dataset.theme = prev;
+    setC(v);
+  }, [id]);
+  return (
+    <span className="flex" style={{ flex: 1 }}>
+      {c.map((x, i) => (
+        <span key={i} style={{ flex: i < 2 ? 2 : 1, background: x }} />
+      ))}
+    </span>
   );
 }

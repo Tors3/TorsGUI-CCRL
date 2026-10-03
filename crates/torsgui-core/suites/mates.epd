@@ -1,0 +1,21 @@
+# Mate finding: mates in 1 to 7 moves (dm = mate in N; any mate that short counts).
+# Mate distances checked with Stockfish 10. WAC positions: Fred Reinfeld, "Win at Chess" (1958).
+6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - bm Rd8#; dm 1; id "M1 back rank";
+6rk/6pp/8/6N1/8/8/8/6K1 w - - bm Nf7#; dm 1; id "M1 smothered";
+r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - bm Qxf7#; dm 1; id "M1 scholar's mate";
+rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq - bm Qh4#; dm 1; id "M1 fool's mate";
+r6k/6pp/7N/3Q4/8/8/8/6K1 w - - bm Qxa8#; dm 1; id "M1 queen and knight";
+3r2k1/5ppp/8/8/8/2Q5/5PPP/3R2K1 w - - bm Rxd8#; dm 1; id "M1 file";
+r2qkbnr/ppp2ppp/2np4/4N3/2B1P3/2N5/PPPP1PPP/R1BbK2R w KQkq - bm Bxf7+; dm 2; id "M2 Legal's mate";
+r1b2k1r/ppppq3/5N1p/4P2Q/4PP2/1B6/PP5P/n2K2R1 w - - bm Qxh6+; dm 2; id "M2 attack";
+6k1/pp4p1/2p5/2bp4/8/P5Pb/1P3rrP/2BRRN1K b - - bm Rg1+; dm 2; id "M2 rooks";
+k7/8/2K5/8/8/8/8/7R w - - bm Kb6; dm 2; id "M2 rook ending";
+5k2/8/5K2/8/8/8/8/4Q3 w - - bm Qe7+; dm 2; id "M2 queen ending";
+2rr3k/pp3pp1/1nnqbN1p/3pN3/2pP4/2P3Q1/PPB4P/R4RK1 w - - bm Qg6; dm 2; id "M2 WAC.001";
+r1bq2rk/pp3pbp/2p1p1pQ/7P/3P4/2PB1N2/PP3PPR/2KR4 w - - bm Qxh7+; dm 2; id "M2 WAC.004";
+5k2/6pp/p1qN4/1p1p4/3P4/2PKP2Q/PP3r2/3R4 b - - bm Qc4+; dm 2; id "M2 WAC.005";
+4k1r1/2p3r1/1pR1p3/3pP2p/3P2qP/P4N2/1PQ4P/5R1K b - - bm Qxf3+; dm 2; id "M2 WAC.012";
+8/8/8/8/8/2k5/1r6/K7 b - - bm Rc2; dm 3; id "M3 rook ending";
+r2rb1k1/pp1q1p1p/2n1p1p1/2bp4/5P2/PP1BPR1Q/1BPN2PP/R5K1 w - - bm Qxh7+; dm 4; id "M4 WAC.014";
+3q1rk1/p4pp1/2pb3p/3p4/6Pr/1PNQ4/P1PB1PP1/4RRK1 b - - bm Bh2+; dm 5; id "M5 WAC.009";
+r4q1k/p2bR1rp/2p2Q1N/5p2/5p2/2P5/PP3PPP/R5K1 w - - bm Rf7; dm 7; id "M7 WAC.008";
