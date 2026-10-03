@@ -2046,7 +2046,7 @@ dependencies = [
 
 [[package]]
 name = "mock-uci"
-version = "0.1.0"
+version = "0.4.2"
 dependencies = [
  "cozy-chess",
 ]
@@ -4072,7 +4072,7 @@ dependencies = [
 
 [[package]]
 name = "torsgui-core"
-version = "0.1.0"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4105,7 +4105,7 @@ dependencies = [
 
 [[package]]
 name = "torsgui-runner"
-version = "0.1.0"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "cozy-chess",

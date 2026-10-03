@@ -22,7 +22,7 @@ function Standings({ d, order, setOrder }: { d: TournamentDetail; order: RowOrde
   const st = d.standings;
   const perGame = d.summary.record.config.games_per_pairing;
   return (
-    <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 300px" }}>
+    <div className="grid gap-3 cols-main-side">
       <Panel
         title={`Per opponent — ${st.seed}`}
         noPad
@@ -329,7 +329,7 @@ function Config({ d, refresh }: { d: TournamentDetail; refresh: () => void }) {
     }
   };
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid gap-3 cols-fit-wide">
       <Panel title="Configuration">
         <pre className="mono text-[11.5px] overflow-auto max-h-[60vh]">{JSON.stringify(r.config, null, 2)}</pre>
       </Panel>

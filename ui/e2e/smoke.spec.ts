@@ -335,40 +335,38 @@ test("engines: CCRL ratings, search and sort; wizard search, Elo range and sorti
   expect(await elo(1)).toBeGreaterThanOrEqual(await elo(2));
 });
 
-test("UCI options: kept in Engines → Edit, per tournament in the wizard and in the Configuration tab", async ({ page }) => {
-  // Engines → Edit: a typed option, a setoption line; saved options stay
+test("UCI options: kept in Engines → Edit, used by new tournaments, changed in the Configuration tab", async ({ page }) => {
+  // Engines → Edit: a declared option and one added by name; saved options stay
   await page.goto("/#/engines");
   const row = page.getByTestId("engines-table").locator("tbody tr").filter({ hasText: "Mock Bravo" }).first();
   await row.getByLabel("Edit").click();
   await page.getByLabel("option Strength").fill("42");
-  await page.getByTestId("uci-extra").fill("setoption name evalfile value nets/x.nnue");
+  await page.getByTestId("uci-extra-add").click();
+  await page.getByLabel("extra option name 1").fill("evalfile");
+  await page.getByLabel("extra option value 1").fill("nets/x.nnue");
   await expect(page.getByTestId("uci-warnings")).toContainText("the engine has no option 'evalfile'");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByLabel("option Strength")).toHaveCount(0);
   await row.getByLabel("Edit").click();
   await expect(page.getByLabel("option Strength")).toHaveValue("42");
-  await expect(page.getByTestId("uci-extra")).toHaveValue("evalfile=nets/x.nnue");
-  await page.getByTestId("uci-extra").fill("");
+  await expect(page.getByLabel("extra option value 1")).toHaveValue("nets/x.nnue");
+  await page.getByLabel("remove extra option 1").click();
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByLabel("option Strength")).toHaveCount(0);
 
-  // New tournament: the engine's options, changed for this tournament only
+  // a new tournament takes the engine's options
   await page.goto("/#/tournaments/new");
   await page.getByLabel(/seed Mock Alpha/).check();
   await page.getByLabel(/opponent Mock Bravo/).check();
   const engines = await (await page.request.post("/api/engines_list", { data: {} })).json();
   const bravo = engines.find((e: any) => e.display_name.startsWith("Mock Bravo"));
   expect(bravo.default_options.Strength).toBe("42");
-  await page.getByTestId(`wizard-options-${bravo.id}`).click();
-  await expect(page.getByLabel("option Strength")).toHaveValue("42");
-  await page.getByLabel("option Strength").fill("43");
-  await page.getByTestId("wizard-options-apply").click();
-  await expect(page.getByTestId(`wizard-options-${bravo.id}`)).toContainText("custom options");
+  expect(bravo.default_options.evalfile).toBeUndefined();
   await page.getByTestId("create-draft").click();
   await expect(page.getByTestId("edit-tournament")).toBeVisible();
   const id = decodeURIComponent(page.url().split("/tournaments/")[1]);
   const opts = async () => (await (await page.request.post("/api/tournament_get", { data: { id } })).json()).summary.record.config.participants.find((p: any) => p.engine_id === bravo.id).options;
-  expect((await opts()).Strength).toBe("43");
+  expect((await opts()).Strength).toBe("42");
   expect((await opts()).Threads).toBe("${THREADS}");
 
   // Configuration tab of the tournament

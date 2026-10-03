@@ -166,7 +166,7 @@ export function CcrlLists() {
         }
       />
       <ErrorBox error={error} />
-      <div className="grid gap-3" style={{ gridTemplateColumns: "240px 1fr 360px" }}>
+      <div className="grid gap-3 ccrl-grid">
         <div className="flex flex-col gap-3">
           <Panel title="Lists" noPad>
             {(lists ?? []).length === 0 && <Empty>No list yet.</Empty>}

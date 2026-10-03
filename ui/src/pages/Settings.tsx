@@ -109,7 +109,7 @@ export function SettingsPage() {
         }
       />
       <ErrorBox error={err} />
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid gap-3 cols-fit">
         <Panel title="Tester">
           <div className="grid grid-cols-2 gap-3">
             {txt("tester_name", "Tester name", "used in the export file name", false)}
@@ -185,7 +185,7 @@ export function SettingsPage() {
         <OpeningBooksPanel settings={s} onSettings={refresh} />
       </Panel>
       <Panel title="CPU topology">{topo ? <TopologyView t={topo} /> : <Spinner />}</Panel>
-      <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)" }}>
+      <div className="grid gap-3 cols-2-1">
         <Panel title="Board appearance" actions={<span className="muted text-[11.5px]">saved on this computer, applied immediately</span>}>
           <BoardAppearance />
         </Panel>
@@ -206,7 +206,7 @@ export function SettingsPage() {
           </div>
         </Panel>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid gap-3 cols-fit">
         <Panel title="Default adjudication">
           <div className="grid grid-cols-3 gap-2 text-[12.5px]">
             <label className="col-span-3 flex items-center gap-2">

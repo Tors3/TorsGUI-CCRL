@@ -1,4 +1,4 @@
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { AlertTriangle, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { UciOption } from "../bindings/UciOption";
 import { call } from "../lib/api";
@@ -6,39 +6,17 @@ import { call } from "../lib/api";
 /** Options TorsGUI sets itself: the tournament's threads and hash, Chess960 from the variant. */
 const MANAGED = new Set(["Threads", "Hash", "UCI_Chess960"]);
 
-/** `Key=value` lines, also `setoption name Key value v` as written for a GUI or a script. */
-export function parseOptionLines(text: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const raw of text.split("\n")) {
-    const l = raw.trim();
-    if (!l || l.startsWith("#")) continue;
-    const m = /^setoption\s+name\s+(.+?)(?:\s+value\s+(.*))?$/i.exec(l);
-    if (m) {
-      out[m[1].trim()] = (m[2] ?? "").trim();
-      continue;
-    }
-    const i = l.indexOf("=");
-    if (i > 0) out[l.slice(0, i).trim()] = l.slice(i + 1).trim();
-  }
-  return out;
-}
-
-const toLines = (o: Record<string, string>) =>
-  Object.entries(o)
-    .map(([k, v]) => `${k}=${v}`)
-    .join("\n");
-
 /**
  * The UCI options of one engine, with the right control for each type (number with its
  * range, true/false, list, text or file path). Only the options that are set are sent;
- * an empty value means "the engine's default". Options the engine does not declare go in
- * the free lines below. With `engineId` the values are checked (names, ranges, files).
+ * an empty value means "the engine's default". Options the engine does not declare are added
+ * as name + value rows. With `engineId` the values are checked (names, ranges, files).
  */
 export function UciOptionsEditor({ options, values, onChange, engineId, dir }: { options: UciOption[]; values: Record<string, string>; onChange: (v: Record<string, string>) => void; engineId?: number | null; dir?: string }) {
   const declared = useMemo(() => options.filter((o) => o.kind !== "button" && !MANAGED.has(o.name)), [options]);
   const names = useMemo(() => new Set(options.map((o) => o.name)), [options]);
-  const extraOf = (v: Record<string, string>) => Object.fromEntries(Object.entries(v).filter(([k]) => !names.has(k)));
-  const [extra, setExtra] = useState(() => toLines(Object.fromEntries(Object.entries(extraOf(values)).filter(([k]) => !MANAGED.has(k)))));
+  // options the engine does not declare (or all of them when its options are unknown)
+  const [extra, setExtra] = useState<[string, string][]>(() => Object.entries(values).filter(([k]) => !names.has(k) && !MANAGED.has(k)));
   const [warnings, setWarnings] = useState<string[]>([]);
   const [q, setQ] = useState("");
 
@@ -48,12 +26,11 @@ export function UciOptionsEditor({ options, values, onChange, engineId, dir }: {
     else n[k] = v;
     onChange(n);
   };
-  const setExtraText = (text: string) => {
-    setExtra(text);
-    const parsed = parseOptionLines(text);
-    // a declared option written in the free lines goes to its row
+  const setExtraRows = (rows: [string, string][]) => {
+    setExtra(rows);
     const kept = Object.fromEntries(Object.entries(values).filter(([k]) => names.has(k) || MANAGED.has(k)));
-    onChange({ ...kept, ...parsed });
+    for (const [k, v] of rows) if (k.trim() && !MANAGED.has(k.trim())) kept[k.trim()] = v.trim();
+    onChange(kept);
   };
 
   const key = JSON.stringify(values);
@@ -69,7 +46,7 @@ export function UciOptionsEditor({ options, values, onChange, engineId, dir }: {
   }, [key, engineId]);
 
   const shown = declared.filter((o) => !q || o.name.toLowerCase().includes(q.toLowerCase()));
-  const nSet = declared.filter((o) => values[o.name] != null).length + Object.keys(extraOf(values)).filter((k) => !MANAGED.has(k)).length;
+  const nSet = declared.filter((o) => values[o.name] != null).length + extra.filter(([k]) => k.trim()).length;
 
   return (
     <div className="flex flex-col gap-2" data-testid="uci-options">
@@ -123,12 +100,23 @@ export function UciOptionsEditor({ options, values, onChange, engineId, dir }: {
       ) : (
         <div className="muted text-[12px]">The engine's options are not known yet (verify it to read them): write them below.</div>
       )}
-      <label className="flex flex-col gap-1 text-[12px]">
-        <span className="muted">
-          {declared.length ? "Other options, not declared by the engine" : "Options"} — one per line, <span className="mono">Name=value</span> or <span className="mono">setoption name Name value v</span>
-        </span>
-        <textarea className="textarea mono" rows={3} value={extra} onChange={(e) => setExtraText(e.target.value)} placeholder={"EvalFile=nets/my-net.nnue"} data-testid="uci-extra" />
-      </label>
+      <div className="flex flex-col gap-1.5" data-testid="uci-extra">
+        <div className="flex items-center gap-2 text-[12px]">
+          <span className="muted">{declared.length ? "Other options (not declared by the engine)" : "Options"}</span>
+          <button className="btn btn-sm" onClick={() => setExtraRows([...extra, ["", ""]])} data-testid="uci-extra-add">
+            <Plus size={12} /> Add option
+          </button>
+        </div>
+        {extra.map(([k, v], i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input className="input mono" style={{ width: 200 }} placeholder="Name (e.g. EvalFile)" value={k} onChange={(e) => setExtraRows(extra.map((r, j) => (j === i ? [e.target.value, r[1]] : r)))} aria-label={`extra option name ${i + 1}`} />
+            <input className="input mono flex-1" placeholder="Value (e.g. nets/my-net.nnue)" value={v} onChange={(e) => setExtraRows(extra.map((r, j) => (j === i ? [r[0], e.target.value] : r)))} aria-label={`extra option value ${i + 1}`} />
+            <button className="btn btn-ghost btn-icon btn-sm" aria-label={`remove extra option ${i + 1}`} onClick={() => setExtraRows(extra.filter((_, j) => j !== i))}>
+              <Trash2 size={12} />
+            </button>
+          </div>
+        ))}
+      </div>
       {dir && <div className="muted text-[11.5px]">Relative file paths are read from the engine folder: <span className="mono">{dir}</span></div>}
       {warnings.length > 0 && (
         <div className="flex flex-col gap-1" data-testid="uci-warnings">

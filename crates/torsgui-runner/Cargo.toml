@@ -1,12 +1,12 @@
 [package]
 name = "torsgui-runner"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
 anyhow = "1.0.104"
-torsgui-core = { version = "0.1.0", path = "../torsgui-core" }
+torsgui-core = { path = "../torsgui-core" }
 
 [dev-dependencies]
 cozy-chess = "0.3.4"

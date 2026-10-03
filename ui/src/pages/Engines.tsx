@@ -441,7 +441,7 @@ export function Engines() {
                         <EloCell r={ratings.get(e.id!)?.[l]} />
                       </td>
                     ))}
-                    <td className="mono">{e.build || "—"}</td>
+                    <td className="mono truncate max-w-[180px]" title={e.build}>{e.build || "—"}</td>
                     <td className="mono muted">{e.uci_id || "—"}</td>
                     <td className="r tnum">{e.threads_max ?? "—"}</td>
                     <td>{e.has_syzygy ? "yes" : <span className="muted">no</span>}</td>

@@ -169,12 +169,12 @@ export function Spinner({ size = 14 }: { size?: number }) {
 
 export function PageHeader(props: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; help?: string }) {
   return (
-    <div className="flex items-end justify-between gap-3 mb-3">
-      <div className="min-w-0">
+    <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
+      <div className="min-w-0 flex-1" style={{ minWidth: 220 }}>
         <h1 className="text-[18px] font-semibold tracking-tight truncate">{props.title}</h1>
         {props.sub && <div className="muted text-[12.5px] truncate">{props.sub}</div>}
       </div>
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex flex-wrap items-center justify-end gap-2">
         {props.actions}
         {props.help && <HelpLink section={props.help} />}
       </div>

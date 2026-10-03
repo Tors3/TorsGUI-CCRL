@@ -137,7 +137,7 @@ function BigView({ l, onClose }: { l: LiveLane | null; onClose: () => void }) {
   return (
     <Modal open={!!l} onOpenChange={(o) => !o && onClose()} width={1200} title={g ? `${g.white} – ${g.black}` : ""}>
       {g && (
-        <div className="grid gap-5" style={{ gridTemplateColumns: "minmax(320px, 480px) 1fr" }}>
+        <div className="grid gap-5 live-board-grid">
           <div className="flex flex-col gap-2">
             <PlayerRow name={g.black} ms={g.btime} active={g.side_to_move === "black"} e={black} fen={g.fen} side="b" />
             <div className="flex gap-2 items-stretch">

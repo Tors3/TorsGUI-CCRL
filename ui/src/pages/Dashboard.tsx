@@ -175,7 +175,7 @@ export function Dashboard() {
         <Kpi label="Queue ETA" value={data?.queue_eta ? data.queue_eta.slice(5) : "—"} sub="end of the last queued tournament" tone="accent" />
         <Kpi label="Alerts" value={data?.health.anomalies.length ?? 0} tone={(data?.health.anomalies.length ?? 0) > 0 ? "loss" : "win"} sub={data ? `${data.health.runners_alive}/${data.health.runners_expected} runners alive` : ""} />
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid gap-3 cols-fit">
         <div className="col-span-2 flex flex-col gap-3 min-w-0">
           <Panel title="Running" noPad bodyClass="p-3 flex flex-col gap-3">
             {running.length ? running.map((t) => <RunningCard key={t.record.id} t={t} refresh={refresh} />) : <Empty>No tournament running. Create one or start the queue.</Empty>}

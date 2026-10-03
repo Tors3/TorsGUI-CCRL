@@ -3,23 +3,24 @@
 ## [0.4.2] - 2026-10-03
 
 ### Added
-- **UCI options editor**: every option the engine declares with its own control (number with its
-  range, true/false, list, text/file), the engine default next to it, a reset per option, free
-  lines for undeclared options (`Name=value` or `setoption name … value …`). In *Engines → Edit*
-  (options of new tournaments), in *New tournament* (**options** button of each chosen engine:
-  options for that tournament only) and in the tournament's *Configuration* tab (change them on a
-  paused tournament, used from the next game).
-- Option checks (wizard, editor): names the engine does not declare (wrong upper/lower case),
-  values outside the range or the list, network files not found (relative paths are read from
-  the engine folder).
+- **UCI options editor** in *Engines → Edit*: every option the engine declares with its own
+  control (number with its range, true/false, list, text/file), the engine default next to it,
+  a reset per option; options the engine does not declare are added as name + value rows.
+  New tournaments use the engine's options, as before.
+- The tournament's *Configuration* tab can change the options of one engine while the
+  tournament is paused or stopped (used from the next game).
+- Option checks: names the engine does not declare (wrong upper/lower case), values outside the
+  range or the list, network files not found (relative paths are read from the engine folder).
 
 ### Fixed
-- **Small or scaled screens** (laptops, Windows display scaling 125–150 %): wide tables scroll
-  inside their panel instead of covering the next one (Bench result over the TC calculator);
-  Bench and New tournament rearrange their columns on narrower windows; tile rows and segmented
-  buttons wrap instead of cutting numbers and labels.
 - *Engines → Edit*: saving dropped the options written by the user (only Ponder/OwnBook were kept),
   so a changed network file never reached the games.
+- **Small, scaled or square windows** (laptops, Windows display scaling 125–150 %): the window
+  can now be made as small as 960×600; wide tables scroll inside their panel instead of covering
+  the next one (Bench result over the TC calculator); Bench, New tournament, CCRL lists, Settings,
+  Dashboard and the tournament page rearrange their columns; page headers, tile rows and
+  segmented buttons wrap instead of cutting titles, numbers and labels.
+- Settings showed version 0.1.0: every part now carries the app version.
 
 ## [0.4.1] - 2026-10-02
 
