@@ -64,6 +64,9 @@ pub struct EngineEntry {
     pub used: bool,
     /// Options always sent in tournaments (Ponder=false, OwnBook=false...).
     pub default_options: BTreeMap<String, String>,
+    /// Command-line arguments of the engine (e.g. imported from Cute Chess).
+    #[serde(default)]
+    pub args: String,
     pub extra_files: Vec<String>,
     pub selection_reason: String,
     pub added_at: String,

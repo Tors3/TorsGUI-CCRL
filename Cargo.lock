@@ -4109,6 +4109,7 @@ version = "0.4.2"
 dependencies = [
  "anyhow",
  "cozy-chess",
+ "serde_json",
  "tempfile",
  "torsgui-core",
 ]

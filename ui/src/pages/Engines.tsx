@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { AssetPolicy } from "../bindings/AssetPolicy";
 import type { BundledEngine } from "../bindings/BundledEngine";
+import type { CuteEngine } from "../bindings/CuteEngine";
 import type { EngineEntry } from "../bindings/EngineEntry";
 import type { KnownRepo } from "../bindings/KnownRepo";
 import type { Settings } from "../bindings/Settings";
@@ -227,6 +228,9 @@ function EditDialog({ e, setE, onDone }: { e: EngineEntry | null; setE: (e: Engi
         <Field label="Working dir">
           <input className="input mono" value={draft.dir} onChange={(x) => set("dir", x.target.value)} />
         </Field>
+        <Field label="Arguments" className="col-span-3" hint="command-line arguments of the engine (most engines need none)">
+          <input className="input mono" value={draft.args} onChange={(x) => set("args", x.target.value)} placeholder="--weights=nets/my.pb.gz" />
+        </Field>
         <Field label="Notes" className="col-span-3">
           <textarea className="textarea" rows={2} value={draft.notes} onChange={(x) => set("notes", x.target.value)} />
         </Field>
@@ -245,6 +249,156 @@ function EditDialog({ e, setE, onDone }: { e: EngineEntry | null; setE: (e: Engi
   );
 }
 
+type CuteRow = CuteEngine & { in_library: boolean };
+
+/** Engines from Cute Chess: its engines.json, found automatically or given by path or pasted. */
+function CuteChessDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: boolean) => void; onDone: () => void }) {
+  const [path, setPath] = useState("");
+  const [text, setText] = useState("");
+  const [paste, setPaste] = useState(false);
+  const [rows, setRows] = useState<CuteRow[] | null>(null);
+  const [source, setSource] = useState("");
+  const [picked, setPicked] = useState<string[]>([]);
+  const [busy, setBusy] = useState<"scan" | "import" | null>(null);
+  const [error, setError] = useState<string>();
+  const req = () => (paste ? { text } : { path });
+  const scan = async (auto = false) => {
+    setBusy("scan");
+    setError(undefined);
+    try {
+      const r = await call<{ source: string; engines: CuteRow[] }>("cutechess_scan", auto ? {} : req());
+      setRows(r.engines);
+      setSource(r.source);
+      if (auto) setPath(r.source);
+      setPicked(r.engines.filter((e) => e.protocol === "uci" && !e.in_library).map((e) => e.name));
+    } catch (e) {
+      setRows(null);
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const run = async () => {
+    setBusy("import");
+    try {
+      const r = await call<{ added: { name: string; status: string }[]; skipped: string[] }>("cutechess_import", { ...(paste ? { text } : { path: source }), names: picked });
+      toast.success(`${r.added.length} engines imported from Cute Chess${r.skipped.length ? `, ${r.skipped.length} skipped` : ""}`);
+      if (r.skipped.length) toast.message(r.skipped.join(" · "));
+      onDone();
+      setOpen(false);
+      setRows(null);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <Modal
+      open={open}
+      onOpenChange={setOpen}
+      title="Import engines from Cute Chess"
+      width={1000}
+      footer={
+        <button className="btn btn-primary" onClick={run} disabled={!rows || !picked.length || busy != null} data-testid="cute-import">
+          {busy === "import" ? <Spinner size={12} /> : <PackagePlus size={14} />} Import {picked.length} engine{picked.length === 1 ? "" : "s"}
+        </button>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <div className="muted text-[12.5px]">
+          Cute Chess keeps its engines in <span className="mono">engines.json</span>. Each engine is imported with its folder, arguments and the UCI options changed in Cute
+          Chess, then verified (uci → isready → go). Threads and Hash come from the tournament.
+        </div>
+        {!paste ? (
+          <div className="flex gap-2 items-end">
+            <Field label="engines.json (file or folder)" className="flex-1">
+              <input className="input mono" value={path} onChange={(e) => setPath(e.target.value)} placeholder="C:\Users\you\AppData\Local\cutechess\engines.json" data-testid="cute-path" />
+            </Field>
+            <button className="btn" onClick={() => scan(true)} disabled={busy != null} data-testid="cute-find">
+              <Search size={13} /> Find it
+            </button>
+            <button className="btn btn-primary" onClick={() => scan()} disabled={!path || busy != null} data-testid="cute-read">
+              {busy === "scan" ? <Spinner size={12} /> : <FileText size={13} />} Read
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2 items-end">
+            <Field label="Content of engines.json" className="flex-1">
+              <textarea className="textarea mono" rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder='[{"name": "Stockfish 17", "command": "stockfish.exe", ...}]' />
+            </Field>
+            <button className="btn btn-primary" onClick={() => scan()} disabled={!text.trim() || busy != null}>
+              {busy === "scan" ? <Spinner size={12} /> : <FileText size={13} />} Read
+            </button>
+          </div>
+        )}
+        <button className="btn btn-ghost btn-sm self-start" onClick={() => setPaste(!paste)}>
+          {paste ? "Give the file instead" : "Or paste the content of the file"}
+        </button>
+        <ErrorBox error={error} />
+        {rows && (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 text-[12px]">
+              <span className="muted">
+                {rows.length} engines in <span className="mono">{source}</span>
+              </span>
+              <button className="btn btn-sm ml-auto" onClick={() => setPicked(rows.filter((e) => e.protocol === "uci").map((e) => e.name))}>
+                All
+              </button>
+              <button className="btn btn-sm" onClick={() => setPicked([])}>
+                None
+              </button>
+            </div>
+            <div className="overflow-auto" style={{ maxHeight: 380 }}>
+              <table className="tbl" data-testid="cute-list">
+                <thead>
+                  <tr>
+                    <th />
+                    <th>Engine</th>
+                    <th>Executable</th>
+                    <th>Options from Cute Chess</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((e) => (
+                    <tr key={e.name}>
+                      <td>
+                        <input type="checkbox" disabled={e.protocol !== "uci"} checked={picked.includes(e.name)} onChange={() => setPicked(picked.includes(e.name) ? picked.filter((x) => x !== e.name) : [...picked, e.name])} aria-label={`import ${e.name}`} />
+                      </td>
+                      <td className="font-medium">{e.name}</td>
+                      <td className="mono text-[11.5px] truncate max-w-[300px]" title={e.exe}>
+                        {e.exe}
+                        {e.args && <span className="muted"> {e.args}</span>}
+                      </td>
+                      <td className="mono text-[11.5px] truncate max-w-[220px]" title={Object.entries(e.options).map(([k, v]) => `${k}=${v}`).join("\n")}>
+                        {Object.keys(e.options).length ? Object.entries(e.options).map(([k, v]) => `${k}=${v}`).join(", ") : <span className="muted">—</span>}
+                      </td>
+                      <td>
+                        {e.in_library ? (
+                          <span className="chip">in the library</span>
+                        ) : e.protocol !== "uci" ? (
+                          <span className="chip chip-loss" title={e.note}>{e.protocol}</span>
+                        ) : e.exists ? (
+                          <span className="chip chip-win">found</span>
+                        ) : (
+                          <Tip content={`${e.note}. It is added without verification: set the executable in Edit.`}>
+                            <span className="chip chip-warn">not found</span>
+                          </Tip>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 export function Engines() {
   const { data, error, refresh } = usePoll<EngineEntry[]>("engines_list", {}, 0);
   const [gh, setGh] = useState(false);
@@ -253,6 +407,7 @@ export function Engines() {
   const [local, setLocal] = useState(false);
   const [localPath, setLocalPath] = useState("");
   const [imp, setImp] = useState(false);
+  const [cute, setCute] = useState(false);
   const [impPath, setImpPath] = useState("");
   const [busy, setBusy] = useState<number | null>(null);
   const engines = data ?? [];
@@ -334,6 +489,9 @@ export function Engines() {
           <>
             <button className="btn" onClick={() => call<string>("engines_report").then(setReport)}>
               <FileText size={14} /> Report
+            </button>
+            <button className="btn" onClick={() => setCute(true)} data-testid="engines-cutechess">
+              <FolderOpen size={14} /> Import Cute Chess
             </button>
             <button className="btn" onClick={() => setImp(true)}>
               Import REPORT.md
@@ -488,6 +646,7 @@ export function Engines() {
       </Panel>
       <GithubDialog open={gh} setOpen={setGh} onDone={refresh} />
       <EditDialog e={edit} setE={setEdit} onDone={refresh} />
+      <CuteChessDialog open={cute} setOpen={setCute} onDone={refresh} />
       <Modal open={local} onOpenChange={setLocal} title="Add a local engine" footer={<button className="btn btn-primary" onClick={addLocal} disabled={!localPath}>Add &amp; verify</button>}>
         <Field label="Executable path" hint="The engine is verified (uci → isready → go depth 12) and its options are recorded.">
           <input className="input mono" value={localPath} onChange={(e) => setLocalPath(e.target.value)} placeholder="C:\CCRL\engines\Engine_1.0\engine-avx2.exe" />

@@ -550,6 +550,21 @@ impl App {
                 store.push_event(if v.ok { "success" } else { "error" }, "engine_verified", None, &format!("{}: {}", e.display_name, e.verify_detail))?;
                 ok(json!({"engine": e, "result": v}))
             }
+            "cutechess_scan" => {
+                let (source, list) = self.cutechess_read(&a)?;
+                let lib = store.engines()?;
+                let engines: Vec<Value> = list
+                    .into_iter()
+                    .map(|c| {
+                        let have = lib.iter().any(|e| e.display_name.eq_ignore_ascii_case(c.name.trim()));
+                        let mut v = serde_json::to_value(&c).unwrap_or_default();
+                        v["in_library"] = json!(have);
+                        v
+                    })
+                    .collect();
+                ok(json!({"source": source, "engines": engines}))
+            }
+            "cutechess_import" => ok(self.cutechess_import(&store, &a)?),
             "engine_add_local" => {
                 let path: PathBuf = arg(&a, "path")?;
                 ok(self.add_local(&store, &path, opt(&a, "engine"), opt(&a, "version"))?)
@@ -1562,6 +1577,94 @@ impl App {
 
     fn add_local(&self, store: &crate::store::Store, path: &Path, engine: Option<String>, version: Option<String>) -> Result<EngineEntry> {
         let v = engines::verify(path, 12, std::time::Duration::from_secs(120));
+        let e = local_entry(path, engine, version, &v);
+        let id = store.save_engine(&e)?;
+        store.push_event(if v.ok { "success" } else { "warn" }, "engine_added", None, &format!("{} added ({})", e.display_name, e.verify_status))?;
+        Ok(store.engine(id)?.unwrap())
+    }
+
+    /// Engines of a Cute Chess `engines.json` (the given file, pasted text or the usual places).
+    fn cutechess_read(&self, a: &Value) -> Result<(String, Vec<crate::cutechess::CuteEngine>)> {
+        if let Some(text) = opt::<String>(a, "text").filter(|t| !t.trim().is_empty()) {
+            return Ok(("pasted text".into(), crate::cutechess::parse(&text)?));
+        }
+        let path = match opt::<String>(a, "path").filter(|p| !p.trim().is_empty()) {
+            Some(p) => {
+                let p = PathBuf::from(p.trim().trim_matches('"'));
+                if p.is_dir() { p.join("engines.json") } else { p }
+            }
+            None => crate::cutechess::find().with_context(|| {
+                format!("engines.json not found in the usual Cute Chess folders ({}): give its path", crate::cutechess::default_locations().iter().take(4).map(|p| p.display().to_string()).collect::<Vec<_>>().join(", "))
+            })?,
+        };
+        let text = std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+        Ok((path.to_string_lossy().to_string(), crate::cutechess::parse(&text)?))
+    }
+
+    /// Imports the chosen Cute Chess engines: each one is verified (4 at a time), keeps its
+    /// arguments and the UCI options set in Cute Chess. Missing executables are added as
+    /// metadata, to point to the binary later.
+    fn cutechess_import(&self, store: &crate::store::Store, a: &Value) -> Result<Value> {
+        let (_, list) = self.cutechess_read(a)?;
+        let names: Vec<String> = arg(a, "names")?;
+        // the same executable may be there twice with different settings: names tell them apart
+        let existing = store.engines()?;
+        let mut skipped = Vec::new();
+        let mut todo = Vec::new();
+        for c in list.into_iter().filter(|c| names.contains(&c.name)) {
+            if c.protocol != "uci" {
+                skipped.push(format!("{}: {}", c.name, c.note));
+            } else if existing.iter().any(|e| e.display_name.eq_ignore_ascii_case(c.name.trim())) {
+                skipped.push(format!("{}: already in the library", c.name));
+            } else {
+                todo.push(c);
+            }
+        }
+        let results: Vec<(crate::cutechess::CuteEngine, Option<engines::VerifyResult>)> = std::thread::scope(|s| {
+            let mut out = Vec::new();
+            for chunk in todo.chunks(4) {
+                let hs: Vec<_> = chunk.iter().map(|c| s.spawn(move || (c.clone(), c.exists.then(|| engines::verify(Path::new(&c.exe), 10, std::time::Duration::from_secs(60)))))).collect();
+                out.extend(hs.into_iter().filter_map(|h| h.join().ok()));
+            }
+            out
+        });
+        let mut added = Vec::new();
+        for (c, v) in results {
+            let (en, ver) = crate::cutechess::split_name(&c.name);
+            let mut e = match &v {
+                Some(v) => local_entry(Path::new(&c.exe), Some(en), Some(ver), v),
+                None => EngineEntry {
+                    display_name: crate::names::display_name(&en, &ver),
+                    engine: en,
+                    version: ver,
+                    path: c.exe.clone(),
+                    dir: if c.working_dir.is_empty() { Path::new(&c.exe).parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default() } else { c.working_dir.clone() },
+                    asset: Path::new(&c.exe).file_name().unwrap_or_default().to_string_lossy().into(),
+                    verify_status: "unverified".into(),
+                    verify_detail: "executable not found on this computer: set it in Edit".into(),
+                    added_at: crate::store::now(),
+                    ..Default::default()
+                },
+            };
+            if !c.working_dir.is_empty() {
+                e.dir = c.working_dir.clone();
+            }
+            e.args = c.args.clone();
+            e.default_options.extend(c.options.clone());
+            e.selection_reason = "imported from Cute Chess (engines.json)".into();
+            e.notes = format!("Cute Chess command: {}", c.command);
+            let id = store.save_engine(&e)?;
+            added.push(json!({"id": id, "name": e.display_name, "status": e.verify_status}));
+        }
+        store.push_event("success", "engines_imported", None, &format!("Cute Chess: {} engines imported, {} skipped", added.len(), skipped.len()))?;
+        Ok(json!({"added": added, "skipped": skipped}))
+    }
+
+}
+
+/// A library entry for an executable on disk, from its verification.
+fn local_entry(path: &Path, engine: Option<String>, version: Option<String>, v: &engines::VerifyResult) -> EngineEntry {
+    {
         let id_name = v.id_name.clone();
         let (e_name, e_ver) = match (engine, version) {
             (Some(e), Some(v)) => (e, v),
@@ -1592,11 +1695,12 @@ impl App {
         if cls.flagged {
             e.flags.push(if cls.ccrl_ok { cls.reason.clone() } else { NOT_CCRL_FLAG.into() });
         }
-        engines::apply_verify(&mut e, &v);
-        let id = store.save_engine(&e)?;
-        store.push_event(if v.ok { "success" } else { "warn" }, "engine_added", None, &format!("{} added ({})", e.display_name, e.verify_status))?;
-        Ok(store.engine(id)?.unwrap())
+        engines::apply_verify(&mut e, v);
+        e
     }
+}
+
+impl App {
 
     fn github_install(&self, store: &crate::store::Store, a: &Value) -> Result<Value> {
         let url: String = arg(a, "url")?;

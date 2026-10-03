@@ -580,3 +580,39 @@ fn walk(d: &Path) -> Vec<PathBuf> {
     }
     v
 }
+
+#[test]
+fn cute_chess_engines_json_is_imported() {
+    let dir = tempfile::tempdir().unwrap();
+    let app = torsgui_core::api::App::new(dir.path().join("ws")).unwrap();
+    let exe = mock();
+    let wd = exe.parent().unwrap().to_string_lossy().to_string();
+    let file = dir.path().join("engines.json");
+    let json = serde_json::json!([
+        {"name": "Mock Cute 2.0", "command": exe.file_name().unwrap().to_string_lossy(), "workingDirectory": wd, "protocol": "uci",
+         "options": [{"name": "Strength", "type": "spin", "value": 70, "default": 50}, {"name": "Hash", "type": "spin", "value": 256, "default": 16}]},
+        {"name": "Missing 1.0", "command": "missing-engine.exe --fast", "workingDirectory": dir.path().join("nope").to_string_lossy(), "protocol": "uci"},
+        {"name": "Crafty 25", "command": "crafty", "protocol": "xboard"}
+    ]);
+    std::fs::write(&file, json.to_string()).unwrap();
+    let scan = app.call("cutechess_scan", serde_json::json!({"path": file.to_string_lossy()})).unwrap();
+    let list = scan["engines"].as_array().unwrap();
+    assert_eq!(list.len(), 3);
+    assert_eq!(list[0]["exists"], true);
+    assert_eq!(list[1]["exists"], false);
+    let r = app.call("cutechess_import", serde_json::json!({"path": file.to_string_lossy(), "names": ["Mock Cute 2.0", "Missing 1.0", "Crafty 25"]})).unwrap();
+    assert_eq!(r["added"].as_array().unwrap().len(), 2, "{r}");
+    assert!(r["skipped"][0].as_str().unwrap().contains("xboard"));
+    let engines = app.call("engines_list", serde_json::json!({})).unwrap();
+    let e = engines.as_array().unwrap().iter().find(|e| e["display_name"] == "Mock Cute 2.0").unwrap();
+    assert_eq!(e["verify_status"], "ok", "{e}");
+    assert_eq!(e["default_options"]["Strength"], "70");
+    assert!(e["default_options"].get("Hash").is_none());
+    let m = engines.as_array().unwrap().iter().find(|e| e["display_name"] == "Missing 1.0").unwrap();
+    assert_eq!(m["args"], "--fast");
+    assert_eq!(m["verify_status"], "unverified");
+    // a second import skips what is already there
+    let again = app.call("cutechess_import", serde_json::json!({"path": file.to_string_lossy(), "names": ["Mock Cute 2.0"]})).unwrap();
+    assert!(again["added"].as_array().unwrap().is_empty());
+    assert!(again["skipped"][0].as_str().unwrap().contains("already in the library"));
+}

@@ -209,7 +209,7 @@ export function Wizard() {
     const was = editing?.config.participants.find((p) => p.engine_id === e.id);
     const opts: Record<string, string> = partOpts[e.id!] ?? baseOptions(e);
     const r = ratings[e.display_name];
-    return { name: e.display_name, cmd: e.path, dir: e.dir, args: was?.args ?? "", options: opts, role, engine_id: e.id, has_syzygy: e.has_syzygy, uci_id: e.uci_id, rating: r?.rating ?? null, rating_estimated: r?.estimated ?? false };
+    return { name: e.display_name, cmd: e.path, dir: e.dir, args: was?.args ?? e.args ?? "", options: opts, role, engine_id: e.id, has_syzygy: e.has_syzygy, uci_id: e.uci_id, rating: r?.rating ?? null, rating_estimated: r?.estimated ?? false };
   };
   const config: TournamentConfig | null = adj
     ? {

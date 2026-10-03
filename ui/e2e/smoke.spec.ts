@@ -391,3 +391,31 @@ test("UCI options: kept in Engines → Edit, per tournament in the wizard and in
   // the engine back as it was for the other tests
   await page.request.post("/api/engine_save", { data: { engine: { ...bravo, default_options: { ...bravo.default_options, Strength: undefined } } } });
 });
+
+test("engines are imported from a Cute Chess engines.json", async ({ page }) => {
+  const { writeFileSync, mkdtempSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { tmpdir } = await import("node:os");
+  const mock = resolve(__dirname, "../../target/debug", process.platform === "win32" ? "mock-uci.exe" : "mock-uci");
+  test.skip(!existsSync(mock), "mock engine not built");
+  const dir = mkdtempSync(join(tmpdir(), "cute-"));
+  const file = join(dir, "engines.json");
+  writeFileSync(file, JSON.stringify([
+    { name: "Cute Mock 3.0", command: mock, workingDirectory: dir, protocol: "uci", options: [{ name: "Strength", type: "spin", value: 77, default: 50 }] },
+    { name: "Old Crafty 25", command: "crafty", protocol: "xboard" },
+  ]));
+  await page.goto("/#/engines");
+  await page.getByTestId("engines-cutechess").click();
+  await page.getByTestId("cute-path").fill(file);
+  await page.getByTestId("cute-read").click();
+  await expect(page.getByTestId("cute-list")).toContainText("Strength=77");
+  await expect(page.getByTestId("cute-list")).toContainText("xboard");
+  await expect(page.getByLabel("import Old Crafty 25")).toBeDisabled();
+  await page.getByTestId("cute-import").click();
+  await expect(page.getByTestId("engines-table")).toContainText("Cute Mock 3.0");
+  const engines = await (await page.request.post("/api/engines_list", { data: {} })).json();
+  const e = engines.find((x: any) => x.display_name === "Cute Mock 3.0");
+  expect(e.default_options.Strength).toBe("77");
+  expect(e.verify_status).toBe("ok");
+  await page.request.post("/api/engine_delete", { data: { id: e.id } });
+});

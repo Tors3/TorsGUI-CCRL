@@ -33,4 +33,8 @@ flags: Array<string>, used: boolean,
 /**
  * Options always sent in tournaments (Ponder=false, OwnBook=false...).
  */
-default_options: { [key in string]: string }, extra_files: Array<string>, selection_reason: string, added_at: string, };
+default_options: { [key in string]: string }, 
+/**
+ * Command-line arguments of the engine (e.g. imported from Cute Chess).
+ */
+args: string, extra_files: Array<string>, selection_reason: string, added_at: string, };
