@@ -134,10 +134,28 @@ pub fn pgn_sources(ws: &Workspace, id: &str) -> Vec<PathBuf> {
 }
 
 /// Finished slots of the tournament according to its PGN files.
+/// White's score of every finished game of an index.
+pub fn index_results(idx: &PgnIndex) -> scheduler::Results {
+    scheduler::results_of(idx.games().filter_map(|g| {
+        let s = match g.headers.get_or("Result", "*") {
+            "1-0" => Some(1.0),
+            "0-1" => Some(0.0),
+            "1/2-1/2" => Some(0.5),
+            _ => None,
+        };
+        crate::pgn::slot_key(&g.headers).map(|k| (k, s))
+    }))
+}
+
+/// Slots known so far (Swiss / knockout: the rounds paired from the results).
+pub fn known_jobs(idx: &PgnIndex, cfg: &TournamentConfig) -> Vec<scheduler::Job> {
+    scheduler::known_jobs(cfg, &index_results(idx))
+}
+
 pub fn scan_done(ws: &Workspace, id: &str, cfg: &TournamentConfig) -> (PgnIndex, HashSet<SlotKey>, HashSet<SlotKey>) {
     let mut idx = PgnIndex::new();
     let _ = idx.scan_dir(&ws.pgn_dir(id));
-    let expected: HashSet<SlotKey> = scheduler::all_jobs(cfg).iter().map(|j| j.slot()).collect();
+    let expected: HashSet<SlotKey> = known_jobs(&idx, cfg).iter().map(|j| j.slot()).collect();
     let done: HashSet<SlotKey> = idx.finished_slots().into_iter().filter(|s| expected.contains(s)).collect();
     (idx, done, expected)
 }
@@ -235,6 +253,21 @@ pub fn run_tournament(ws: &Workspace, id: &str, fastchess_override: Option<PathB
                 return Ok(session);
             }
             Outcome::Completed => {
+                if cfg.kind.is_dynamic() {
+                    // Swiss / knockout: the finished round decides the next one
+                    let (idx, done, _) = scan_done(ws, id, &cfg);
+                    let st = scheduler::staged(&cfg, &index_results(&idx));
+                    let _ = store.update_config(id, &cfg, st.expected as u32);
+                    if !st.finished && !scheduler::build_queue_of(st.jobs, &done).is_empty() {
+                        let round = st.view.stages.last().map(|s| s.number).unwrap_or(0);
+                        store.push_event("info", "round_paired", Some(id), &format!("{}: round {round} of {} paired", rec.name, st.view.rounds_total))?;
+                        log_line(&tdir, &format!("round {round} of {} paired", st.view.rounds_total));
+                        continue;
+                    }
+                    if let Some(c) = &st.view.champion {
+                        store.push_event("success", "tournament_winner", Some(id), &format!("{}: {c} wins", rec.name))?;
+                    }
+                }
                 store.set_state(id, TState::Completed)?;
                 store.clear_runner(id)?;
                 store.push_event("success", "tournament_finished", Some(id), &format!("{} finished: {reason}", rec.name))?;
@@ -264,7 +297,10 @@ pub fn run_tournament(ws: &Workspace, id: &str, fastchess_override: Option<PathB
 fn run_session(ws: &Workspace, store: &Store, id: &str, cfg: &TournamentConfig, fastchess: &Path, retry: u32) -> Result<(Outcome, String)> {
     let tdir = ws.tournament_dir(id);
     let (index, done, expected) = scan_done(ws, id, cfg);
-    let jobs = scheduler::build_queue(cfg, &done);
+    let jobs = scheduler::build_queue_of(known_jobs(&index, cfg), &done);
+    if cfg.kind.is_dynamic() {
+        let _ = store.update_config(id, cfg, scheduler::expected_with(cfg, &index_results(&index)) as u32);
+    }
     let expected_n = expected.len() as u32;
     log_line(&tdir, &format!("session: {} / {} games done, {} to play (retry {retry})", done.len(), expected_n, jobs.len()));
     if jobs.is_empty() {
@@ -279,7 +315,6 @@ fn run_session(ws: &Workspace, store: &Store, id: &str, cfg: &TournamentConfig, 
         }
     }
     let plans: Vec<LanePlan> = platform::plan_lanes(&topo, &phys_nodes, cfg.lanes_per_node, cfg.threads, cfg.placement);
-    let pairs = scheduler::pairings(cfg);
     let host = sysinfo::System::host_name().unwrap_or_default();
     let status = RunnerStatus {
         pid: std::process::id(),
@@ -312,13 +347,12 @@ fn run_session(ws: &Workspace, store: &Store, id: &str, cfg: &TournamentConfig, 
         let shared = shared.clone();
         let control = control.clone();
         let cfg = cfg.clone();
-        let pairs = pairs.clone();
         let plan = plan.clone();
         let tdir = tdir.clone();
         let fastchess = fastchess.to_path_buf();
         let node_exists = topo.node(plan.node).is_some();
         handles.push(std::thread::Builder::new().name(format!("lane-{li}")).spawn(move || {
-            lane_loop(li, &plan, if node_exists { plan.cpuset.clone() } else { None }, &cfg, &pairs, &tdir, &fastchess, &shared, &control)
+            lane_loop(li, &plan, if node_exists { plan.cpuset.clone() } else { None }, &cfg, &tdir, &fastchess, &shared, &control)
         })?);
     }
     // supervisor: control polling + heartbeat
@@ -384,7 +418,6 @@ fn lane_loop(
     plan: &LanePlan,
     cpuset: Option<CpuSet>,
     cfg: &TournamentConfig,
-    pairs: &[(crate::model::Participant, crate::model::Participant)],
     tdir: &Path,
     fastchess: &Path,
     shared: &Arc<Mutex<Shared>>,
@@ -402,7 +435,12 @@ fn lane_loop(
             s.queue.next_for(Some(plan.partition), &done)
         };
         let Some(job) = job else { break };
-        let (ea, eb) = &pairs[job.pairing];
+        let Some(pair) = scheduler::job_pair(cfg, &job) else {
+            log_line(tdir, &format!("L{li} {} - {}: engine not in the tournament, skipped", job.white, job.black));
+            shared.lock().unwrap().queue.complete(&job, false);
+            continue;
+        };
+        let (ea, eb) = &pair;
         let tag = format!(
             "node{}_p{}_{}_vs_{}_r{}_{}",
             job.node,
@@ -414,7 +452,7 @@ fn lane_loop(
         );
         let log_file = tdir.join("logs").join("games").join(format!("{tag}.log"));
         let state_json = tdir.join("logs").join("games").join(format!("{tag}.json"));
-        let args = crate::fastchess::game_args(cfg, &pairs[job.pairing], &job, &pgn_out, &log_file, &state_json);
+        let args = crate::fastchess::game_args(cfg, &pair, &job, &pgn_out, &log_file, &state_json);
         let mut cmd = std::process::Command::new(fastchess);
         cmd.args(&args).current_dir(tdir).stdin(std::process::Stdio::null());
         match std::fs::OpenOptions::new().create(true).append(true).open(&console) {

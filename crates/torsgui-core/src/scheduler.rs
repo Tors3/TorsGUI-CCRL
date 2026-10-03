@@ -67,6 +67,8 @@ pub fn pairings(cfg: &TournamentConfig) -> Vec<(Participant, Participant)> {
     match cfg.kind {
         TournamentKind::RoundRobin => rr(&all),
         TournamentKind::Match => rr(&all[..all.len().min(2)]),
+        // decided round by round from the results: see `staged`
+        TournamentKind::Swiss | TournamentKind::Knockout => Vec::new(),
         TournamentKind::Gauntlet | TournamentKind::MultiGauntlet => {
             let seeds: Vec<Participant> = cfg.seeds().into_iter().cloned().collect();
             let opps: Vec<Participant> = cfg.opponents().into_iter().cloned().collect();
@@ -79,6 +81,13 @@ pub fn pairings(cfg: &TournamentConfig) -> Vec<(Participant, Participant)> {
             out
         }
     }
+}
+
+/// The two participants of a job, first engine of the pairing first (as `game_args` wants).
+pub fn job_pair(cfg: &TournamentConfig, job: &Job) -> Option<(Participant, Participant)> {
+    let (first, second) = if job.reversed { (&job.black, &job.white) } else { (&job.white, &job.black) };
+    let find = |n: &str| cfg.participants.iter().find(|p| p.name == n).cloned();
+    Some((find(first)?, find(second)?))
 }
 
 /// Opening index of a slot (the run_node.py formula).
@@ -97,8 +106,12 @@ pub fn rounds_for_node(cfg: &TournamentConfig, node: u32) -> u32 {
     *r.get(node as usize).unwrap_or(r.last().unwrap())
 }
 
-/// Every slot of the tournament, in canonical order.
+/// Every slot of the tournament, in canonical order (Swiss / knockout: the first round,
+/// the others depend on the results: `known_jobs`).
 pub fn all_jobs(cfg: &TournamentConfig) -> Vec<Job> {
+    if cfg.kind.is_dynamic() {
+        return staged(cfg, &Results::new()).jobs;
+    }
     let pairs = pairings(cfg);
     let n_pair = pairs.len();
     let play = cfg.effective_play_passes();
@@ -128,15 +141,35 @@ pub fn all_jobs(cfg: &TournamentConfig) -> Vec<Job> {
     v
 }
 
+/// Games of the tournament (Swiss / knockout: the nominal count, without tiebreaks).
 pub fn expected_games(cfg: &TournamentConfig) -> usize {
+    if cfg.kind.is_dynamic() {
+        return staged(cfg, &Results::new()).expected;
+    }
     all_jobs(cfg).len()
+}
+
+/// Every slot known so far: all of them for the fixed formats; for Swiss and knockout the
+/// rounds already paired from the results.
+pub fn known_jobs(cfg: &TournamentConfig, results: &Results) -> Vec<Job> {
+    if cfg.kind.is_dynamic() { staged(cfg, results).jobs } else { all_jobs(cfg) }
+}
+
+/// Games expected with the results so far (knockout tiebreaks included).
+pub fn expected_with(cfg: &TournamentConfig, results: &Results) -> usize {
+    if cfg.kind.is_dynamic() { staged(cfg, results).expected } else { all_jobs(cfg).len() }
 }
 
 /// Missing slots ordered like run_node.py: games of the pairings that are
 /// furthest behind first, round after round.
 pub fn build_queue(cfg: &TournamentConfig, done: &HashSet<SlotKey>) -> Vec<Job> {
+    build_queue_of(all_jobs(cfg), done)
+}
+
+/// `build_queue` over a given set of slots (the known rounds of a Swiss or knockout).
+pub fn build_queue_of(jobs: Vec<Job>, done: &HashSet<SlotKey>) -> Vec<Job> {
     let mut groups: HashMap<(u32, u32, usize), (usize, Vec<Job>)> = HashMap::new();
-    for job in all_jobs(cfg) {
+    for job in jobs {
         let e = groups.entry((job.node, job.pass, job.pairing)).or_default();
         if done.contains(&job.slot()) {
             e.0 += 1;
@@ -152,6 +185,393 @@ pub fn build_queue(cfg: &TournamentConfig, done: &HashSet<SlotKey>) -> Vec<Job> 
     }
     keyed.sort_by(|a, b| a.0.cmp(&b.0));
     keyed.into_iter().map(|(_, j)| j).collect()
+}
+
+// ---------------------------------------------------------------- Swiss and knockout
+
+/// Result of every finished game: slot → White's score (1, ½, 0).
+pub type Results = HashMap<SlotKey, f64>;
+
+/// Knockout: 2-game tiebreaks played when a match is tied, before the higher seed goes through.
+pub const KO_TIEBREAKS: u32 = 3;
+
+/// One match of a Swiss round or of a knockout round (`b` = None: a bye).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
+pub struct StageMatch {
+    pub a: String,
+    pub b: Option<String>,
+    pub score_a: f64,
+    pub score_b: f64,
+    pub played: u32,
+    pub total: u32,
+    pub winner: Option<String>,
+    /// Knockout tiebreak pairs played (or scheduled).
+    pub tiebreaks: u32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
+pub struct Stage {
+    pub number: u32,
+    pub matches: Vec<StageMatch>,
+    pub complete: bool,
+}
+
+/// Swiss table row.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
+pub struct StageRow {
+    pub name: String,
+    pub points: f64,
+    pub games: u32,
+    pub buchholz: f64,
+    pub byes: u32,
+    /// Knockout: still in the cup.
+    pub alive: bool,
+}
+
+/// Rounds of a Swiss or knockout tournament as far as they are known.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
+pub struct StagesView {
+    pub rounds_total: u32,
+    pub stages: Vec<Stage>,
+    pub table: Vec<StageRow>,
+    pub champion: Option<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Staged {
+    pub jobs: Vec<Job>,
+    pub expected: usize,
+    pub finished: bool,
+    pub view: StagesView,
+}
+
+/// Results of the games of a PGN index.
+pub fn results_of(games: impl Iterator<Item = (SlotKey, Option<f64>)>) -> Results {
+    games.filter_map(|(k, s)| s.map(|s| (k, s))).collect()
+}
+
+fn openings_per_match(cfg: &TournamentConfig) -> u32 {
+    cfg.rounds_per_pass.first().copied().filter(|&x| x > 0).unwrap_or((cfg.games_per_pairing / 2).max(1))
+}
+
+/// Number of rounds: Swiss = `passes`; knockout = log2 of the bracket.
+pub fn stage_count(cfg: &TournamentConfig) -> u32 {
+    let n = cfg.participants.len() as u32;
+    match cfg.kind {
+        TournamentKind::Swiss => cfg.passes.max(1),
+        TournamentKind::Knockout => n.max(2).next_power_of_two().trailing_zeros(),
+        _ => 1,
+    }
+}
+
+/// Highest opening a Swiss / knockout can use (book size check).
+pub fn last_opening_dynamic(cfg: &TournamentConfig) -> u32 {
+    let n = cfg.participants.len() as u32;
+    let stride = openings_per_match(cfg) + if cfg.kind == TournamentKind::Knockout { KO_TIEBREAKS } else { 0 };
+    cfg.book_start + stage_count(cfg) * n.div_ceil(2) * stride - 1
+}
+
+/// Jobs of one match: openings `rounds`, each with both colours (`a` White first).
+fn match_jobs(cfg: &TournamentConfig, stage: u32, pairing: usize, a: &str, b: &str, rounds: std::ops::RangeInclusive<u32>) -> Vec<Job> {
+    let n = cfg.participants.len() as u32;
+    let stride = openings_per_match(cfg) + if cfg.kind == TournamentKind::Knockout { KO_TIEBREAKS } else { 0 };
+    let block = (stage - 1) * n.div_ceil(2) + pairing as u32;
+    let mut v = Vec::new();
+    for r in rounds {
+        let opening = cfg.book_start + block * stride + r - 1;
+        for rev in [false, true] {
+            let (w, bl) = if rev { (b, a) } else { (a, b) };
+            v.push(Job { node: 0, pass: stage, pairing, round: r, reversed: rev, opening, white: w.to_string(), black: bl.to_string() });
+        }
+    }
+    v
+}
+
+/// (games finished, score of the first engine) of a match.
+fn match_score(results: &Results, jobs: &[Job]) -> (u32, f64) {
+    let mut done = 0;
+    let mut sa = 0.0;
+    for j in jobs {
+        if let Some(s) = results.get(&j.slot()) {
+            done += 1;
+            sa += if j.reversed { 1.0 - s } else { *s };
+        }
+    }
+    (done, sa)
+}
+
+/// Swiss or knockout rounds known from the results.
+pub fn staged(cfg: &TournamentConfig, results: &Results) -> Staged {
+    match cfg.kind {
+        TournamentKind::Swiss => swiss(cfg, results),
+        TournamentKind::Knockout => knockout(cfg, results),
+        _ => Staged { jobs: all_jobs(cfg), ..Default::default() },
+    }
+}
+
+fn swiss(cfg: &TournamentConfig, results: &Results) -> Staged {
+    let names: Vec<String> = cfg.participants.iter().map(|p| p.name.clone()).collect();
+    let rank: HashMap<&str, usize> = names.iter().enumerate().map(|(i, n)| (n.as_str(), i)).collect();
+    let n = names.len();
+    let opm = openings_per_match(cfg);
+    let games_per_match = opm * 2;
+    let rounds = stage_count(cfg);
+    let mut points: HashMap<String, f64> = names.iter().map(|n| (n.clone(), 0.0)).collect();
+    let mut played: HashSet<(String, String)> = HashSet::new();
+    let mut byes: HashMap<String, u32> = HashMap::new();
+    let key = |a: &str, b: &str| if a < b { (a.to_string(), b.to_string()) } else { (b.to_string(), a.to_string()) };
+    let mut out = Staged { view: StagesView { rounds_total: rounds, ..Default::default() }, ..Default::default() };
+    if n < 2 {
+        return out;
+    }
+    for s in 1..=rounds {
+        // pairs that already have games in this round stay as they are
+        let mut fixed: Vec<(String, String)> = Vec::new();
+        for k in results.keys().filter(|k| k.pass == s) {
+            let (a, b) = if rank.get(k.white.as_str()) < rank.get(k.black.as_str()) { (&k.white, &k.black) } else { (&k.black, &k.white) };
+            if rank.contains_key(a.as_str()) && rank.contains_key(b.as_str()) && !fixed.iter().any(|(x, y)| x == a && y == b) {
+                fixed.push((a.clone(), b.clone()));
+            }
+        }
+        let (mut pairs, bye) = swiss_pair(&names, &points, &played, &byes, fixed);
+        pairs.sort_by_key(|(a, b)| rank[a.as_str()].min(rank[b.as_str()]));
+        let mut stage = Stage { number: s, ..Default::default() };
+        let mut complete = true;
+        for (k, (a, b)) in pairs.iter().enumerate() {
+            let jobs = match_jobs(cfg, s, k, a, b, 1..=opm);
+            let (done, sa) = match_score(results, &jobs);
+            complete &= done as usize == jobs.len();
+            stage.matches.push(StageMatch { a: a.clone(), b: Some(b.clone()), score_a: sa, score_b: done as f64 - sa, played: done, total: jobs.len() as u32, winner: None, tiebreaks: 0 });
+            out.jobs.extend(jobs);
+        }
+        if let Some(by) = &bye {
+            stage.matches.push(StageMatch { a: by.clone(), b: None, score_a: games_per_match as f64 * 0.5, winner: Some(by.clone()), ..Default::default() });
+        }
+        stage.complete = complete;
+        out.view.stages.push(stage.clone());
+        if !complete {
+            break;
+        }
+        for m in &stage.matches {
+            *points.get_mut(&m.a).unwrap() += m.score_a;
+            match &m.b {
+                Some(b) => {
+                    *points.get_mut(b).unwrap() += m.score_b;
+                    played.insert(key(&m.a, b));
+                }
+                None => *byes.entry(m.a.clone()).or_default() += 1,
+            }
+        }
+        out.finished = s == rounds;
+    }
+    let future = rounds as usize - out.view.stages.len();
+    out.expected = out.jobs.len() + future * (n / 2) * games_per_match as usize;
+    // table: every recorded game and the byes, Buchholz = opponents' points
+    let mut pts: HashMap<&str, f64> = names.iter().map(|n| (n.as_str(), 0.0)).collect();
+    let mut games: HashMap<&str, u32> = HashMap::new();
+    let mut opps: HashMap<&str, Vec<&str>> = HashMap::new();
+    for st in &out.view.stages {
+        for m in &st.matches {
+            *pts.get_mut(m.a.as_str()).unwrap() += m.score_a;
+            if let Some(b) = &m.b {
+                *pts.get_mut(b.as_str()).unwrap() += m.score_b;
+                *games.entry(m.a.as_str()).or_default() += m.played;
+                *games.entry(b.as_str()).or_default() += m.played;
+                opps.entry(m.a.as_str()).or_default().push(b.as_str());
+                opps.entry(b.as_str()).or_default().push(m.a.as_str());
+            }
+        }
+    }
+    let mut table: Vec<StageRow> = names
+        .iter()
+        .map(|nm| StageRow {
+            name: nm.clone(),
+            points: pts[nm.as_str()],
+            games: games.get(nm.as_str()).copied().unwrap_or(0),
+            buchholz: opps.get(nm.as_str()).map(|o| o.iter().map(|x| pts[x]).sum()).unwrap_or(0.0),
+            byes: byes.get(nm).copied().unwrap_or(0) + out.view.stages.last().filter(|s| !s.complete).map(|s| s.matches.iter().filter(|m| m.b.is_none() && &m.a == nm).count() as u32).unwrap_or(0),
+            alive: true,
+        })
+        .collect();
+    table.sort_by(|x, y| y.points.total_cmp(&x.points).then(y.buchholz.total_cmp(&x.buchholz)).then(rank[x.name.as_str()].cmp(&rank[y.name.as_str()])));
+    if out.finished {
+        out.view.champion = table.first().map(|r| r.name.clone());
+    }
+    out.view.table = table;
+    out
+}
+
+/// Pairs of a Swiss round: the pairs already started (`fixed`), a bye for the lowest
+/// engine without one (odd number), then score groups paired top half against bottom
+/// half (Dutch system), without rematches when possible.
+fn swiss_pair(names: &[String], points: &HashMap<String, f64>, played: &HashSet<(String, String)>, byes: &HashMap<String, u32>, fixed: Vec<(String, String)>) -> (Vec<(String, String)>, Option<String>) {
+    let rank: HashMap<&str, usize> = names.iter().enumerate().map(|(i, n)| (n.as_str(), i)).collect();
+    let taken: HashSet<&str> = fixed.iter().flat_map(|(a, b)| [a.as_str(), b.as_str()]).collect();
+    let mut pool: Vec<String> = names.iter().filter(|n| !taken.contains(n.as_str())).cloned().collect();
+    pool.sort_by(|a, b| points[b].total_cmp(&points[a]).then(rank[a.as_str()].cmp(&rank[b.as_str()])));
+    let mut bye = None;
+    if pool.len() % 2 == 1 {
+        let i = pool.iter().rposition(|p| byes.get(p).copied().unwrap_or(0) == 0).unwrap_or(pool.len() - 1);
+        bye = Some(pool.remove(i));
+    }
+    let met = |a: &str, b: &str| played.contains(&if a < b { (a.to_string(), b.to_string()) } else { (b.to_string(), a.to_string()) });
+    fn dfs(pool: &[String], points: &HashMap<String, f64>, met: &dyn Fn(&str, &str) -> bool, strict: bool, budget: &mut u32) -> Option<Vec<(String, String)>> {
+        if pool.is_empty() {
+            return Some(Vec::new());
+        }
+        if *budget == 0 {
+            return None;
+        }
+        *budget -= 1;
+        let p = &pool[0];
+        let rest = &pool[1..];
+        // the score group of p: its ideal partner is half the group down (S1 against S2)
+        let group: Vec<usize> = (0..rest.len()).filter(|&i| points[&rest[i]] == points[p]).collect();
+        let ideal = ((group.len() + 1) / 2).saturating_sub(1) as i64;
+        let mut order: Vec<usize> = group.clone();
+        order.sort_by_key(|&i| ((group.iter().position(|&g| g == i).unwrap() as i64 - ideal).abs(), i));
+        order.extend((0..rest.len()).filter(|i| !group.contains(i)));
+        for i in order {
+            let q = &rest[i];
+            if strict && met(p, q) {
+                continue;
+            }
+            let next: Vec<String> = rest.iter().enumerate().filter(|(k, _)| *k != i).map(|(_, x)| x.clone()).collect();
+            if let Some(mut v) = dfs(&next, points, met, strict, budget) {
+                v.insert(0, (p.clone(), q.clone()));
+                return Some(v);
+            }
+        }
+        None
+    }
+    let mut budget = 200_000;
+    let pairs = dfs(&pool, points, &met, true, &mut budget).or_else(|| {
+        let mut b = 200_000;
+        dfs(&pool, points, &met, false, &mut b)
+    });
+    let mut all = fixed;
+    for (a, b) in pairs.unwrap_or_default() {
+        all.push(if rank[a.as_str()] < rank[b.as_str()] { (a, b) } else { (b, a) });
+    }
+    (all, bye)
+}
+
+/// Standard bracket order of the seeds: 1 meets the last seed, 2 the second-to-last…
+/// (8: 1 8 4 5 2 7 3 6), so the best seeds can meet only in the last rounds.
+pub fn bracket_order(size: u32) -> Vec<u32> {
+    let mut v = vec![1u32];
+    while (v.len() as u32) < size {
+        let m = v.len() as u32 * 2 + 1;
+        v = v.iter().flat_map(|&s| [s, m - s]).collect();
+    }
+    v
+}
+
+fn knockout(cfg: &TournamentConfig, results: &Results) -> Staged {
+    let names: Vec<String> = cfg.participants.iter().map(|p| p.name.clone()).collect();
+    let n = names.len() as u32;
+    let opm = openings_per_match(cfg);
+    let rounds = stage_count(cfg);
+    let mut out = Staged { view: StagesView { rounds_total: rounds, ..Default::default() }, ..Default::default() };
+    if n < 2 {
+        return out;
+    }
+    let seed_of = |x: &str| names.iter().position(|n| n == x).unwrap_or(usize::MAX);
+    let mut slots: Vec<Option<String>> = bracket_order(n.next_power_of_two()).into_iter().map(|s| (s <= n).then(|| names[s as usize - 1].clone())).collect();
+    let mut matches_known = 0usize;
+    let mut eliminated: HashSet<String> = HashSet::new();
+    for s in 1..=rounds {
+        let mut stage = Stage { number: s, complete: true, ..Default::default() };
+        let mut next = Vec::new();
+        for k in 0..slots.len() / 2 {
+            match (&slots[2 * k], &slots[2 * k + 1]) {
+                (Some(a), None) | (None, Some(a)) => {
+                    stage.matches.push(StageMatch { a: a.clone(), winner: Some(a.clone()), ..Default::default() });
+                    next.push(Some(a.clone()));
+                }
+                (None, None) => next.push(None),
+                (Some(a), Some(b)) => {
+                    matches_known += 1;
+                    let mut jobs = match_jobs(cfg, s, k, a, b, 1..=opm);
+                    let (mut done, mut sa) = match_score(results, &jobs);
+                    let mut tb = 0;
+                    let mut winner = None;
+                    while done as usize == jobs.len() {
+                        let sb = done as f64 - sa;
+                        if sa != sb {
+                            winner = Some(if sa > sb { a.clone() } else { b.clone() });
+                            break;
+                        }
+                        if tb == KO_TIEBREAKS {
+                            // still level: the higher seed goes through
+                            winner = Some(if seed_of(a) < seed_of(b) { a.clone() } else { b.clone() });
+                            break;
+                        }
+                        tb += 1;
+                        jobs.extend(match_jobs(cfg, s, k, a, b, opm + tb..=opm + tb));
+                        (done, sa) = match_score(results, &jobs);
+                    }
+                    if winner.is_none() {
+                        stage.complete = false;
+                    }
+                    if let Some(w) = &winner {
+                        eliminated.insert(if w == a { b.clone() } else { a.clone() });
+                    }
+                    stage.matches.push(StageMatch { a: a.clone(), b: Some(b.clone()), score_a: sa, score_b: done as f64 - sa, played: done, total: jobs.len() as u32, winner: winner.clone(), tiebreaks: tb });
+                    out.jobs.extend(jobs);
+                    next.push(winner);
+                }
+            }
+        }
+        let complete = stage.complete;
+        out.view.stages.push(stage);
+        if !complete {
+            break;
+        }
+        slots = next;
+        if s == rounds {
+            out.finished = true;
+            out.view.champion = slots.first().cloned().flatten();
+        }
+    }
+    let future_matches = (n as usize - 1).saturating_sub(matches_known);
+    out.expected = out.jobs.len() + future_matches * opm as usize * 2;
+    let mut table: Vec<StageRow> = names.iter().map(|nm| StageRow { name: nm.clone(), alive: !eliminated.contains(nm), ..Default::default() }).collect();
+    // furthest round reached (byes count), to rank the engines knocked out
+    let mut reached: HashMap<String, u32> = HashMap::new();
+    for st in &out.view.stages {
+        for m in &st.matches {
+            for x in std::iter::once(&m.a).chain(m.b.iter()) {
+                reached.insert(x.clone(), st.number);
+            }
+        }
+    }
+    for st in &out.view.stages {
+        for m in &st.matches {
+            if let Some(b) = &m.b {
+                for (who, pts) in [(&m.a, m.score_a), (b, m.score_b)] {
+                    let r = table.iter_mut().find(|r| &r.name == who).unwrap();
+                    r.points += pts;
+                    r.games += m.played;
+                }
+            } else {
+                table.iter_mut().find(|r| r.name == m.a).unwrap().byes += 1;
+            }
+        }
+    }
+    table.sort_by(|x, y| {
+        y.alive
+            .cmp(&x.alive)
+            .then(reached.get(&y.name).cmp(&reached.get(&x.name)))
+            .then(y.points.total_cmp(&x.points))
+            .then(seed_of(&x.name).cmp(&seed_of(&y.name)))
+    });
+    out.view.table = table;
+    out
 }
 
 /// Global queue shared by all lanes. A lane prefers slots of its own opening
@@ -242,7 +662,7 @@ pub(crate) mod tests {
             passes,
             play_passes: None,
             nodes: (0..nodes).collect(),
-            rounds_per_pass: split_openings(games, passes, nodes).unwrap(),
+            rounds_per_pass: rounds_per_pass_for(kind, games, passes, nodes).unwrap(),
             lanes_per_node: 2,
             concurrency: 1,
             threads: 1,
@@ -367,5 +787,111 @@ pub(crate) mod tests {
         let mut c = cfg(TournamentKind::Gauntlet, &["C"], &["A", "B"], 40, 2, 2);
         c.play_passes = Some(1);
         assert_eq!(expected_games(&c), 2 * 20);
+    }
+
+    fn dyn_cfg(kind: TournamentKind, n: usize, games: u32, rounds: u32) -> TournamentConfig {
+        let names: Vec<String> = (1..=n).map(|i| format!("E{i:02}")).collect();
+        let refs: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
+        let mut c = cfg(kind, &[], &refs, games, rounds, 1);
+        c.participants[0].role = Role::Seed;
+        c
+    }
+
+    /// Plays every known game with `outcome` until nothing new appears.
+    fn play(c: &TournamentConfig, outcome: impl Fn(&Job) -> f64) -> (Results, Staged) {
+        let mut results = Results::new();
+        loop {
+            let st = staged(c, &results);
+            let missing: Vec<Job> = st.jobs.iter().filter(|j| !results.contains_key(&j.slot())).cloned().collect();
+            if missing.is_empty() {
+                return (results, st);
+            }
+            for j in missing {
+                results.insert(j.slot(), outcome(&j));
+            }
+        }
+    }
+
+    /// The engine listed first is stronger: it wins with White and draws with Black.
+    fn stronger_wins(j: &Job) -> f64 {
+        if j.white < j.black { 1.0 } else { 0.5 }
+    }
+
+    #[test]
+    fn swiss_rounds_are_paired_from_the_results() {
+        let c = dyn_cfg(TournamentKind::Swiss, 6, 2, 3);
+        assert_eq!(expected_games(&c), 3 * 3 * 2);
+        let r1 = staged(&c, &Results::new());
+        assert_eq!(r1.view.stages.len(), 1);
+        let p1: Vec<(String, String)> = r1.view.stages[0].matches.iter().map(|m| (m.a.clone(), m.b.clone().unwrap())).collect();
+        // top half against bottom half
+        assert_eq!(p1, vec![("E01".into(), "E04".into()), ("E02".into(), "E05".into()), ("E03".into(), "E06".into())]);
+        let (results, st) = play(&c, stronger_wins);
+        assert!(st.finished);
+        assert_eq!(st.jobs.len(), 18);
+        assert_eq!(results.len(), 18);
+        assert_eq!(st.expected, 18);
+        // no rematch in 3 rounds of 6 engines
+        let mut seen = HashSet::new();
+        for s in &st.view.stages {
+            for m in &s.matches {
+                let b = m.b.clone().unwrap();
+                assert!(seen.insert(if m.a < b { (m.a.clone(), b) } else { (b, m.a.clone()) }), "rematch in round {}", s.number);
+            }
+        }
+        assert_eq!(st.view.champion.as_deref(), Some("E01"));
+        assert_eq!(st.view.table[0].points, 4.5);
+        // every opening different
+        let openings: HashSet<u32> = st.jobs.iter().map(|j| j.opening).collect();
+        assert_eq!(openings.len(), 9);
+        // a round half played keeps its pairs
+        let r2_partial: Results = results.iter().filter(|(k, _)| k.pass == 1 || (k.pass == 2 && k.white == "E01")).map(|(k, v)| (k.clone(), *v)).collect();
+        let again = staged(&c, &r2_partial);
+        let pairs = |s: &Stage| s.matches.iter().map(|m| (m.a.clone(), m.b.clone())).collect::<Vec<_>>();
+        assert_eq!(pairs(&again.view.stages[1]), pairs(&st.view.stages[1]));
+        assert!(!again.view.stages[1].complete);
+    }
+
+    #[test]
+    fn swiss_with_an_odd_number_gives_each_bye_once() {
+        let c = dyn_cfg(TournamentKind::Swiss, 5, 2, 4);
+        let (_, st) = play(&c, |j| if j.round == 1 && !j.reversed { 1.0 } else { 0.5 });
+        assert!(st.finished);
+        let byes: Vec<String> = st.view.stages.iter().map(|s| s.matches.iter().find(|m| m.b.is_none()).unwrap().a.clone()).collect();
+        let distinct: HashSet<&String> = byes.iter().collect();
+        assert_eq!(distinct.len(), 4, "{byes:?}");
+        // a bye is worth a drawn match
+        assert_eq!(st.view.table.iter().map(|r| r.byes).sum::<u32>(), 4);
+        assert_eq!(st.jobs.len(), 4 * 2 * 2);
+    }
+
+    #[test]
+    fn knockout_bracket_and_tiebreaks() {
+        assert_eq!(bracket_order(8), vec![1, 8, 4, 5, 2, 7, 3, 6]);
+        let c = dyn_cfg(TournamentKind::Knockout, 5, 2, 1);
+        assert_eq!(stage_count(&c), 3);
+        assert_eq!(expected_games(&c), 4 * 2);
+        let r1 = staged(&c, &Results::new());
+        // 5 engines in a bracket of 8: three byes for the best seeds, E04 - E05 plays
+        assert_eq!(r1.jobs.len(), 2);
+        assert_eq!(r1.view.stages[0].matches.iter().filter(|m| m.b.is_none()).count(), 3);
+        let (_, st) = play(&c, stronger_wins);
+        assert!(st.finished);
+        assert_eq!(st.view.champion.as_deref(), Some("E01"));
+        assert_eq!(st.jobs.len(), 8);
+        assert!(st.view.table.iter().filter(|r| r.alive).count() == 1);
+        assert_eq!(st.view.table[0].name, "E01");
+        assert_eq!(st.view.table[1].name, "E02", "the losing finalist is second");
+        // every match drawn: 3 tiebreak pairs, then the higher seed
+        let (_, draws) = play(&c, |_| 0.5);
+        assert!(draws.finished);
+        assert_eq!(draws.view.champion.as_deref(), Some("E01"));
+        assert!(draws.view.stages.iter().flat_map(|s| s.matches.iter()).filter(|m| m.b.is_some()).all(|m| m.tiebreaks == KO_TIEBREAKS && m.played == 8));
+        assert_eq!(draws.jobs.len(), 4 * 8);
+        // a tie broken in the first tiebreak
+        let (_, tb) = play(&c, |j| if j.round == 2 && !j.reversed { 1.0 } else { 0.5 });
+        assert!(tb.view.stages.iter().flat_map(|s| s.matches.iter()).filter(|m| m.b.is_some()).all(|m| m.tiebreaks == 1 && m.played == 4));
+        let openings: HashSet<u32> = draws.jobs.iter().map(|j| j.opening).collect();
+        assert_eq!(openings.len(), draws.jobs.len() / 2);
     }
 }

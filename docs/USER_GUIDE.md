@@ -140,6 +140,12 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
   CCRL asset of its release); the button copies them to the engines folder (sha256 checked)
   and verifies them. Both are GPL-3: their sources are linked in the engine entry.
 - **Add local file** does the same verification for a binary already on disk.
+- **Import Cute Chess** reads the `engines.json` of Cute Chess (**Find it** looks in the usual
+  Cute Chess folders, or give the file or its folder, or paste its content): every UCI engine is
+  added with its working folder, its arguments and the UCI options changed in Cute Chess (not
+  Threads/Hash, which come from the tournament), then verified. Engines whose executable is not on
+  this computer are added without verification (set the executable in *Edit*); xboard engines are
+  skipped (fastchess plays UCI engines). An engine already in the library (same name) is skipped.
 - **Import REPORT.md** rebuilds the library (metadata only) from a CCRL_ScirptsTests-style
   `engines/` folder: release, asset, build, sha256, `id name`, options, used or not, notes.
 - **Edit**: canonical display name `<Engine> <version>` (the export adds ` 64-bit` and ` NCPU`
@@ -192,7 +198,8 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
 **Tournaments → New tournament**:
 
 1. *Type*: gauntlet, multi-seed gauntlet (seeds play each other round robin and every
-   anchor; anchors do not play each other), round robin or match; the CCRL list; the event
+   anchor; anchors do not play each other), round robin, match, **Swiss** or **Cup (knockout)**;
+   the CCRL list; the event
    (automatic CCRL naming, e.g. `CCRL Blitz gauntlet Triumviratus 7.0 8CPU`).
 2. *Engines*: the seed(s) and the opponents, or **Suggest opponents** from the list. Ratings
    in the target CPU category are shown (estimated ones marked). **Search** engines, keep only
@@ -229,6 +236,24 @@ block = (node × PASSES + pass − 1) × n_pairings + pairing
 start = BOOK_START + block × RPP_BLOCK        (RPP_BLOCK = max openings per pass per node)
 opening(round) = start + round − 1
 ```
+
+### Swiss and Cup (knockout)
+
+Their pairings depend on the results, so TorsGUI pairs one round at a time: when every game of
+a round is finished, the next round is paired and played (the runner goes on by itself). The
+engines are seeded by their CCRL rating (highest first). Each match is a mini-match of *Games /
+match* games: every opening twice with colours reversed.
+
+- **Swiss**: *Rounds* rounds. Round 1 pairs the top half against the bottom half; then engines
+  with the same score meet (Dutch system), never twice when possible (up to engines − 1 rounds).
+  With an odd number of engines the lowest engine without a bye rests, and a bye is worth a
+  drawn match. The **Rounds** tab shows every round and the table (points, then Buchholz).
+- **Cup (knockout)**: a seeded bracket (1 against the last seed, 2 against the second-to-last…);
+  with a number of engines that is not a power of two the best seeds get a bye in round 1. A
+  tied match plays 2-game tiebreaks (up to 3), then the higher seed goes through. The **Bracket**
+  tab shows every round up to the final and the winner.
+- Lanes: a round has at most (engines ÷ 2) × games per match games, so more lanes than that stay
+  idle until the next round is paired.
 
 ## 6. Run it
 

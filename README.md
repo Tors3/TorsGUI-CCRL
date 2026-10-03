@@ -6,13 +6,15 @@ TorsGUI is a desktop application for chess-engine testers who play games for the
 [CCRL](https://computerchess.org.uk/ccrl/) rating lists. It replaces the usual pile of
 Python scripts, `.bat` files and scheduled tasks with one elegant, dense tool that:
 
-- plays **gauntlets, multi-seed gauntlets, round robins and matches** with
+- plays **gauntlets, multi-seed gauntlets, round robins, matches, Swiss tournaments and
+  knockout cups** (rounds paired from the results) with
   [fastchess](https://github.com/Disservin/fastchess) (one game per process, TorsGUI owns the scheduling);
 - keeps tournaments running in a **detached runner** that survives the GUI being closed,
   crashing or updating, and **resumes exactly where it was** after a reboot;
 - places every game on a **NUMA node** (Windows: Job Object with group affinity, so engines
   that pin their own threads cannot escape);
 - **chains** tournaments: B starts only when A has *all* its games and ended cleanly;
+- imports your engines from **Cute Chess** (`engines.json`: folders, arguments, UCI options);
 - manages an **engine library** from official GitHub releases with the CCRL asset rules
   (AVX2, never AVX-512/VNNI/v4/32-bit — AVX-512 only as a flagged *personal* option; you can
   always pick another build yourself), UCI verification and a report;

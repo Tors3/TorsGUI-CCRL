@@ -15,6 +15,19 @@ pub enum TournamentKind {
     RoundRobin,
     /// Exactly two engines.
     Match,
+    /// Swiss system: every round pairs engines with the same score (no rematches); the
+    /// next round is paired when the current one is finished. `passes` = number of rounds.
+    Swiss,
+    /// Knockout cup: seeded bracket, each match is a mini-match of `games_per_pairing`
+    /// games; a tie goes to 2-game tiebreaks, then to the higher seed.
+    Knockout,
+}
+
+impl TournamentKind {
+    /// Pairings that depend on the results (decided round by round).
+    pub fn is_dynamic(self) -> bool {
+        matches!(self, TournamentKind::Swiss | TournamentKind::Knockout)
+    }
 }
 
 /// Chess variant of a tournament.
@@ -264,6 +277,18 @@ impl TournamentConfig {
 /// Splits the openings of one pairing over passes and nodes.
 /// Returns `rounds_per_pass` (one entry per node) or an error when the number
 /// of games is not a multiple of `passes x 2`.
+/// Openings per pairing for a kind: Swiss and knockout rounds use one block per match
+/// (`passes` is the number of Swiss rounds there, not a split of the openings).
+pub fn rounds_per_pass_for(kind: TournamentKind, games_per_pairing: u32, passes: u32, nodes: u32) -> Result<Vec<u32>, String> {
+    if kind.is_dynamic() {
+        if games_per_pairing == 0 || games_per_pairing % 2 != 0 {
+            return Err(format!("games per match ({games_per_pairing}) must be even and > 0: every opening is played with both colours"));
+        }
+        return Ok(vec![games_per_pairing / 2]);
+    }
+    split_openings(games_per_pairing, passes, nodes)
+}
+
 pub fn split_openings(games_per_pairing: u32, passes: u32, nodes: u32) -> Result<Vec<u32>, String> {
     if games_per_pairing == 0 || games_per_pairing % 2 != 0 {
         return Err(format!("games per pairing ({games_per_pairing}) must be even and > 0: every opening is played with both colours"));

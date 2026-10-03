@@ -419,3 +419,41 @@ test("engines are imported from a Cute Chess engines.json", async ({ page }) => 
   expect(e.verify_status).toBe("ok");
   await page.request.post("/api/engine_delete", { data: { id: e.id } });
 });
+
+test("Swiss and knockout tournaments from the wizard", async ({ page }) => {
+  await page.goto("/#/tournaments/new");
+  await page.getByRole("button", { name: "Swiss", exact: true }).click();
+  await expect(page.getByTestId("passes")).toHaveValue("5");
+  for (const n of ["Mock Alpha", "Mock Bravo", "Stockfish 19", "Caissa 2.0", "Berserk 14"]) await page.getByLabel(new RegExp(`opponent ${n}`)).first().check();
+  await page.getByTestId("games-per-pairing").fill("2");
+  await page.getByTestId("passes").fill("3");
+  // 5 engines, 3 rounds, 2 games per match: 2 matches per round
+  await expect(page.getByTestId("total-games")).toHaveText("12");
+  await expect(page.getByTestId("event-name")).toHaveValue(/swiss/);
+  await page.getByTestId("create-draft").click();
+  await expect(page.getByTestId("tab-rounds")).toBeVisible();
+  const id = decodeURIComponent(page.url().split("/tournaments/")[1]);
+  await expect(page.getByTestId("rounds")).toContainText("Round 1 of 3");
+  await expect(page.getByTestId("rounds")).toContainText("bye");
+  await expect(page.getByTestId("swiss-table").locator("tbody tr")).toHaveCount(5);
+  const d = await (await page.request.post("/api/tournament_get", { data: { id } })).json();
+  expect(d.summary.record.config.kind).toBe("swiss");
+  expect(d.summary.record.expected_games).toBe(12);
+  // seeding by rating: Stockfish 19 first
+  expect(d.summary.record.config.participants[0].name).toBe("Stockfish 19");
+  expect(d.stages.stages[0].matches[0].a).toBe("Stockfish 19");
+  await page.request.post("/api/tournament_delete", { data: { id, delete_files: true } });
+
+  // knockout: the bracket of the first round
+  await page.goto("/#/tournaments/new");
+  await page.getByRole("button", { name: "Cup (knockout)", exact: true }).first().click();
+  for (const n of ["Mock Alpha", "Mock Bravo", "Stockfish 19", "Caissa 2.0", "Berserk 14"]) await page.getByLabel(new RegExp(`opponent ${n}`)).first().check();
+  await page.getByTestId("games-per-pairing").fill("2");
+  await expect(page.getByTestId("total-games")).toHaveText("8");
+  await page.getByTestId("create-draft").click();
+  await expect(page.getByTestId("tab-rounds")).toHaveText("Bracket");
+  const id2 = decodeURIComponent(page.url().split("/tournaments/")[1]);
+  await expect(page.getByTestId("rounds")).toContainText("Round 1 of 3");
+  await expect(page.getByTestId("rounds")).toContainText("goes through");
+  await page.request.post("/api/tournament_delete", { data: { id: id2, delete_files: true } });
+});

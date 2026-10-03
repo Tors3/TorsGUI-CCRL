@@ -24,7 +24,7 @@ import { ErrorBox, Field, Modal, PageHeader, Panel, Seg, Spinner, Tip, Warn } fr
 import { call, usePoll } from "../lib/api";
 import { duration, num } from "../lib/format";
 
-const KIND_LABEL: Record<TournamentKind, string> = { gauntlet: "gauntlet", multi_gauntlet: "gauntlet", round_robin: "round robin", match: "match" };
+const KIND_LABEL: Record<TournamentKind, string> = { gauntlet: "gauntlet", multi_gauntlet: "gauntlet", round_robin: "round robin", match: "match", swiss: "swiss", knockout: "knockout" };
 
 function splitOpenings(games: number, passes: number, nodes: number): number[] | null {
   if (games <= 0 || games % 2 || games % (passes * 2)) return null;
@@ -180,7 +180,8 @@ export function Wizard() {
   const seedEngines = seeds.map((i) => byId.get(i)).filter(Boolean) as EngineEntry[];
   const oppEngines = opps.map((i) => byId.get(i)).filter(Boolean) as EngineEntry[];
   const kindLabel = KIND_LABEL[kind];
-  const autoEvent = kind === "round_robin" ? `CCRL ${list} round robin ${threads}CPU` : `CCRL ${list} ${kindLabel} ${seedEngines.map((e) => e.display_name).join(" + ") || "<seed>"} ${threads}CPU`;
+  const dynamicKind = kind === "swiss" || kind === "knockout";
+  const autoEvent = kind === "round_robin" || dynamicKind ? `CCRL ${list} ${kindLabel} ${threads}CPU` : `CCRL ${list} ${kindLabel} ${seedEngines.map((e) => e.display_name).join(" + ") || "<seed>"} ${threads}CPU`;
   useEffect(() => {
     if (eventAuto) setEventName(autoEvent);
   }, [autoEvent, eventAuto]);
@@ -195,7 +196,10 @@ export function Wizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(names), list, threads]);
 
-  const rpp = splitOpenings(games, passes, Math.max(1, nodes.length));
+  // Swiss / knockout: one block of openings per match, `passes` = Swiss rounds
+  const rpp = dynamicKind ? (games > 0 && games % 2 === 0 ? [games / 2] : null) : splitOpenings(games, passes, Math.max(1, nodes.length));
+  // seeding of a Swiss / knockout: highest CCRL rating first
+  const seedRating = (e: EngineEntry) => ratings[e.display_name]?.rating ?? libRatings.get(e.id!)?.[list as RatingList]?.rating ?? -1;
   const baseOptions = (e: EngineEntry): Record<string, string> => {
     const was = editing?.config.participants.find((p) => p.engine_id === e.id);
     return was ? { ...was.options } : { Threads: "${THREADS}", Hash: "${HASH}", ...e.default_options };
@@ -215,7 +219,10 @@ export function Wizard() {
     ? {
         name: eventName.replace(/^CCRL /, "") || "Tournament",
         kind,
-        participants: kind === "round_robin" || kind === "match" ? [...seedEngines, ...oppEngines].map((e, i) => toParticipant(e, i === 0 ? "seed" : "opponent")) : [...seedEngines.map((e) => toParticipant(e, "seed")), ...oppEngines.map((e) => toParticipant(e, "opponent"))],
+        participants: dynamicKind
+          ? [...seedEngines, ...oppEngines].sort((a, b) => seedRating(b) - seedRating(a) || a.display_name.localeCompare(b.display_name)).map((e, i) => toParticipant(e, i === 0 ? "seed" : "opponent"))
+          : kind === "round_robin" || kind === "match"
+            ? [...seedEngines, ...oppEngines].map((e, i) => toParticipant(e, i === 0 ? "seed" : "opponent")) : [...seedEngines.map((e) => toParticipant(e, "seed")), ...oppEngines.map((e) => toParticipant(e, "opponent"))],
         games_per_pairing: games,
         passes,
         play_passes: null,
@@ -348,12 +355,16 @@ export function Wizard() {
                   onChange={(k) => {
                     setKind(k);
                     if (k !== "multi_gauntlet" && seeds.length > 1) setSeeds(seeds.slice(0, 1));
+                    if (k === "swiss" && passes < 3) setPasses(5);
+                    if (k === "knockout") setPasses(1);
                   }}
                   options={[
                     { value: "gauntlet", label: "Gauntlet" },
                     { value: "multi_gauntlet", label: "Multi-seed" },
                     { value: "round_robin", label: "Round robin" },
                     { value: "match", label: "Match" },
+                    { value: "swiss", label: "Swiss" },
+                    { value: "knockout", label: "Cup (knockout)" },
                   ]}
                 />
               </Field>
@@ -520,12 +531,29 @@ export function Wizard() {
               <Field label="Hash (MB)" hint={hashAuto ? `${settings?.hash_per_thread_mb ?? 512} MB × threads` : <button className="underline" onClick={() => setHashAuto(true)}>automatic</button>}>
                 <input className="input tnum" type="number" value={hash} onChange={(e) => { setHashAuto(false); setHash(+e.target.value); }} />
               </Field>
-              <Field label="Games / pairing" hint={rpp ? `${games / 2} openings × 2 colours` : "must be a multiple of passes × 2"}>
+              <Field
+                label={dynamicKind ? "Games / match" : "Games / pairing"}
+                hint={
+                  !rpp
+                    ? dynamicKind
+                      ? "must be even"
+                      : "must be a multiple of passes × 2"
+                    : kind === "knockout"
+                      ? `${games / 2} openings × 2 colours; a tie: 2-game tiebreaks (up to 3), then the higher seed`
+                      : `${games / 2} openings × 2 colours`
+                }
+              >
                 <input className="input tnum" type="number" step={2} min={2} value={games} onChange={(e) => setGames(+e.target.value)} data-testid="games-per-pairing" />
               </Field>
-              <Field label="Passes" hint="openings of pass 2 follow pass 1">
-                <input className="input tnum" type="number" min={1} value={passes} onChange={(e) => setPasses(Math.max(1, +e.target.value))} />
-              </Field>
+              {kind === "knockout" ? (
+                <Field label="Rounds" hint="from the number of engines (byes for the best seeds)">
+                  <input className="input tnum" disabled value={Math.max(1, Math.ceil(Math.log2(Math.max(2, seedEngines.length + oppEngines.length))))} />
+                </Field>
+              ) : (
+                <Field label={kind === "swiss" ? "Rounds" : "Passes"} hint={kind === "swiss" ? `each round pairs equal scores, no rematches (up to ${Math.max(1, seedEngines.length + oppEngines.length - 1)} rounds)` : "openings of pass 2 follow pass 1"}>
+                  <input className="input tnum" type="number" min={1} value={passes} onChange={(e) => setPasses(Math.max(1, +e.target.value))} data-testid="passes" />
+                </Field>
+              )}
               <Field label="Time control (fastchess)" className="col-span-2">
                 <div className="flex gap-1.5">
                   <input className="input mono" value={tc} onChange={(e) => setTc(e.target.value)} data-testid="tc" />

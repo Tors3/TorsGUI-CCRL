@@ -273,7 +273,7 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
             }
             seeds.iter().map(|n| (n.clone(), Role::Seed)).chain(f.opponents.iter().map(|n| (n.clone(), Role::Opponent))).collect()
         }
-        TournamentKind::RoundRobin | TournamentKind::Match => {
+        TournamentKind::RoundRobin | TournamentKind::Match | TournamentKind::Swiss | TournamentKind::Knockout => {
             let all: Vec<String> = if f.engines.is_empty() { seeds.iter().chain(f.opponents.iter()).cloned().collect() } else { f.engines.clone() };
             if kind == TournamentKind::Match && all.len() != 2 {
                 out.errors.push(format!("a match needs exactly two engines ({} given)", all.len()));
@@ -372,7 +372,7 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
         nodes.truncate(openings as usize);
         out.warnings.push(format!("{openings} opening(s) per pass: using {} NUMA node(s)", nodes.len()));
     }
-    let rounds_per_pass = match crate::model::split_openings(games, passes, nodes.len() as u32) {
+    let rounds_per_pass = match crate::model::rounds_per_pass_for(kind, games, passes, nodes.len() as u32) {
         Ok(r) => r,
         Err(e) => {
             out.errors.push(e);
@@ -404,12 +404,14 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
     let label = match kind {
         TournamentKind::RoundRobin => "round robin",
         TournamentKind::Match => "match",
+        TournamentKind::Swiss => "swiss",
+        TournamentKind::Knockout => "knockout",
         _ => "gauntlet",
     };
     let seed_names: Vec<&str> = participants.iter().filter(|p| p.role == Role::Seed).map(|p| p.name.as_str()).collect();
     let event = f.event.clone().filter(|e| !e.trim().is_empty()).unwrap_or_else(|| {
-        if kind == TournamentKind::RoundRobin {
-            format!("CCRL {list} round robin {threads}CPU")
+        if matches!(kind, TournamentKind::RoundRobin | TournamentKind::Swiss | TournamentKind::Knockout) {
+            format!("CCRL {list} {label} {threads}CPU")
         } else {
             format!("CCRL {list} {label} {} {threads}CPU", if seed_names.is_empty() { "<seed>".to_string() } else { seed_names.join(" + ") })
         }
@@ -508,7 +510,7 @@ pub fn template(engines: &[EngineEntry], s: &Settings, nodes: &[(u32, u32)]) -> 
 {lib}
 
 format = {FORMAT}
-kind = "gauntlet"            # gauntlet | multi_gauntlet | round_robin | match
+kind = "gauntlet"            # gauntlet | multi_gauntlet | round_robin | match | swiss | knockout
 list = "Blitz"               # "Blitz", "40/15" or "FRC"
 # variant = "chess960"       # Fischer Random (default for the FRC list); engines must support UCI_Chess960
 seed = "Engine Under Test 1.0"

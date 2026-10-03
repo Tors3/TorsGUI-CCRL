@@ -74,6 +74,8 @@ pub struct TournamentDetail {
     pub lanes: Vec<runner::LaneStatus>,
     pub warnings: Vec<String>,
     pub pairings: Vec<(String, String, u32, u32)>,
+    /// Swiss / knockout rounds (None for the other formats).
+    pub stages: Option<scheduler::StagesView>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
@@ -1118,7 +1120,7 @@ impl App {
         let mut t = t;
         if let Some(l) = &loaded {
             // PGNs are the source of truth
-            let expected: std::collections::HashSet<pgn::SlotKey> = scheduler::all_jobs(&t.config).iter().map(|j| j.slot()).collect();
+            let expected: std::collections::HashSet<pgn::SlotKey> = scheduler::known_jobs(&t.config, &games_results(&l.games)).iter().map(|j| j.slot()).collect();
             let n = l.games.iter().filter(|g| g.finished()).filter(|g| g.slot().map(|s| expected.contains(&s)).unwrap_or(false)).count() as u32;
             t.done_games = if n == 0 { l.games.iter().filter(|g| g.finished()).count() as u32 } else { n };
         }
@@ -1140,15 +1142,23 @@ impl App {
         let lanes: Vec<runner::LaneStatus> = t.status.as_ref().and_then(|s| serde_json::from_value(s["lanes"].clone()).ok()).unwrap_or_default();
         let warnings: Vec<String> = t.status.as_ref().and_then(|s| serde_json::from_value(s["warnings"].clone()).ok()).unwrap_or_default();
         let per_pair = t.config.games_per_pairing.min(if t.config.passes > 0 { t.config.games_per_pairing / t.config.passes * t.config.effective_play_passes() } else { 0 });
-        let pairings = scheduler::pairings(&t.config)
-            .into_iter()
-            .map(|(a, b)| {
-                let n = loaded.games.iter().filter(|g| g.finished() && ((g.white() == a.name && g.black() == b.name) || (g.white() == b.name && g.black() == a.name))).count() as u32;
-                (a.name, b.name, n, per_pair)
-            })
-            .collect();
+        let (pairings, stages) = if t.config.kind.is_dynamic() {
+            // Swiss / knockout: the matches of the rounds known so far
+            let s = scheduler::staged(&t.config, &games_results(&loaded.games));
+            let p = s.view.stages.iter().flat_map(|st| st.matches.iter().filter_map(move |m| m.b.as_ref().map(|b| (format!("R{} {}", st.number, m.a), b.clone(), m.played, m.total)))).collect();
+            (p, Some(s.view))
+        } else {
+            let p = scheduler::pairings(&t.config)
+                .into_iter()
+                .map(|(a, b)| {
+                    let n = loaded.games.iter().filter(|g| g.finished() && ((g.white() == a.name && g.black() == b.name) || (g.white() == b.name && g.black() == a.name))).count() as u32;
+                    (a.name, b.name, n, per_pair)
+                })
+                .collect();
+            (p, None)
+        };
         let summary = self.summary(t, true);
-        ok(TournamentDetail { summary, standings: st, open_pairs, lanes, warnings, pairings })
+        ok(TournamentDetail { summary, standings: st, open_pairs, lanes, warnings, pairings, stages })
     }
 
     fn dashboard(&self, store: &crate::store::Store) -> Result<Value> {
@@ -1189,7 +1199,13 @@ impl App {
         if cfg.kind == TournamentKind::Match && cfg.participants.len() != 2 {
             p.errors.push("a match needs exactly two engines".into());
         }
-        let rpp = split_openings(cfg.games_per_pairing, cfg.passes, cfg.nodes.len().max(1) as u32);
+        if cfg.kind.is_dynamic() && cfg.participants.len() < 3 {
+            p.errors.push(format!("a {} needs at least three engines (two engines: use a match)", kind_label(cfg.kind)));
+        }
+        if cfg.kind == TournamentKind::Swiss && cfg.passes as usize >= cfg.participants.len().max(2) {
+            p.warnings.push(format!("{} rounds for {} engines: some engines will meet twice (at most {} rounds without rematches)", cfg.passes, cfg.participants.len(), cfg.participants.len().saturating_sub(1)));
+        }
+        let rpp = crate::model::rounds_per_pass_for(cfg.kind, cfg.games_per_pairing, cfg.passes, cfg.nodes.len().max(1) as u32);
         match rpp {
             Ok(r) => {
                 if r != cfg.rounds_per_pass {
@@ -1202,10 +1218,22 @@ impl App {
         p.pairings = pairs.len() as u32;
         p.games_per_pairing = cfg.games_per_pairing;
         let jobs = if p.errors.is_empty() { scheduler::all_jobs(cfg) } else { vec![] };
-        p.total_games = jobs.len() as u32;
+        // Swiss / knockout: the first round is known, the total is nominal (no tiebreaks)
+        p.total_games = if cfg.kind.is_dynamic() && p.errors.is_empty() { scheduler::expected_games(cfg) as u32 } else { jobs.len() as u32 };
         p.rounds_per_pass = cfg.rounds_per_pass.clone();
         p.openings_used = jobs.iter().map(|j| j.opening).collect::<std::collections::BTreeSet<_>>().len() as u32;
         p.last_opening = jobs.iter().map(|j| j.opening).max().unwrap_or(0);
+        if cfg.kind.is_dynamic() && p.errors.is_empty() {
+            let n = cfg.participants.len() as u32;
+            p.pairings = if cfg.kind == TournamentKind::Swiss { scheduler::stage_count(cfg) * (n / 2) } else { n - 1 };
+            p.openings_used = p.total_games / 2;
+            p.last_opening = scheduler::last_opening_dynamic(cfg);
+            let per_round = if cfg.kind == TournamentKind::Swiss { (n / 2) * cfg.games_per_pairing } else { (n.next_power_of_two() / 2) * cfg.games_per_pairing };
+            let lanes = cfg.lanes_per_node * cfg.nodes.len().max(1) as u32;
+            if lanes > per_round {
+                p.warnings.push(format!("{lanes} lanes but at most {per_round} games per round: some lanes stay idle (each round starts when the previous one is finished)"));
+            }
+        }
         let topo = crate::platform::os().topology();
         p.concurrent_games = cfg.lanes_per_node * cfg.nodes.len().max(1) as u32;
         p.busy_threads = p.concurrent_games * cfg.threads;
@@ -1263,7 +1291,7 @@ impl App {
         p.est_game_s = crate::tc::estimate_game_seconds(&cfg.tc, 60.0);
         p.eta_s = p.est_game_s * p.total_games as f64 / p.concurrent_games.max(1) as f64;
         if let Some(j) = jobs.first() {
-            let args = crate::fastchess::game_args(cfg, &pairs[j.pairing], j, Path::new("pgn/node0_lane0.pgn"), Path::new("logs/games/<game>.log"), Path::new("logs/games/<game>.json"));
+            let args = crate::fastchess::game_args(cfg, &scheduler::job_pair(cfg, j).unwrap_or_else(|| pairs[j.pairing].clone()), j, Path::new("pgn/node0_lane0.pgn"), Path::new("logs/games/<game>.log"), Path::new("logs/games/<game>.json"));
             p.first_command = format!("fastchess {}", args.iter().map(|a| if a.contains(' ') { format!("\"{a}\"") } else { a.clone() }).collect::<Vec<_>>().join(" "));
             p.event_example = j.event(&cfg.event);
         }
@@ -1834,12 +1862,19 @@ impl App {
     }
 }
 
+/// White's score of every finished game with a slot.
+fn games_results(games: &[Game]) -> scheduler::Results {
+    scheduler::results_of(games.iter().filter_map(|g| g.slot().map(|k| (k, g.white_score()))))
+}
+
 pub fn kind_label(k: TournamentKind) -> &'static str {
     match k {
         TournamentKind::Gauntlet => "gauntlet",
         TournamentKind::MultiGauntlet => "multi-seed gauntlet",
         TournamentKind::RoundRobin => "round robin",
         TournamentKind::Match => "match",
+        TournamentKind::Swiss => "swiss",
+        TournamentKind::Knockout => "knockout",
     }
 }
 

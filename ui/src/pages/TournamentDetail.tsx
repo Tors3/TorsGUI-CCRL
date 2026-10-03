@@ -7,6 +7,8 @@ import type { EngineEntry } from "../bindings/EngineEntry";
 import type { GameRow } from "../bindings/GameRow";
 import type { RenameReport } from "../bindings/RenameReport";
 import type { RowOrder } from "../bindings/RowOrder";
+import type { Stage } from "../bindings/Stage";
+import type { StagesView } from "../bindings/StagesView";
 import type { TournamentDetail } from "../bindings/TournamentDetail";
 import { GameViewer, type GameRef } from "../components/GameViewer";
 import { GamesTable } from "../components/GamesTable";
@@ -311,6 +313,96 @@ function Terminations({ d }: { d: TournamentDetail }) {
   );
 }
 
+const pts = (x: number) => (Number.isInteger(x) ? String(x) : x.toFixed(1));
+
+/** One match: score, games played, winner (knockout) or bye. */
+function MatchRow({ m, ko }: { m: Stage["matches"][number]; ko: boolean }) {
+  if (!m.b)
+    return (
+      <tr>
+        <td className="font-medium">{m.a}</td>
+        <td className="muted" colSpan={3}>
+          bye{ko ? " (goes through)" : ` (+${pts(m.score_a)})`}
+        </td>
+      </tr>
+    );
+  const done = m.played === m.total;
+  const bold = (x: string) => (m.winner === x ? "font-semibold" : m.winner ? "muted" : "");
+  return (
+    <tr>
+      <td className={bold(m.a)}>{m.a}</td>
+      <td className="r tnum font-medium whitespace-nowrap">
+        {pts(m.score_a)} – {pts(m.score_b)}
+      </td>
+      <td className={bold(m.b)}>{m.b}</td>
+      <td className="r tnum muted text-[12px] whitespace-nowrap">
+        {m.played}/{m.total} games
+        {m.tiebreaks > 0 && <span className="chip chip-warn ml-1.5">{m.tiebreaks} tiebreak{m.tiebreaks > 1 ? "s" : ""}</span>}
+        {!done && <span className="chip chip-accent ml-1.5">playing</span>}
+      </td>
+    </tr>
+  );
+}
+
+/** Swiss table and rounds, or the knockout bracket. */
+function Rounds({ v, ko }: { v: StagesView; ko: boolean }) {
+  return (
+    <div className="grid gap-3 cols-main-wide-side" data-testid="rounds">
+      <div className="flex flex-col gap-3 min-w-0">
+        {v.champion && (
+          <div className="panel px-3 py-2.5 text-[14px]">
+            🏆 <b>{v.champion}</b> wins the {ko ? "cup" : "Swiss"}
+          </div>
+        )}
+        {[...v.stages].reverse().map((s) => (
+          <Panel key={s.number} title={`${ko ? (s.number === v.rounds_total ? "Final" : s.number === v.rounds_total - 1 ? "Semi-finals" : `Round ${s.number}`) : `Round ${s.number}`} of ${v.rounds_total}${s.complete ? "" : " — in progress"}`} noPad>
+            <table className="tbl">
+              <tbody>
+                {s.matches.map((m, i) => (
+                  <MatchRow key={i} m={m} ko={ko} />
+                ))}
+              </tbody>
+            </table>
+          </Panel>
+        ))}
+        {v.stages.length < v.rounds_total && (
+          <div className="muted text-[12px]">
+            {v.rounds_total - v.stages.length} more round{v.rounds_total - v.stages.length > 1 ? "s" : ""}: each one is paired when the previous round is finished.
+          </div>
+        )}
+      </div>
+      <Panel title={ko ? "Engines" : "Swiss table"} noPad>
+        <table className="tbl" data-testid="swiss-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Engine</th>
+              <th className="r">Points</th>
+              {!ko && <th className="r" title="Buchholz: sum of the opponents' points">Buch.</th>}
+              <th className="r">Games</th>
+            </tr>
+          </thead>
+          <tbody>
+            {v.table.map((r, i) => (
+              <tr key={r.name} className={ko && !r.alive ? "muted" : ""}>
+                <td className="tnum">{i + 1}</td>
+                <td className="font-medium">
+                  {r.name}
+                  {ko && !r.alive && <span className="text-[11px] ml-1">out</span>}
+                  {r.byes > 0 && <span className="chip ml-1.5">{r.byes} bye{r.byes > 1 ? "s" : ""}</span>}
+                </td>
+                <td className="r tnum">{pts(r.points)}</td>
+                {!ko && <td className="r tnum muted">{pts(r.buchholz)}</td>}
+                <td className="r tnum muted">{r.games}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Panel>
+    </div>
+  );
+}
+
 function Config({ d, refresh }: { d: TournamentDetail; refresh: () => void }) {
   const r = d.summary.record;
   const [old, setOld] = useState(r.config.participants[0]?.name ?? "");
@@ -493,8 +585,13 @@ export function TournamentDetailPage() {
         <Kpi label="Avg game" value={duration(p.avg_game_s)} sub={st.min_duration_s != null ? `${duration(st.min_duration_s)} – ${duration(st.max_duration_s)}` : "—"} />
         <Kpi label="ETA" value={r.state === "running" ? duration(p.eta_s) : r.state === "completed" ? "done" : "—"} sub={r.state === "running" ? p.eta_at : r.finished_at ? shortTime(r.finished_at) : ""} />
       </div>
-      <Tabs.Root defaultValue="standings">
+      <Tabs.Root defaultValue={d.stages ? "rounds" : "standings"}>
         <Tabs.List className="tabs mb-3" aria-label="Tournament views">
+          {d.stages && (
+            <Tabs.Trigger className="tab" value="rounds" data-testid="tab-rounds">
+              {r.config.kind === "knockout" ? "Bracket" : "Rounds"}
+            </Tabs.Trigger>
+          )}
           <Tabs.Trigger className="tab" value="standings">Standings</Tabs.Trigger>
           <Tabs.Trigger className="tab" value="lanes">Lanes &amp; placement</Tabs.Trigger>
           <Tabs.Trigger className="tab" value="games">Games</Tabs.Trigger>
@@ -507,6 +604,11 @@ export function TournamentDetailPage() {
             </Tabs.Trigger>
           )}
         </Tabs.List>
+        {d.stages && (
+          <Tabs.Content value="rounds">
+            <Rounds v={d.stages} ko={r.config.kind === "knockout"} />
+          </Tabs.Content>
+        )}
         <Tabs.Content value="standings">
           <Standings d={d} order={order} setOrder={setOrder} />
         </Tabs.Content>

@@ -616,3 +616,51 @@ fn cute_chess_engines_json_is_imported() {
     assert!(again["added"].as_array().unwrap().is_empty());
     assert!(again["skipped"][0].as_str().unwrap().contains("already in the library"));
 }
+
+#[test]
+fn swiss_and_knockout_are_played_round_by_round() {
+    let _ = need_fastchess!();
+    let e = env().unwrap();
+    let opps = [("Opp A", ""), ("Opp B", ""), ("Opp C", ""), ("Opp D", "")];
+    // Swiss: 5 engines, 3 rounds, 2 games per match (one engine rests every round)
+    let mut sw = config(&e, "swiss", &opps, 2, 3, 5);
+    sw.kind = TournamentKind::Swiss;
+    sw.passes = 3;
+    sw.rounds_per_pass = torsgui_core::model::rounds_per_pass_for(sw.kind, 2, 3, 1).unwrap();
+    let id = create(&e, sw.clone(), false);
+    let out = runner_cmd(&e, &id).output().unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(state(&e, &id), TState::Completed);
+    assert_eq!(games(&e, &id), (12, 12));
+    let rec = e.ws.open().unwrap().tournament(&id).unwrap().unwrap();
+    assert_eq!(rec.expected_games, 12);
+    let loaded = torsgui_core::analysis::load(&pgn::list_pgns(&e.ws.pgn_dir(&id))).unwrap();
+    let results = torsgui_core::scheduler::results_of(loaded.games.iter().filter_map(|g| g.slot().map(|k| (k, g.white_score()))));
+    let st = torsgui_core::scheduler::staged(&rec.config, &results);
+    assert!(st.finished && st.view.champion.is_some());
+    assert_eq!(st.view.stages.len(), 3);
+    let byes: std::collections::HashSet<String> = st.view.stages.iter().map(|s| s.matches.iter().find(|m| m.b.is_none()).unwrap().a.clone()).collect();
+    assert_eq!(byes.len(), 3, "a different engine rests every round");
+    let events = e.ws.open().unwrap().recent_events(50, Some(&id)).unwrap();
+    assert!(events.iter().any(|ev| ev.message.contains("round 3 of 3 paired")), "{events:?}");
+
+    // knockout: 5 engines (bracket of 8, three byes), 2 games per match
+    let mut ko = config(&e, "cup", &opps, 2, 2, 5);
+    ko.kind = TournamentKind::Knockout;
+    ko.rounds_per_pass = torsgui_core::model::rounds_per_pass_for(ko.kind, 2, 1, 1).unwrap();
+    let id = create(&e, ko, false);
+    let out = runner_cmd(&e, &id).output().unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(state(&e, &id), TState::Completed);
+    let rec = e.ws.open().unwrap().tournament(&id).unwrap().unwrap();
+    let loaded = torsgui_core::analysis::load(&pgn::list_pgns(&e.ws.pgn_dir(&id))).unwrap();
+    let results = torsgui_core::scheduler::results_of(loaded.games.iter().filter_map(|g| g.slot().map(|k| (k, g.white_score()))));
+    let st = torsgui_core::scheduler::staged(&rec.config, &results);
+    assert!(st.finished, "{:?}", st.view);
+    assert!(st.view.champion.is_some());
+    // 4 matches, each at least 2 games (more with tiebreaks)
+    let (raw, unique) = games(&e, &id);
+    assert_eq!(raw, unique);
+    assert!(raw >= 8 && raw == st.jobs.len(), "{raw} games, {} jobs", st.jobs.len());
+    assert_eq!(rec.expected_games as usize, st.jobs.len());
+}

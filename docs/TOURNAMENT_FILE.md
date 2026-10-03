@@ -47,18 +47,18 @@ Contempt = "0"
 | Field | Default | Meaning |
 |---|---|---|
 | `format` | 1 | file format version |
-| `kind` | `gauntlet` | `gauntlet`, `multi_gauntlet`, `round_robin`, `match` (two or more `seed`s make a multi-seed gauntlet) |
+| `kind` | `gauntlet` | `gauntlet`, `multi_gauntlet`, `round_robin`, `match`, `swiss`, `knockout` (two or more `seed`s make a multi-seed gauntlet) |
 | `list` | `Blitz` | CCRL list: `Blitz`, `40/15` or `FRC` (ratings, event name, default TC) |
 | `variant` | by list | `standard` or `chess960` (default `chess960` for the FRC list); every engine must declare `UCI_Chess960`; without `book` all 960 start positions are generated |
 | `seed` | — | the engine under test, or a list of engines |
 | `opponents` | — | the opponents of a gauntlet |
-| `engines` | — | the players of a round robin or a match (instead of `seed`/`opponents`) |
+| `engines` | — | the players of a round robin, a match, a Swiss or a knockout (instead of `seed`/`opponents`; Swiss and knockout seed them in this order) |
 | `threads` | 1 | threads per engine |
 | `hash_mb` | 512 × threads | hash per engine (Settings → hash per thread) |
 | `tc` | computed | fastchess TC (`"103+1"`, `"40/900+10"`); by default the list's CCRL TC scaled by the machine factor of the settings, or by `factor` |
 | `factor` | settings | machine factor used when `tc` is not given |
-| `games_per_opponent` | 30 | games per pairing, even (each opening with both colours) |
-| `passes` | 1 | split the openings into passes: stopping after a pass stays balanced |
+| `games_per_opponent` | 30 | games per pairing (games per match in a Swiss or knockout), even (each opening with both colours) |
+| `passes` | 1 | split the openings into passes: stopping after a pass stays balanced; in a Swiss, the number of rounds |
 | `nodes` | all | NUMA nodes (opening partitions); a short match uses fewer when there are fewer openings |
 | `lanes_per_node` | cores / (2 × threads) | concurrent games per node |
 | `placement` | `node` | `node`, `lane` or `none` |

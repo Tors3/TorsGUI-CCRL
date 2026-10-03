@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.0] - 2026-10-03
+
+### Added
+- **Import engines from Cute Chess**: *Engines → Import Cute Chess* reads its `engines.json`
+  (found in the usual folders, given by path, or pasted): every UCI engine with its working
+  folder, arguments and the UCI options changed in Cute Chess, verified 4 at a time; engines
+  whose executable is missing are added to be completed later, xboard engines are skipped.
+  Engines get an *Arguments* field.
+- **Swiss** tournaments: rounds paired from the results (Dutch system, no rematches when
+  possible, byes worth a drawn match), Swiss table with Buchholz, the runner pairs and plays
+  each new round by itself.
+- **Cup (knockout)** tournaments: seeded bracket with byes for the best seeds, mini-matches with
+  2-game tiebreaks, bracket view up to the final and the winner.
+- Tournament files accept `kind = "swiss"` and `kind = "knockout"`.
+
 ## [0.4.2] - 2026-10-03
 
 ### Added
