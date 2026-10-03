@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] (0.5.1)
+## [0.5.1] - 2026-10-03
 
 ### Added
 - **Game analysis** (*Analysis → Game analysis*, or **Analyse** in the game viewer): a game of
