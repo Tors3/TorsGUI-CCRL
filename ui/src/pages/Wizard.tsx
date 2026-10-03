@@ -1,4 +1,4 @@
-import { Calculator, Check, Crosshair, ListPlus, Play, Plus, Save, Search, Sparkles } from "lucide-react";
+import { Calculator, Check, Crosshair, ListPlus, Play, Plus, Save, Search, SlidersHorizontal, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ import type { TournamentRecord } from "../bindings/TournamentRecord";
 import type { Variant } from "../bindings/Variant";
 import type { BookSpec } from "../bindings/BookSpec";
 import type { WizardPreview } from "../bindings/WizardPreview";
+import { UciOptionsEditor } from "../components/UciOptions";
 import { cmpNum, EloCell, matchesEngine, SortTh, useEngineRatings, type RatingList, type SortDir } from "../components/EngineRatings";
 import { ErrorBox, Field, Modal, PageHeader, Panel, Seg, Spinner, Tip, Warn } from "../components/ui";
 import { call, usePoll } from "../lib/api";
@@ -82,6 +83,11 @@ export function Wizard() {
   const [eloMin, setEloMin] = useState("");
   const [eloMax, setEloMax] = useState("");
   const { ratings: libRatings } = useEngineRatings();
+  // UCI options of the engines in this tournament (they start from Engines → Edit)
+  const [partOpts, setPartOpts] = useState<Record<number, Record<string, string>>>({});
+  const [optsFor, setOptsFor] = useState<EngineEntry | null>(null);
+  const [optsDraft, setOptsDraft] = useState<Record<string, string>>({});
+  const [optsRev, setOptsRev] = useState(0);
 
   useEffect(() => {
     if (!settings) return;
@@ -194,10 +200,14 @@ export function Wizard() {
     const was = editing?.config.participants.find((p) => p.engine_id === e.id);
     return was ? { ...was.options } : { Threads: "${THREADS}", Hash: "${HASH}", ...e.default_options };
   };
+  const customOpts = (e: EngineEntry) => {
+    const o = partOpts[e.id!];
+    return o != null && JSON.stringify(o) !== JSON.stringify(baseOptions(e));
+  };
   const toParticipant = (e: EngineEntry, role: "seed" | "opponent"): Participant => {
     // an edited tournament keeps the options and arguments it had for this engine
     const was = editing?.config.participants.find((p) => p.engine_id === e.id);
-    const opts: Record<string, string> = baseOptions(e);
+    const opts: Record<string, string> = partOpts[e.id!] ?? baseOptions(e);
     const r = ratings[e.display_name];
     return { name: e.display_name, cmd: e.path, dir: e.dir, args: was?.args ?? "", options: opts, role, engine_id: e.id, has_syzygy: e.has_syzygy, uci_id: e.uci_id, rating: r?.rating ?? null, rating_estimated: r?.estimated ?? false };
   };
@@ -444,7 +454,25 @@ export function Wizard() {
                         <td>
                           <input type="checkbox" checked={opps.includes(e.id!)} disabled={seeds.includes(e.id!)} onChange={() => toggle(opps, setOpps, e.id!)} aria-label={`opponent ${e.display_name}`} />
                         </td>
-                        <td className="font-medium">{e.display_name}</td>
+                        <td className="font-medium">
+                          <span className="inline-flex items-center gap-1.5">
+                            {e.display_name}
+                            {(seeds.includes(e.id!) || opps.includes(e.id!)) && (
+                              <Tip content="UCI options of this engine in this tournament (network file, contempt, …)">
+                                <button
+                                  className={`btn btn-sm ${customOpts(e) ? "btn-primary" : "btn-ghost"}`}
+                                  onClick={() => {
+                                    setOptsDraft(partOpts[e.id!] ?? baseOptions(e));
+                                    setOptsFor(e);
+                                  }}
+                                  data-testid={`wizard-options-${e.id}`}
+                                >
+                                  <SlidersHorizontal size={12} /> {customOpts(e) ? "custom options" : "options"}
+                                </button>
+                              </Tip>
+                            )}
+                          </span>
+                        </td>
                         <td className="mono truncate max-w-[180px]" title={e.build}>{e.build || "—"}</td>
                         <td className="r" style={{ color: tooFew ? "var(--loss)" : undefined }}>
                           {e.threads_max ?? "?"}
@@ -764,6 +792,38 @@ export function Wizard() {
             </label>
           </div>
         </div>
+      </Modal>
+      <Modal
+        open={optsFor != null}
+        onOpenChange={(o) => !o && setOptsFor(null)}
+        title={`${optsFor?.display_name ?? ""}: UCI options in this tournament`}
+        width={900}
+        footer={
+          <>
+            <button
+              className="btn"
+              onClick={() => {
+                if (!optsFor) return;
+                setOptsDraft({ Threads: "${THREADS}", Hash: "${HASH}", ...optsFor.default_options });
+                setOptsRev((r) => r + 1);
+              }}
+            >
+              Engine's options (Engines → Edit)
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                if (optsFor) setPartOpts({ ...partOpts, [optsFor.id!]: optsDraft });
+                setOptsFor(null);
+              }}
+              data-testid="wizard-options-apply"
+            >
+              Apply
+            </button>
+          </>
+        }
+      >
+        {optsFor && <UciOptionsEditor key={`${optsFor.id}-${optsRev}`} options={optsFor.options} values={optsDraft} onChange={setOptsDraft} engineId={optsFor.id} dir={optsFor.dir} />}
       </Modal>
     </div>
   );

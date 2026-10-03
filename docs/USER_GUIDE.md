@@ -149,6 +149,8 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
   `nets/my.nnue`). Relative file paths are read from the engine folder; wrong names, values out of
   range and missing network files are reported. `Ponder=false` and `OwnBook=false` are added when
   the engine exposes them. Threads and Hash always come from the tournament.
+- **Options of one tournament**: in *New tournament* the **options** button of a chosen engine
+  changes them for that tournament only.
 - **Options of a tournament already created**: the tournament's *Configuration* tab, **Engine
   options in this tournament**, changes them while it is paused or stopped (used from the next
   game; for CCRL every game must use the same settings).

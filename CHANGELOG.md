@@ -7,6 +7,8 @@
   control (number with its range, true/false, list, text/file), the engine default next to it,
   a reset per option; options the engine does not declare are added as name + value rows.
   New tournaments use the engine's options, as before.
+- *New tournament*: the **options** button of each chosen engine changes its options for that
+  tournament only (same editor).
 - The tournament's *Configuration* tab can change the options of one engine while the
   tournament is paused or stopped (used from the next game).
 - Option checks: names the engine does not declare (wrong upper/lower case), values outside the

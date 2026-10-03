@@ -335,7 +335,7 @@ test("engines: CCRL ratings, search and sort; wizard search, Elo range and sorti
   expect(await elo(1)).toBeGreaterThanOrEqual(await elo(2));
 });
 
-test("UCI options: kept in Engines → Edit, used by new tournaments, changed in the Configuration tab", async ({ page }) => {
+test("UCI options: kept in Engines → Edit, per tournament in the wizard and in the Configuration tab", async ({ page }) => {
   // Engines → Edit: a declared option and one added by name; saved options stay
   await page.goto("/#/engines");
   const row = page.getByTestId("engines-table").locator("tbody tr").filter({ hasText: "Mock Bravo" }).first();
@@ -362,11 +362,17 @@ test("UCI options: kept in Engines → Edit, used by new tournaments, changed in
   const bravo = engines.find((e: any) => e.display_name.startsWith("Mock Bravo"));
   expect(bravo.default_options.Strength).toBe("42");
   expect(bravo.default_options.evalfile).toBeUndefined();
+  // changed for this tournament only
+  await page.getByTestId(`wizard-options-${bravo.id}`).click();
+  await expect(page.getByLabel("option Strength")).toHaveValue("42");
+  await page.getByLabel("option Strength").fill("43");
+  await page.getByTestId("wizard-options-apply").click();
+  await expect(page.getByTestId(`wizard-options-${bravo.id}`)).toContainText("custom options");
   await page.getByTestId("create-draft").click();
   await expect(page.getByTestId("edit-tournament")).toBeVisible();
   const id = decodeURIComponent(page.url().split("/tournaments/")[1]);
   const opts = async () => (await (await page.request.post("/api/tournament_get", { data: { id } })).json()).summary.record.config.participants.find((p: any) => p.engine_id === bravo.id).options;
-  expect((await opts()).Strength).toBe("42");
+  expect((await opts()).Strength).toBe("43");
   expect((await opts()).Threads).toBe("${THREADS}");
 
   // Configuration tab of the tournament
