@@ -316,6 +316,36 @@ impl App {
                 store.push_event("info", "tournament_updated", Some(&id), &format!("{} edited ({} games)", cfg.name, scheduler::expected_games(&cfg)))?;
                 ok(store.tournament(&id)?)
             }
+            "tournament_set_options" => {
+                // the UCI options of one engine in this tournament; used from the next game on
+                let id: String = arg(&a, "id")?;
+                let name: String = arg(&a, "name")?;
+                let options: std::collections::BTreeMap<String, String> = arg(&a, "options")?;
+                let mut t = store.tournament(&id)?.context("not found")?;
+                if t.imported {
+                    bail!("imported tournaments are read-only");
+                }
+                if runner::is_running(&self.ws.tournament_dir(&id)) {
+                    bail!("pause or stop the tournament first: the new options are used from the next game");
+                }
+                let p = t.config.participants.iter_mut().find(|p| p.name == name).with_context(|| format!("'{name}' is not in this tournament"))?;
+                p.options = options.into_iter().map(|(k, v)| (k.trim().to_string(), v.trim().to_string())).filter(|(k, _)| !k.is_empty()).collect();
+                let declared = p.engine_id.and_then(|e| store.engine(e).ok().flatten()).map(|e| e.options).unwrap_or_default();
+                let warnings = engines::check_options(&p.name, &p.options, &declared, &p.dir);
+                let list = p.options.iter().filter(|(k, _)| *k != "Threads" && *k != "Hash").map(|(k, v)| format!("{k}={v}")).collect::<Vec<_>>().join(", ");
+                store.update_config(&id, &t.config, t.expected_games)?;
+                let dir = self.ws.tournament_dir(&id);
+                std::fs::create_dir_all(&dir)?;
+                std::fs::write(dir.join("config.json"), serde_json::to_string_pretty(&t.config)?)?;
+                store.push_event("info", "engine_options", Some(&id), &format!("{name}: options {}{}", if list.is_empty() { "reset to the defaults".to_string() } else { list }, if t.done_games > 0 { format!(" (from game {} on)", t.done_games + 1) } else { String::new() }))?;
+                ok(json!({"warnings": warnings}))
+            }
+            "engine_check_options" => {
+                let id: i64 = arg(&a, "engine_id")?;
+                let e = store.engine(id)?.context("engine not found")?;
+                let options: std::collections::BTreeMap<String, String> = arg(&a, "options")?;
+                ok(engines::check_options(&e.display_name, &options, &e.options, &e.dir))
+            }
             "tournament_delete" => {
                 let id: String = arg(&a, "id")?;
                 if runner::is_running(&self.ws.tournament_dir(&id)) {
@@ -1204,6 +1234,7 @@ impl App {
                     if e.flags.iter().any(|f| f == NOT_CCRL_FLAG) {
                         p.warnings.push(format!("{}: AVX-512 build (personal option): the results are not valid for CCRL", pp.name));
                     }
+                    p.warnings.extend(engines::check_options(&pp.name, &pp.options, &e.options, &pp.dir));
                     if frc && !e.chess960 {
                         if e.options.is_empty() {
                             p.warnings.push(format!("{}: UCI options unknown (verify the engine): Chess960 support not confirmed", pp.name));

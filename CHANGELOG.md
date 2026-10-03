@@ -1,5 +1,22 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **UCI options editor**: every option the engine declares with its own control (number with its
+  range, true/false, list, text/file), the engine default next to it, a reset per option, free
+  lines for undeclared options (`Name=value` or `setoption name … value …`). In *Engines → Edit*
+  (options of new tournaments), in *New tournament* (**options** button of each chosen engine:
+  options for that tournament only) and in the tournament's *Configuration* tab (change them on a
+  paused tournament, used from the next game).
+- Option checks (wizard, editor): names the engine does not declare (wrong upper/lower case),
+  values outside the range or the list, network files not found (relative paths are read from
+  the engine folder).
+
+### Fixed
+- *Engines → Edit*: saving dropped the options written by the user (only Ponder/OwnBook were kept),
+  so a changed network file never reached the games.
+
 ## [0.4.1] - 2026-10-02
 
 ### Added

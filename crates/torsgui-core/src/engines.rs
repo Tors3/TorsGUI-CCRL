@@ -95,7 +95,10 @@ impl EngineEntry {
         self.threads_max = opts.iter().find(|o| o.name == "Threads").and_then(|o| o.max);
         self.has_syzygy = opts.iter().any(|o| o.name == "SyzygyPath");
         self.chess960 = opts.iter().any(|o| o.name.eq_ignore_ascii_case("UCI_Chess960"));
-        self.default_options = default_options(&opts);
+        // the options set by the user stay; Ponder/OwnBook=false are added when missing
+        for (k, v) in default_options(&opts) {
+            self.default_options.entry(k).or_insert(v);
+        }
         self.flags.retain(|f| f != "single-thread only");
         if self.threads_max == Some(1) {
             self.flags.push("single-thread only".into());
@@ -141,6 +144,58 @@ pub fn default_options(opts: &[UciOption]) -> BTreeMap<String, String> {
         m.insert("OwnBook".into(), "false".into());
     }
     m
+}
+
+/// String options that hold a file (a network, weights): checked on disk.
+pub fn is_file_option(o: &UciOption) -> bool {
+    let n = o.name.to_lowercase();
+    o.kind == "string" && !n.contains("syzygy") && !n.contains("log") && (n.contains("evalfile") || n.contains("nnue") || n.contains("weights") || n.contains("network") || n == "net" || n.ends_with("file"))
+}
+
+/// Problems with the options sent to an engine: names it does not declare (often a
+/// wrong upper/lower case), values outside its range or list, network files that
+/// do not exist (relative paths are read from the engine's working folder `dir`).
+pub fn check_options(engine: &str, values: &BTreeMap<String, String>, declared: &[UciOption], dir: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    if declared.is_empty() {
+        return out;
+    }
+    for (k, v) in values {
+        let v = v.trim();
+        let Some(o) = declared.iter().find(|o| &o.name == k) else {
+            if k == "Threads" || k == "Hash" {
+                continue;
+            }
+            match declared.iter().find(|o| o.name.eq_ignore_ascii_case(k)) {
+                Some(o) => out.push(format!("{engine}: option '{k}' does not exist, the engine calls it '{}' (names are case-sensitive)", o.name)),
+                None => out.push(format!("{engine}: the engine has no option '{k}': it is ignored")),
+            }
+            continue;
+        };
+        if v.contains("${") {
+            continue;
+        }
+        match o.kind.as_str() {
+            "spin" => match v.parse::<i64>() {
+                Ok(n) if o.min.is_some_and(|m| n < m) || o.max.is_some_and(|m| n > m) => {
+                    out.push(format!("{engine}: {k}={n} is outside {}..{}", o.min.unwrap_or(i64::MIN), o.max.unwrap_or(i64::MAX)))
+                }
+                Ok(_) => {}
+                Err(_) => out.push(format!("{engine}: {k} needs a whole number, not '{v}'")),
+            },
+            "check" if v != "true" && v != "false" => out.push(format!("{engine}: {k} must be true or false, not '{v}'")),
+            "combo" if !o.vars.iter().any(|x| x == v) => out.push(format!("{engine}: {k}='{v}' is not one of {}", o.vars.join(", "))),
+            _ if is_file_option(o) && !v.is_empty() && v != "<empty>" => {
+                let p = Path::new(v);
+                let full = if p.is_absolute() || dir.is_empty() { p.to_path_buf() } else { Path::new(dir).join(p) };
+                if !full.exists() {
+                    out.push(format!("{engine}: {k} file not found: {}{}", full.display(), if p.is_absolute() { String::new() } else { format!(" (a relative path is read from the engine folder {dir})") }));
+                }
+            }
+            _ => {}
+        }
+    }
+    out
 }
 
 pub fn sha256_file(p: &Path) -> Result<String> {
@@ -606,5 +661,41 @@ mod tests {
         pe[0x85] = 0x86;
         std::fs::write(&p, &pe).unwrap();
         assert_eq!(binary_bitness(&p), Bitness::Bits64);
+    }
+
+    #[test]
+    fn option_values_are_checked() {
+        let (_, o) = parse_uci_options("id name Net 1\noption name EvalFile type string default nn-a.nnue\noption name Threads type spin default 1 min 1 max 64\noption name Contempt type spin default 0 min -100 max 100\noption name Ponder type check default false\noption name Style type combo default A var A var B\noption name Debug Log File type string default <empty>\n");
+        let dir = std::env::temp_dir().join(format!("torsgui-optcheck-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("nn-b.nnue"), b"x").unwrap();
+        let d = dir.to_string_lossy().to_string();
+        let ok: BTreeMap<String, String> = [("EvalFile", "nn-b.nnue"), ("Threads", "${THREADS}"), ("Hash", "${HASH}"), ("Contempt", "-20"), ("Ponder", "false"), ("Style", "B"), ("Debug Log File", "x.log")].into_iter().map(|(a, b)| (a.to_string(), b.to_string())).collect();
+        assert!(check_options("Net 1", &ok, &o, &d).is_empty(), "{:?}", check_options("Net 1", &ok, &o, &d));
+        let abs = dir.join("nn-b.nnue").to_string_lossy().to_string();
+        assert!(check_options("Net 1", &BTreeMap::from([("EvalFile".to_string(), abs)]), &o, "").is_empty());
+        let bad: BTreeMap<String, String> = [("evalfile", "nn-b.nnue"), ("Contempt", "300"), ("Ponder", "yes"), ("Style", "C"), ("Nope", "1")].into_iter().map(|(a, b)| (a.to_string(), b.to_string())).collect();
+        let w = check_options("Net 1", &bad, &o, &d).join("\n");
+        assert!(w.contains("'evalfile' does not exist, the engine calls it 'EvalFile'"), "{w}");
+        assert!(w.contains("Contempt=300 is outside -100..100") && w.contains("Ponder must be true or false") && w.contains("'C' is not one of A, B") && w.contains("no option 'Nope'"), "{w}");
+        let missing = check_options("Net 1", &BTreeMap::from([("EvalFile".to_string(), "nets/missing.nnue".to_string())]), &o, &d).join("");
+        assert!(missing.contains("EvalFile file not found") && missing.contains("read from the engine folder"), "{missing}");
+        // nothing known about the engine: nothing to check
+        assert!(check_options("X", &bad, &[], &d).is_empty());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn saving_an_engine_keeps_the_options_set_by_the_user() {
+        let mut e = EngineEntry { options_text: "id name Net 1\noption name EvalFile type string default nn-a.nnue\noption name Ponder type check default false\n".into(), ..Default::default() };
+        e.refresh_options();
+        assert_eq!(e.default_options.get("Ponder").map(|s| s.as_str()), Some("false"));
+        e.default_options.insert("EvalFile".into(), "nn-b.nnue".into());
+        e.default_options.insert("Ponder".into(), "false".into());
+        // what engine_save and engine_verify do
+        e.refresh_options();
+        e.refresh_options();
+        assert_eq!(e.default_options.get("EvalFile").map(|s| s.as_str()), Some("nn-b.nnue"));
+        assert_eq!(e.tournament_options().get("EvalFile").map(|s| s.as_str()), Some("nn-b.nnue"));
     }
 }

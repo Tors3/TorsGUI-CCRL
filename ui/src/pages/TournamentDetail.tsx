@@ -1,8 +1,9 @@
 import * as Tabs from "@radix-ui/react-tabs";
-import { ArrowDownUp, Download, MessageSquareText, Pencil } from "lucide-react";
+import { ArrowDownUp, Download, MessageSquareText, Pencil, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import type { EngineEntry } from "../bindings/EngineEntry";
 import type { GameRow } from "../bindings/GameRow";
 import type { RenameReport } from "../bindings/RenameReport";
 import type { RowOrder } from "../bindings/RowOrder";
@@ -12,6 +13,7 @@ import { GamesTable } from "../components/GamesTable";
 import { ExportTournamentFile } from "../components/TournamentFileDialog";
 import { TournamentBroadcast } from "../components/Broadcast";
 import { TournamentActions } from "../components/TournamentActions";
+import { UciOptionsEditor } from "../components/UciOptions";
 import { Empty, ErrorBox, Field, Kpi, PageHeader, Panel, ProgressBar, Result, Seg, StateChip, Tip, Warn, Wdl, WdlBar } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { duration, num, pct, shortTime, signed } from "../lib/format";
@@ -349,6 +351,7 @@ function Config({ d, refresh }: { d: TournamentDetail; refresh: () => void }) {
             ))}
           </div>
         </Panel>
+        <EngineOptions d={d} refresh={refresh} />
         <Panel title="Rename an engine">
           <p className="muted text-[12px] mb-2">Rewrites the White/Black tags of every PGN and the configuration consistently (EngineWhiteName/EngineBlackName keep the engine's own id). The tournament must not be running.</p>
           <div className="grid grid-cols-2 gap-2">
@@ -375,6 +378,65 @@ function Config({ d, refresh }: { d: TournamentDetail; refresh: () => void }) {
         </Panel>
       </div>
     </div>
+  );
+}
+
+/** UCI options of one engine in this tournament, used from the next game on. */
+function EngineOptions({ d, refresh }: { d: TournamentDetail; refresh: () => void }) {
+  const r = d.summary.record;
+  const { data: engines } = usePoll<EngineEntry[]>("engines_list", {}, 0);
+  const [name, setName] = useState(r.config.participants[0]?.name ?? "");
+  const p = r.config.participants.find((x) => x.name === name);
+  const [vals, setVals] = useState<Record<string, string> | null>(null);
+  const [rev, setRev] = useState(0);
+  const [warn, setWarn] = useState<string[]>([]);
+  const eng = engines?.find((e) => e.id === p?.engine_id);
+  const running = r.state === "running";
+  const values = vals ?? p?.options ?? {};
+  const save = async () => {
+    try {
+      const x = await call<{ warnings: string[] }>("tournament_set_options", { id: r.id, name, options: values });
+      setWarn(x.warnings);
+      toast.success(r.done_games > 0 ? `${name}: options saved, used from game ${r.done_games + 1} on` : `${name}: options saved`);
+      setVals(null);
+      refresh();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+  if (!p) return null;
+  return (
+    <Panel title="Engine options in this tournament">
+      <div className="flex flex-col gap-2" data-testid="tournament-engine-options">
+        <div className="flex items-end gap-2">
+          <Field label="Engine">
+            <select
+              className="select"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setVals(null);
+                setWarn([]);
+                setRev((x) => x + 1);
+              }}
+              aria-label="engine whose options to change"
+            >
+              {r.config.participants.map((x) => (
+                <option key={x.name}>{x.name}</option>
+              ))}
+            </select>
+          </Field>
+          <button className="btn btn-primary" onClick={save} disabled={running || r.imported || vals == null} data-testid="tournament-options-save">
+            <SlidersHorizontal size={13} /> Save options
+          </button>
+        </div>
+        <p className="muted text-[12px]">
+          {r.imported ? "Imported tournaments are read-only." : running ? "Pause the tournament to change the options; they are used from the next game." : r.done_games > 0 ? `${r.done_games} games were already played with the old options: the new ones are used from the next game. For CCRL every game of a tournament must use the same settings.` : "Used from the first game."}
+        </p>
+        <UciOptionsEditor key={`${name}-${rev}`} options={eng?.options ?? []} values={values} onChange={setVals} engineId={p.engine_id} dir={p.dir} />
+        {warn.length > 0 && <Warn>{warn.join(" · ")}</Warn>}
+      </div>
+    </Panel>
   );
 }
 

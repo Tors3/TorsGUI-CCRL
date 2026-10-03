@@ -9,6 +9,7 @@ import type { Settings } from "../bindings/Settings";
 import type { Release } from "../bindings/Release";
 import type { RepoRef } from "../bindings/RepoRef";
 import type { Selection } from "../bindings/Selection";
+import { UciOptionsEditor } from "../components/UciOptions";
 import { cmpNum, EloCell, matchesEngine, RATING_LISTS, SortTh, useEngineRatings, type RatingList, type SortDir } from "../components/EngineRatings";
 import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, Spinner, Tip } from "../components/ui";
 import { call, usePoll } from "../lib/api";
@@ -190,18 +191,17 @@ function GithubDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
 }
 
 function EditDialog({ e, setE, onDone }: { e: EngineEntry | null; setE: (e: EngineEntry | null) => void; onDone: () => void }) {
-  const [opts, setOpts] = useState("");
+  const [opts, setOpts] = useState<Record<string, string>>({});
   const [draft, setDraft] = useState<EngineEntry | null>(null);
   if (e && (!draft || draft.id !== e.id)) {
     setDraft(e);
-    setOpts(Object.entries(e.default_options).map(([k, v]) => `${k}=${v}`).join("\n"));
+    setOpts({ ...e.default_options });
   }
   if (!e || !draft) return null;
   const save = async () => {
-    const default_options = Object.fromEntries(opts.split("\n").map((l) => l.split("=")).filter((p) => p.length >= 2 && p[0].trim()).map(([k, ...v]) => [k.trim(), v.join("=").trim()]));
     try {
-      await call("engine_save", { engine: { ...draft, default_options } });
-      toast.success("Saved");
+      await call("engine_save", { engine: { ...draft, default_options: opts } });
+      toast.success("Saved: new tournaments use these options (a tournament already created keeps its own: change them in its Configuration tab)");
       onDone();
       setE(null);
     } catch (err) {
@@ -210,7 +210,7 @@ function EditDialog({ e, setE, onDone }: { e: EngineEntry | null; setE: (e: Engi
   };
   const set = (k: keyof EngineEntry, v: unknown) => setDraft({ ...draft, [k]: v } as EngineEntry);
   return (
-    <Modal open onOpenChange={(o) => !o && setE(null)} title={`Edit ${e.display_name}`} width={720} footer={<button className="btn btn-primary" onClick={save}>Save</button>}>
+    <Modal open onOpenChange={(o) => !o && setE(null)} title={`Edit ${e.display_name}`} width={900} footer={<button className="btn btn-primary" onClick={save}>Save</button>}>
       <div className="grid grid-cols-3 gap-3">
         <Field label="Display name (CCRL style)" hint="<Engine> <version>">
           <input className="input" value={draft.display_name} onChange={(x) => set("display_name", x.target.value)} />
@@ -227,12 +227,13 @@ function EditDialog({ e, setE, onDone }: { e: EngineEntry | null; setE: (e: Engi
         <Field label="Working dir">
           <input className="input mono" value={draft.dir} onChange={(x) => set("dir", x.target.value)} />
         </Field>
-        <Field label="Options sent in tournaments (key=value per line)" className="col-span-2" hint="Threads and Hash are set from the tournament. Ponder=false and OwnBook=false are added automatically when the engine exposes them.">
-          <textarea className="textarea" rows={4} value={opts} onChange={(x) => setOpts(x.target.value)} />
+        <Field label="Notes" className="col-span-3">
+          <textarea className="textarea" rows={2} value={draft.notes} onChange={(x) => set("notes", x.target.value)} />
         </Field>
-        <Field label="Notes">
-          <textarea className="textarea" rows={4} value={draft.notes} onChange={(x) => set("notes", x.target.value)} />
-        </Field>
+        <div className="col-span-3 flex flex-col gap-1">
+          <div className="kpi-label">UCI options sent in new tournaments (network file, contempt, …)</div>
+          <UciOptionsEditor key={draft.id ?? 0} options={draft.options} values={opts} onChange={setOpts} engineId={draft.id} dir={draft.dir} />
+        </div>
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={draft.used} onChange={(x) => set("used", x.target.checked)} /> Used in tournaments
         </label>

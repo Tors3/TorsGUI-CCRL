@@ -143,8 +143,16 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
 - **Import REPORT.md** rebuilds the library (metadata only) from a CCRL_ScirptsTests-style
   `engines/` folder: release, asset, build, sha256, `id name`, options, used or not, notes.
 - **Edit**: canonical display name `<Engine> <version>` (the export adds ` 64-bit` and ` NCPU`
-  when threads > 1), the options sent in tournaments (`Ponder=false` and `OwnBook=false` are
-  added automatically when the engine exposes them), notes, used flag.
+  when threads > 1), notes, used flag, and the **UCI options** sent in new tournaments: every
+  option the engine declares with its control and default (empty = the engine's default), plus
+  free lines for others (`EvalFile=nets/my.nnue` or `setoption name EvalFile value nets/my.nnue`).
+  Relative file paths are read from the engine folder; wrong names, values out of range and
+  missing network files are reported. `Ponder=false` and `OwnBook=false` are added when the
+  engine exposes them. Threads and Hash always come from the tournament.
+- **Options of one tournament**: in *New tournament* the **options** button of a chosen engine
+  changes them for that tournament only; in a tournament's *Configuration* tab, **Engine options
+  in this tournament** changes them while it is paused or stopped (used from the next game; for
+  CCRL every game must use the same settings).
 - **Report** produces the Markdown equivalent of `engines/REPORT.md`.
 - To rename a player *inside a tournament* (PGN White/Black tags and configuration, never
   `EngineWhiteName`), use the tournament's **Configuration → Rename an engine** (the

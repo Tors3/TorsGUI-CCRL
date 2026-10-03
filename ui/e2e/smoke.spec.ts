@@ -334,3 +334,56 @@ test("engines: CCRL ratings, search and sort; wizard search, Elo range and sorti
   expect(await elo(0)).toBeGreaterThanOrEqual(await elo(1));
   expect(await elo(1)).toBeGreaterThanOrEqual(await elo(2));
 });
+
+test("UCI options: kept in Engines → Edit, per tournament in the wizard and in the Configuration tab", async ({ page }) => {
+  // Engines → Edit: a typed option, a setoption line; saved options stay
+  await page.goto("/#/engines");
+  const row = page.getByTestId("engines-table").locator("tbody tr").filter({ hasText: "Mock Bravo" }).first();
+  await row.getByLabel("Edit").click();
+  await page.getByLabel("option Strength").fill("42");
+  await page.getByTestId("uci-extra").fill("setoption name evalfile value nets/x.nnue");
+  await expect(page.getByTestId("uci-warnings")).toContainText("the engine has no option 'evalfile'");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByLabel("option Strength")).toHaveCount(0);
+  await row.getByLabel("Edit").click();
+  await expect(page.getByLabel("option Strength")).toHaveValue("42");
+  await expect(page.getByTestId("uci-extra")).toHaveValue("evalfile=nets/x.nnue");
+  await page.getByTestId("uci-extra").fill("");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByLabel("option Strength")).toHaveCount(0);
+
+  // New tournament: the engine's options, changed for this tournament only
+  await page.goto("/#/tournaments/new");
+  await page.getByLabel(/seed Mock Alpha/).check();
+  await page.getByLabel(/opponent Mock Bravo/).check();
+  const engines = await (await page.request.post("/api/engines_list", { data: {} })).json();
+  const bravo = engines.find((e: any) => e.display_name.startsWith("Mock Bravo"));
+  expect(bravo.default_options.Strength).toBe("42");
+  await page.getByTestId(`wizard-options-${bravo.id}`).click();
+  await expect(page.getByLabel("option Strength")).toHaveValue("42");
+  await page.getByLabel("option Strength").fill("43");
+  await page.getByTestId("wizard-options-apply").click();
+  await expect(page.getByTestId(`wizard-options-${bravo.id}`)).toContainText("custom options");
+  await page.getByTestId("create-draft").click();
+  await expect(page.getByTestId("edit-tournament")).toBeVisible();
+  const id = decodeURIComponent(page.url().split("/tournaments/")[1]);
+  const opts = async () => (await (await page.request.post("/api/tournament_get", { data: { id } })).json()).summary.record.config.participants.find((p: any) => p.engine_id === bravo.id).options;
+  expect((await opts()).Strength).toBe("43");
+  expect((await opts()).Threads).toBe("${THREADS}");
+
+  // Configuration tab of the tournament
+  await page.getByRole("tab", { name: "Configuration" }).click();
+  const panel = page.getByTestId("tournament-engine-options");
+  await panel.getByLabel("engine whose options to change").selectOption({ label: bravo.display_name });
+  await panel.getByLabel("option Strength").fill("44");
+  await panel.getByLabel("option MoveTime").fill("9999");
+  await expect(panel.getByTestId("uci-warnings")).toContainText("MoveTime=9999 is outside 1..5000");
+  await panel.getByLabel("option MoveTime").fill("");
+  await page.getByTestId("tournament-options-save").click();
+  await expect.poll(async () => (await opts()).Strength).toBe("44");
+  expect((await opts()).MoveTime).toBeUndefined();
+  expect((await opts()).Hash).toBe("${HASH}");
+  await page.request.post("/api/tournament_delete", { data: { id, delete_files: true } });
+  // the engine back as it was for the other tests
+  await page.request.post("/api/engine_save", { data: { engine: { ...bravo, default_options: { ...bravo.default_options, Strength: undefined } } } });
+});
