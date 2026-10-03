@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.4.2] - 2026-10-03
 
 ### Added
 - **UCI options editor**: every option the engine declares with its own control (number with its
@@ -14,6 +14,10 @@
   the engine folder).
 
 ### Fixed
+- **Small or scaled screens** (laptops, Windows display scaling 125–150 %): wide tables scroll
+  inside their panel instead of covering the next one (Bench result over the TC calculator);
+  Bench and New tournament rearrange their columns on narrower windows; tile rows and segmented
+  buttons wrap instead of cutting numbers and labels.
 - *Engines → Edit*: saving dropped the options written by the user (only Ponder/OwnBook were kept),
   so a changed network file never reached the games.
 

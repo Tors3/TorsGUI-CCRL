@@ -483,7 +483,7 @@ export function TournamentDetailPage() {
         }
       />
       {r.last_error && <ErrorBox error={r.last_error} />}
-      <div className="grid grid-cols-8 gap-3">
+      <div className="grid gap-3 kpi-grid">
         <Kpi label="Games" value={`${p.done}/${p.expected}`} sub={<ProgressBar value={p.done} max={p.expected} tone={r.state === "running" ? "win" : "accent"} />} />
         <Kpi label="Result" value={<Wdl w={st.total.wins} d={st.total.draws} l={st.total.losses} />} sub={`${st.total.score.toFixed(1)} / ${st.total.games}`} />
         <Kpi label="Score" value={pct(st.total.pct)} sub={st.total.elo != null ? `${signed(st.total.elo)} ± ${st.total.elo_err?.toFixed(0) ?? "∞"} Elo` : "—"} tone={st.total.pct > 50 ? "win" : st.total.pct < 50 ? "loss" : undefined} />

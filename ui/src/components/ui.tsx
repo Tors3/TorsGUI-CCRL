@@ -7,14 +7,15 @@ import type { TState } from "../bindings/TState";
 
 export function Panel(props: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; bodyClass?: string; noPad?: boolean }) {
   return (
-    <section className={`panel flex flex-col min-h-0 ${props.className ?? ""}`}>
+    <section className={`panel flex flex-col min-h-0 min-w-0 ${props.className ?? ""}`}>
       {(props.title || props.actions) && (
         <div className="panel-head">
           <div className="panel-title">{props.title}</div>
-          <div className="flex items-center gap-1.5">{props.actions}</div>
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">{props.actions}</div>
         </div>
       )}
-      <div className={`${props.noPad ? "" : "panel-body"} min-h-0 flex-1 ${props.bodyClass ?? ""}`}>{props.children}</div>
+      {/* a wide table scrolls inside its panel instead of covering the next one (small or scaled screens) */}
+      <div className={`${props.noPad ? "" : "panel-body"} min-h-0 min-w-0 flex-1 overflow-x-auto ${props.bodyClass ?? ""}`}>{props.children}</div>
     </section>
   );
 }
@@ -183,12 +184,12 @@ export function PageHeader(props: { title: ReactNode; sub?: ReactNode; actions?:
 
 export function Seg<T extends string>(props: { value: T; options: { value: T; label: ReactNode }[]; onChange: (v: T) => void }) {
   return (
-    <div className="inline-flex rounded-md p-0.5 gap-0.5" style={{ background: "var(--bg-2)", border: "1px solid var(--border)" }}>
+    <div className="inline-flex flex-wrap rounded-md p-0.5 gap-0.5 max-w-full" style={{ background: "var(--bg-2)", border: "1px solid var(--border)" }}>
       {props.options.map((o) => (
         <button
           key={o.value}
           type="button"
-          className="px-2 h-6 rounded text-[12px] font-medium"
+          className="px-2 h-6 rounded text-[12px] font-medium whitespace-nowrap"
           style={{ background: o.value === props.value ? "var(--panel-2)" : "transparent", color: o.value === props.value ? "var(--text)" : "var(--muted)", border: o.value === props.value ? "1px solid var(--border-strong)" : "1px solid transparent" }}
           onClick={() => props.onChange(o.value)}
         >

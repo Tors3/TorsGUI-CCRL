@@ -338,10 +338,10 @@ export function Wizard() {
       />
       {editError && <ErrorBox error={editError} />}
       {editId && !editing && !editError && <div className="muted text-[12px]">Loading the tournament…</div>}
-      <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 360px" }}>
+      <div className="grid gap-3 wizard-grid">
         <div className="flex flex-col gap-3 min-w-0">
           <Panel title="1 · Type">
-            <div className="grid grid-cols-4 gap-3 items-end">
+            <div className="flex flex-wrap gap-3 items-end">
               <Field label="Tournament type">
                 <Seg
                   value={kind}
@@ -376,7 +376,7 @@ export function Wizard() {
               <Field label="Variant" hint={variant === "chess960" ? "Fischer Random: engines get UCI_Chess960, openings are start positions" : undefined}>
                 <Seg value={variant} onChange={setVariant} options={[{ value: "standard", label: "Standard" }, { value: "chess960", label: "Chess960" }]} />
               </Field>
-              <Field label="Event" className="col-span-2" hint={eventAuto ? "automatic (CCRL naming)" : <button className="underline" onClick={() => setEventAuto(true)}>reset to automatic</button>}>
+              <Field label="Event" className="flex-1 min-w-[280px]" hint={eventAuto ? "automatic (CCRL naming)" : <button className="underline" onClick={() => setEventAuto(true)}>reset to automatic</button>}>
                 <input className="input" value={eventName} onChange={(e) => { setEventAuto(false); setEventName(e.target.value); }} data-testid="event-name" />
               </Field>
             </div>

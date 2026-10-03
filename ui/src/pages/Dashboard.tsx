@@ -167,7 +167,7 @@ export function Dashboard() {
       />
       <SetupBanner />
       <ErrorBox error={error} />
-      <div className="grid grid-cols-6 gap-3">
+      <div className="grid gap-3 kpi-grid">
         <Kpi label="Running" value={running.length} sub={`${running.reduce((s, t) => s + t.progress.lanes, 0)} lanes`} tone={running.length ? "win" : undefined} />
         <Kpi label="Queued" value={queued.length} sub={queued[0] ? `next: ${queued[0].record.name}` : "queue empty"} />
         <Kpi label="Games / hour" value={num(rate, 1)} sub="rolling window, all runners" />

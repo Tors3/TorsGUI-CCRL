@@ -112,6 +112,7 @@ body {
 }
 .panel-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -595,4 +596,52 @@ cg-board {
   30% {
     background: var(--accent-bg);
   }
+}
+
+/* Bench: three columns on wide windows; the TC calculator goes under "Run a bench" when the
+   window is narrower (laptops, Windows display scaling 125-150 %), one column on small ones */
+.bench-grid {
+  grid-template-columns: 340px minmax(0, 1fr) 340px;
+}
+@media (max-width: 1500px) {
+  .bench-grid {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+  .bench-grid > :nth-child(3) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .bench-grid > :nth-child(2) {
+    grid-row: 1 / span 2;
+  }
+}
+@media (max-width: 1000px) {
+  .bench-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bench-grid > :nth-child(2),
+  .bench-grid > :nth-child(3) {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+/* New tournament: the summary column gets narrower, then goes below on small windows */
+.wizard-grid {
+  grid-template-columns: minmax(0, 1fr) 360px;
+}
+@media (max-width: 1300px) {
+  .wizard-grid {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+}
+@media (max-width: 1000px) {
+  .wizard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* KPI tiles: as many per row as fit, never squeezed until the numbers are cut */
+.kpi-grid {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
