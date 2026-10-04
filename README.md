@@ -158,6 +158,11 @@ the bench test a 64-bit Stockfish 10 (`SF10`). Missing inputs skip those tests w
   calibrate time controls, and the engine that checked the solutions of the built-in test suites).
 - **Fred Reinfeld**, author of *Win at Chess* (1958), whose positions became the classic WAC
   engine test, and the computer-chess community that keeps the EPD test suites alive.
+- **Jon Dart** and the [Arasan](https://github.com/jdart1/arasan-chess) chess engine, whose test
+  collection (MIT licence, [suites/LICENSE-arasan.txt](crates/torsgui-core/suites/LICENSE-arasan.txt))
+  provides the complete WAC, ECM GCP, IQ4, BT-2630 (Bednorz & Tönissen), LCT II (Frédéric
+  Louguet), the pawn endgame test and the Eigenmann Endgame Test (Walter Eigenmann) bundled
+  with TorsGUI.
 - [Lichess](https://lichess.org) again for the winning-chance curve and the inaccuracy / mistake /
   blunder thresholds used by the game analysis, and the [Nord](https://www.nordtheme.com) palette
   by Arctic Ice Studio & Sven Greb for the Nord colour theme.

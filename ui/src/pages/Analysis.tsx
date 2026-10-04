@@ -1,4 +1,4 @@
-import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, FlipVertical2, Microscope, Play, Square, Upload } from "lucide-react";
+import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, Copy, FlipVertical2, Microscope, Play, Save, Square, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import { Empty, ErrorBox, Field, PageHeader, Panel, ProgressBar, Result, Spinner
 import { call, usePoll } from "../lib/api";
 import { isCheck } from "../lib/chess";
 import { evalText, nps, num } from "../lib/format";
+import { analysisPgn } from "../lib/pgnExport";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const TIMES = [100, 300, 1000, 3000, 10000];
@@ -186,6 +187,23 @@ export function AnalysisPage() {
         <span className="ev">{pe ? scoreText(pe.score) : ""}</span>
       </button>
     );
+  };
+  const pgnText = () => (game ? analysisPgn(game, result) : "");
+  const copyPgn = async () => {
+    try {
+      await navigator.clipboard.writeText(pgnText());
+      toast.success("PGN copied");
+    } catch {
+      toast.error("The clipboard is not available: use Save PGN");
+    }
+  };
+  const savePgn = async () => {
+    try {
+      const r = await call<{ path: string }>("pgn_save", { text: pgnText(), folder: "analysis", name: [h.White, h.Black].filter(Boolean).join(" - ") || "analysis" });
+      toast.success(`Saved: ${r.path}`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
   const curJ = ply > 0 ? judgement(ply - 1) : undefined;
   const before = ply > 0 ? result?.positions[ply - 1] : undefined;
@@ -401,6 +419,15 @@ export function AnalysisPage() {
                   />
                   <div className="muted text-[11px]">
                     {result.engine} · {secs(result.movetime_ms)} per position · White's view, pawns (mates at ±8) — click the graph to jump
+                  </div>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <button className="btn btn-sm" onClick={() => copyPgn()} data-testid="pgn-copy">
+                      <Copy size={12} /> Copy PGN
+                    </button>
+                    <button className="btn btn-sm" onClick={() => savePgn()} data-testid="pgn-save">
+                      <Save size={12} /> Save PGN
+                    </button>
+                    <span className="muted text-[11px]">with evaluations, ?! ? ?? and the engine's lines; saved games appear in Games</span>
                   </div>
                 </div>
               ) : (

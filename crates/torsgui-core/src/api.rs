@@ -213,6 +213,14 @@ impl App {
                     "url": format!("https://github.com/{owner}/{repo}/releases/tag/{tag}"),
                 }))
             }
+            "open_url" => {
+                let url: String = arg(&a, "url")?;
+                if !(url.starts_with("https://") || url.starts_with("http://")) {
+                    bail!("only web addresses can be opened");
+                }
+                open_in_browser(&url)?;
+                ok(true)
+            }
             "settings_get" => ok(store.settings()?),
             "settings_save" => {
                 let s: Settings = arg(&a, "settings")?;
@@ -241,6 +249,24 @@ impl App {
                 let id: String = arg(&a, "id")?;
                 let order: RowOrder = opt(&a, "order").unwrap_or(RowOrder::Rating);
                 self.detail(&store, &id, order)
+            }
+            "tournament_elo_history" => {
+                let id: String = arg(&a, "id")?;
+                let t = store.tournament(&id)?.context("tournament not found")?;
+                let loaded = self.loaded(&store, &id)?;
+                let players: Vec<String> = t.config.participants.iter().map(|p| p.name.clone()).collect();
+                let player = opt::<String>(&a, "player")
+                    .filter(|p| players.contains(p))
+                    .or_else(|| t.config.participants.iter().find(|p| p.role == Role::Seed).map(|p| p.name.clone()))
+                    .or_else(|| players.first().cloned())
+                    .unwrap_or_default();
+                let ratings: HashMap<String, f64> = analysis::ratings(&t.config).into_iter().map(|(k, (r, _))| (k, r)).collect();
+                ok(crate::insights::EloHistory { points: crate::insights::elo_history(&loaded.games, &player, &ratings, 400), player, players })
+            }
+            "tournament_openings" => {
+                let id: String = arg(&a, "id")?;
+                let loaded = self.loaded(&store, &id)?;
+                ok(crate::insights::openings(&loaded.games))
             }
             "wizard_preview" => ok(self.preview(&arg::<TournamentConfig>(&a, "config")?)),
             "tournament_create" => {
@@ -402,6 +428,12 @@ impl App {
                     match r {
                         Ok(run) => {
                             let _ = suite::save_run(&root, &run);
+                            if run.finished {
+                                let solved: Vec<String> = run.engines.iter().map(|e| format!("{} {}/{}", e.name, e.solved, run.positions.len())).collect();
+                                if let Ok(s) = Workspace::new(root.clone()).open() {
+                                    let _ = s.push_event("success", "suite_finished", None, &format!("{}: {}", run.suite, solved.join(", ")));
+                                }
+                            }
                         }
                         Err(e) => p.error = Some(format!("{e:#}")),
                     }
@@ -432,16 +464,44 @@ impl App {
                     *p = GameAnalysisProgress { running: true, ..Default::default() };
                 }
                 self.game_cancel.store(false, Ordering::Relaxed);
-                let (prog, cancel) = (self.game_analysis.clone(), self.game_cancel.clone());
+                let (prog, cancel, ws) = (self.game_analysis.clone(), self.game_cancel.clone(), self.ws.clone());
                 std::thread::spawn(move || {
-                    let r = analyze::run_game(&cfg, &e, prog.clone(), cancel);
+                    let r = analyze::run_game(&cfg, &e, prog.clone(), cancel.clone());
                     let mut p = prog.lock().unwrap();
                     p.running = false;
-                    if let Err(e) = r {
-                        p.error = Some(format!("{e:#}"));
+                    match r {
+                        Err(e) => p.error = Some(format!("{e:#}")),
+                        Ok(a) if !cancel.load(Ordering::Relaxed) => {
+                            if let Ok(s) = ws.open() {
+                                let _ = s.push_event("success", "analysis_finished", None, &format!("{} moves analysed with {}: White {} ?? / Black {} ??", a.moves.len(), a.engine, a.white.blunders, a.black.blunders));
+                            }
+                        }
+                        Ok(_) => {}
                     }
                 });
                 ok(true)
+            }
+            "pgn_save" => {
+                // an analysed or played game, saved where the game archive shows it
+                let text: String = arg(&a, "text")?;
+                let folder = match opt::<String>(&a, "folder").as_deref() {
+                    Some("play") => "play",
+                    _ => "analysis",
+                };
+                let name: String = opt(&a, "name").unwrap_or_else(|| "game".into());
+                let mut settings = store.settings()?;
+                let base = if settings.output_dir.trim().is_empty() { self.ws.root.join("results") } else { PathBuf::from(&settings.output_dir) };
+                let dir = base.join(folder);
+                std::fs::create_dir_all(&dir).with_context(|| format!("{}", dir.display()))?;
+                let clean: String = name.chars().map(|c| if c.is_alphanumeric() || " .-_".contains(c) { c } else { '_' }).collect::<String>().trim().chars().take(80).collect();
+                let file = dir.join(format!("{} {}.pgn", chrono::Local::now().format("%Y-%m-%d %H%M%S"), if clean.is_empty() { "game" } else { &clean }));
+                std::fs::write(&file, text.replace("\r\n", "\n"))?;
+                let d = dir.to_string_lossy().to_string();
+                if !settings.archive_paths.contains(&d) {
+                    settings.archive_paths.push(d);
+                    store.save_settings(&settings)?;
+                }
+                ok(json!({"path": file}))
             }
             "analysis_game_progress" => ok(self.game_analysis.lock().unwrap().clone()),
             "analysis_game_stop" => {
@@ -2092,4 +2152,24 @@ pub fn load_game_text(text: &str) -> Result<crate::live::ViewerGame> {
         bail!("{}", v.error.unwrap_or_default());
     }
     Ok(v)
+}
+
+/// Opens a web address in the default browser.
+fn open_in_browser(url: &str) -> Result<()> {
+    let mut cmd = if cfg!(windows) {
+        let mut c = std::process::Command::new("rundll32");
+        c.args(["url.dll,FileProtocolHandler", url]);
+        c
+    } else if cfg!(target_os = "macos") {
+        let mut c = std::process::Command::new("open");
+        c.arg(url);
+        c
+    } else {
+        let mut c = std::process::Command::new("xdg-open");
+        c.arg(url);
+        c
+    };
+    crate::platform::no_window(&mut cmd);
+    cmd.spawn().with_context(|| format!("cannot open {url}"))?;
+    Ok(())
 }

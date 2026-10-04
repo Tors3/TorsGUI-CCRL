@@ -12,6 +12,7 @@ import type { StagesView } from "../bindings/StagesView";
 import type { TournamentDetail } from "../bindings/TournamentDetail";
 import { GameViewer, type GameRef } from "../components/GameViewer";
 import { GamesTable } from "../components/GamesTable";
+import { EloGraph, OpeningsStats } from "../components/Insights";
 import { ExportTournamentFile } from "../components/TournamentFileDialog";
 import { TournamentBroadcast } from "../components/Broadcast";
 import { TournamentActions } from "../components/TournamentActions";
@@ -593,6 +594,8 @@ export function TournamentDetailPage() {
             </Tabs.Trigger>
           )}
           <Tabs.Trigger className="tab" value="standings">Standings</Tabs.Trigger>
+          <Tabs.Trigger className="tab" value="elo" data-testid="tab-elo">Elo graph</Tabs.Trigger>
+          <Tabs.Trigger className="tab" value="openings" data-testid="tab-openings">Openings</Tabs.Trigger>
           <Tabs.Trigger className="tab" value="lanes">Lanes &amp; placement</Tabs.Trigger>
           <Tabs.Trigger className="tab" value="games">Games</Tabs.Trigger>
           <Tabs.Trigger className="tab" value="decisive">Decisive ({st.decisive.length})</Tabs.Trigger>
@@ -611,6 +614,12 @@ export function TournamentDetailPage() {
         )}
         <Tabs.Content value="standings">
           <Standings d={d} order={order} setOrder={setOrder} />
+        </Tabs.Content>
+        <Tabs.Content value="elo">
+          <EloGraph id={id} running={r.state === "running"} />
+        </Tabs.Content>
+        <Tabs.Content value="openings">
+          <OpeningsStats id={id} running={r.state === "running"} open={setGame} />
         </Tabs.Content>
         <Tabs.Content value="lanes">
           <Lanes d={d} />

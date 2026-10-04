@@ -1,0 +1,45 @@
+-----------------------------------------------------------------------------
+
+                        Arasan Chess LICENSE
+
+-----------------------------------------------------------------------------
+
+Arasan chess engine software, including the contents of the src, book,
+doc, prj, tests, and network directories of the software archive, is
+distributed under the following License:
+ 
+Copyright 1994-2026 by Jon Dart
+
+ Permission is hereby granted, free of charge, to any person obtaining
+ a copy of this software and associated documentation files (the
+ "Software"), to deal in the Software without restriction, including
+ without limitation the rights to use, copy, modify, merge, publish,
+ distribute, sublicense, and/or sell copies of the Software, and to
+ permit persons to whom the Software is furnished to do so, subject to
+ the following conditions:
+
+ The above copyright notice and this permission notice shall be
+ included in all copies or substantial portions of the Software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.
+
+-----------------------------------------------------------------------------
+Notes regarding the GUI:
+
+The Arasan Windows user interface (GUI), the source of which is in the "gui"
+directory, is also under this license, and leverages the the lundasvg SVG
+rendering package (https://github.com/sammycage/lunasvg), also MIT-licensed.
+
+The SVG piece images (spatial and celtic), which are loaded at runtime, are 
+Copyright Maurizio Monge, MIT license.
+
+The chess-openings subdirectory, distributed with the GUI, is a fork
+of https://github.com/lichess-org/chess-openings/, and is under the
+Creative Commons CC0 1.0 Universal license.

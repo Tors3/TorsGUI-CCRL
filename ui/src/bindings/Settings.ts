@@ -41,4 +41,12 @@ lichess_visibility: string,
 /**
  * First UDP port of the ccrl.live (TLCS-compatible) broadcast: lane N uses port + N.
  */
-ccrl_live_port: number, };
+ccrl_live_port: number, 
+/**
+ * Desktop notifications (tournament finished, engine problems, queue, bench).
+ */
+desktop_notifications: boolean, 
+/**
+ * Look for a newer TorsGUI release on GitHub at start.
+ */
+check_updates: boolean, };

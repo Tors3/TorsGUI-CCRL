@@ -31,6 +31,28 @@ fn tray_status(app: &App) -> String {
     format!("TorsGUI — {} ({queued} queued)", parts.join(", "))
 }
 
+/// Shows a desktop notification for the important new events (Settings → General).
+fn notifications(handle: tauri::AppHandle, app: Arc<App>) {
+    use tauri_plugin_notification::NotificationExt;
+    let mut throttle = torsgui_core::notify::Throttle::default();
+    let mut seq = app.ws.open().and_then(|s| s.last_event_seq()).unwrap_or(0);
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(4));
+        let Ok(store) = app.ws.open() else { continue };
+        let Ok(events) = store.events_since(seq, 100) else { continue };
+        let enabled = store.settings().map(|s| s.desktop_notifications).unwrap_or(true);
+        for e in events {
+            seq = seq.max(e.seq);
+            if !enabled || !throttle.allow(&e) {
+                continue;
+            }
+            if let Some((title, body)) = torsgui_core::notify::for_event(&e) {
+                let _ = handle.notification().builder().title(title).body(body).show();
+            }
+        }
+    }
+}
+
 fn main() {
     let root = Workspace::default_root();
     let app = Arc::new(App::new(root).expect("cannot open the TorsGUI workspace"));
@@ -41,7 +63,9 @@ fn main() {
         }
     }
     let status_app = app.clone();
+    let notify_app = app.clone();
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .manage(app)
         .setup(move |handle| {
             // the engines bundled as resources (Stockfish 10, Triumviratus 7.0)
@@ -75,6 +99,10 @@ fn main() {
                     _ => {}
                 })
                 .build(handle)?;
+            // desktop notifications from the event log (also while the window is in the tray)
+            let handle2 = handle.handle().clone();
+            let na = notify_app.clone();
+            std::thread::spawn(move || notifications(handle2, na));
             let st = status_app.clone();
             std::thread::spawn(move || loop {
                 let _ = tray.set_tooltip(Some(tray_status(&st)));

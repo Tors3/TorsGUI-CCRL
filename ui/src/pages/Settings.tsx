@@ -147,6 +147,18 @@ export function SettingsPage() {
             </label>
           </div>
         </Panel>
+        <Panel title="Notifications and updates">
+          <div className="flex flex-col gap-2 text-[12.5px]">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={s.desktop_notifications} onChange={(e) => set("desktop_notifications", e.target.checked)} data-testid="desktop-notifications" /> Desktop notifications
+            </label>
+            <div className="muted text-[11.5px] -mt-1 ml-6">Tournament finished or ended with games missing, next tournament of the queue started, engine crashes (at most one a minute), bench, test suite and game analysis finished. Shown also while TorsGUI is in the tray.</div>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={s.check_updates} onChange={(e) => set("check_updates", e.target.checked)} data-testid="check-updates" /> Tell me when a new TorsGUI version is out
+            </label>
+            <div className="muted text-[11.5px] -mt-1 ml-6">At start, TorsGUI asks GitHub for the latest release (nothing is sent about you or your machine).</div>
+          </div>
+        </Panel>
         <Panel title="Engine builds">
           <div className="flex flex-col gap-2.5 text-[12.5px]">
             <p className="muted">

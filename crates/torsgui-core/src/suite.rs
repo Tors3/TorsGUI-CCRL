@@ -180,6 +180,15 @@ pub const BUILTIN: &[BuiltinSuite] = &[
         about: "Tactics from Fred Reinfeld's \"Win at Chess\" (1958), the classic engine test.",
         text: include_str!("../suites/wac-sample.epd"),
     },
+    // the classic suites below come from the tests of the Arasan chess engine by Jon Dart
+    // (MIT licence, suites/LICENSE-arasan.txt), who collected them from their authors
+    BuiltinSuite { id: "wac300", name: "Win at Chess (complete, revised)", about: "All 300 WAC positions with the solutions revised over the years (Reinfeld 1958; Arasan's collection).", text: include_str!("../suites/wacnew.epd") },
+    BuiltinSuite { id: "ecm-gcp", name: "ECM GCP", about: "Middlegame tactics from the Encyclopedia of Chess Middlegames, the GCP selection (Arasan's collection).", text: include_str!("../suites/ecmgcp.epd") },
+    BuiltinSuite { id: "iq4", name: "IQ4", about: "Hard tactical positions of the IQ test series (Arasan's collection).", text: include_str!("../suites/iq4.epd") },
+    BuiltinSuite { id: "bt2630", name: "BT-2630", about: "Bednorz-Tönissen test: 30 positional and tactical positions (Arasan's collection).", text: include_str!("../suites/bt2630.epd") },
+    BuiltinSuite { id: "lct2", name: "LCT II", about: "Louguet Chess Test II by Frédéric Louguet: positional, tactical and endgame positions (Arasan's collection).", text: include_str!("../suites/lapuce2.epd") },
+    BuiltinSuite { id: "pet", name: "Pawn endgame test", about: "Pawn endgame test positions (Arasan's collection).", text: include_str!("../suites/pet.epd") },
+    BuiltinSuite { id: "eet", name: "Eigenmann Endgame Test", about: "Endgames of every kind by Walter Eigenmann (Arasan's collection).", text: include_str!("../suites/eet.epd") },
 ];
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
@@ -459,11 +468,12 @@ mod tests {
         for b in BUILTIN {
             let p = parse_epd(b.text);
             assert!(p.errors.is_empty() && p.positions.len() >= 10, "{}: {:?}", b.id, p.errors);
-            // the solutions are written as the SAN of their move
+            // the solutions are the moves written (SAN, check signs aside)
             for x in &p.positions {
                 let board = crate::chess960::parse_fen(&x.fen).unwrap();
-                let sans: Vec<String> = x.bm_uci.iter().map(|m| uci::san(&board, parse_uci_move(&board, m).unwrap())).collect();
-                assert_eq!(sans, x.bm, "{}", x.id);
+                let plain = |m: &str| m.trim_end_matches(['+', '#', '!', '?']).to_string();
+                let sans: Vec<String> = x.bm_uci.iter().map(|m| plain(&uci::san(&board, parse_uci_move(&board, m).unwrap()))).collect();
+                assert_eq!(sans, x.bm.iter().map(|m| plain(m)).collect::<Vec<_>>(), "{} {}", b.id, x.id);
             }
         }
     }

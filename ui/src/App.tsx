@@ -33,7 +33,7 @@ import type { EventRecord } from "./bindings/EventRecord";
 import type { Health } from "./bindings/Health";
 import type { TournamentSummary } from "./bindings/TournamentSummary";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { call, usePoll } from "./lib/api";
+import { call, isTauri, usePoll } from "./lib/api";
 import { setUserPieceSets } from "./lib/boardPrefs";
 import type { UserPieceSet } from "./bindings/UserPieceSet";
 import { Bench } from "./pages/Bench";
@@ -388,8 +388,73 @@ function Shortcuts({ setPalette, toggleTheme }: { setPalette: (o: boolean) => vo
   return null;
 }
 
+/** In the desktop app, links that open a new window go to the system browser. */
+function useExternalLinks() {
+  useEffect(() => {
+    if (!isTauri()) return;
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.("a");
+      const href = a?.getAttribute("href") ?? "";
+      if (a && /^https?:\/\//.test(href) && (a.target === "_blank" || !href.startsWith(location.origin))) {
+        e.preventDefault();
+        call("open_url", { url: href }).catch((err) => toast.error(String(err.message ?? err)));
+      }
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, []);
+}
+
+type UpdateInfo = { current: string; latest: string; newer: boolean; url: string };
+
+/** A newer TorsGUI on GitHub (checked once at start, Settings → General). */
+function UpdateBanner() {
+  const [u, setU] = useState<UpdateInfo>();
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    call<{ check_updates: boolean }>("settings_get")
+      .then((s) => (s.check_updates ? call<UpdateInfo>("update_check") : undefined))
+      .then((x) => {
+        if (!x?.newer) return;
+        try {
+          if (localStorage.getItem("torsgui-update-dismissed") === x.latest) return;
+        } catch {
+          /* private mode */
+        }
+        setU(x);
+      })
+      .catch(() => {});
+  }, []);
+  if (!u || hidden) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-4 py-1.5 text-[12.5px]" style={{ background: "var(--accent-bg)", borderBottom: "1px solid var(--border)" }} data-testid="update-banner">
+      <Download size={13} style={{ color: "var(--accent)" }} />
+      <span>
+        <b>TorsGUI {u.latest}</b> is available <span className="muted">(you have {u.current})</span>
+      </span>
+      <a className="btn btn-sm btn-primary" href={u.url} target="_blank" rel="noreferrer">
+        Download
+      </a>
+      <button
+        className="btn btn-sm btn-ghost"
+        onClick={() => {
+          try {
+            localStorage.setItem("torsgui-update-dismissed", u.latest);
+          } catch {
+            /* private mode */
+          }
+          setHidden(true);
+        }}
+      >
+        Not now
+      </button>
+    </div>
+  );
+}
+
 function Layout() {
   const { scheme, cycle } = useTheme();
+  useExternalLinks();
   const [palette, setPalette] = useState(false);
   const loc = useLocation();
   useEventToasts();
@@ -419,6 +484,7 @@ function Layout() {
             <StatusPill />
           </div>
         </header>
+        <UpdateBanner />
         <main className="flex-1 min-h-0 overflow-auto p-4" key={loc.pathname.split("/")[1]}>
           <ErrorBoundary resetKey={loc.pathname}>
             <Routes>
