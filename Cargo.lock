@@ -2279,7 +2279,7 @@ dependencies = [
 
 [[package]]
 name = "mock-uci"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "cozy-chess",
 ]
@@ -4444,7 +4444,7 @@ checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
 
 [[package]]
 name = "torsgui"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde_json",
@@ -4456,7 +4456,7 @@ dependencies = [
 
 [[package]]
 name = "torsgui-core"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4489,7 +4489,7 @@ dependencies = [
 
 [[package]]
 name = "torsgui-runner"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "cozy-chess",
@@ -4500,7 +4500,7 @@ dependencies = [
 
 [[package]]
 name = "torsgui-server"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde_json",

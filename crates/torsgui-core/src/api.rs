@@ -37,6 +37,7 @@ pub struct App {
     game_analysis: Arc<Mutex<GameAnalysisProgress>>,
     game_cancel: Arc<AtomicBool>,
     live_analysis: LiveAnalyzer,
+    play: crate::play::Play,
 }
 
 fn arg<T: DeserializeOwned>(a: &Value, k: &str) -> Result<T> {
@@ -176,6 +177,7 @@ impl App {
             game_analysis: Arc::new(Mutex::new(GameAnalysisProgress::default())),
             game_cancel: Arc::new(AtomicBool::new(false)),
             live_analysis: LiveAnalyzer::default(),
+            play: Default::default(),
         })
     }
 
@@ -451,6 +453,34 @@ impl App {
                 ok(true)
             }
             // ---------------------------------------------------------- game analysis
+            // ---------------------------------------------------------- play against an engine
+            "play_start" => {
+                let mut cfg: crate::play::PlayConfig = arg(&a, "config")?;
+                let e = store.engine(cfg.engine_id)?.context("engine not found")?;
+                if cfg.player_name.trim().is_empty() {
+                    cfg.player_name = store.settings()?.tester_name;
+                }
+                self.play.start(cfg, &e)?;
+                ok(self.play.state())
+            }
+            "play_state" => ok(self.play.state()),
+            "play_move" => {
+                self.play.human_move(&arg::<String>(&a, "uci")?)?;
+                ok(self.play.state())
+            }
+            "play_undo" => {
+                self.play.undo()?;
+                ok(self.play.state())
+            }
+            "play_resign" => {
+                self.play.resign()?;
+                ok(self.play.state())
+            }
+            "play_stop" => {
+                self.play.stop();
+                ok(true)
+            }
+            "play_pgn" => ok(self.play.pgn(&store.settings()?.site)?),
             "analysis_load_text" => ok(load_game_text(&arg::<String>(&a, "text")?)?),
             "analysis_game_start" => {
                 let cfg: GameAnalysisConfig = arg(&a, "config")?;

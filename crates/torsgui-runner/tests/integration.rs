@@ -758,3 +758,50 @@ fn stockfish_solves_the_mate_suite() {
     assert!(r["white"]["blunders"].as_u64().unwrap() >= 1, "{r}");
     assert!(r["white"]["acpl"].as_f64().unwrap() > r["black"]["acpl"].as_f64().unwrap() || r["white"]["blunders"].as_u64() > r["black"]["blunders"].as_u64(), "{r}");
 }
+
+#[test]
+fn a_person_plays_against_an_engine() {
+    let dir = tempfile::tempdir().unwrap();
+    let app = torsgui_core::api::App::new(dir.path().join("ws")).unwrap();
+    let id = app.call("engine_add_local", serde_json::json!({"path": mock().to_string_lossy(), "engine": "Mock", "version": "1.0"})).unwrap()["id"].as_i64().unwrap();
+    let wait_my_turn = |app: &torsgui_core::api::App| {
+        let end = std::time::Instant::now() + std::time::Duration::from_secs(20);
+        loop {
+            let s = app.call("play_state", serde_json::json!({})).unwrap();
+            if s["human_to_move"] == true || s["active"] == false {
+                return s;
+            }
+            assert!(std::time::Instant::now() < end, "the engine does not answer: {s}");
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+    };
+    // the person has Black: the engine opens
+    let s = app.call("play_start", serde_json::json!({"config": {"engine_id": id, "human_white": false, "base_ms": 60000, "inc_ms": 1000, "movetime_ms": 0, "threads": 1, "hash": 16, "player_name": "Tester"}})).unwrap();
+    assert_eq!(s["active"], true);
+    let s = wait_my_turn(&app);
+    assert_eq!(s["moves"].as_array().unwrap().len(), 1);
+    assert!(s["legal"].as_object().unwrap().len() >= 10, "{s}");
+    assert!(s["black_ms"].as_i64().unwrap() <= 60000 && s["white_ms"].as_i64().unwrap() > 50000);
+    assert!(app.call("play_move", serde_json::json!({"uci": "e2e4"})).is_err(), "not a black move");
+    app.call("play_move", serde_json::json!({"uci": "e7e5"})).unwrap();
+    let s = wait_my_turn(&app);
+    assert_eq!(s["moves"].as_array().unwrap().len(), 3);
+    assert_eq!(s["sans"][1], "e5");
+    // take back: the position before e5
+    let s = app.call("play_undo", serde_json::json!({})).unwrap();
+    assert_eq!(s["moves"].as_array().unwrap().len(), 1);
+    assert_eq!(s["human_to_move"], true);
+    app.call("play_move", serde_json::json!({"uci": "g8f6"})).unwrap();
+    wait_my_turn(&app);
+    let s = app.call("play_resign", serde_json::json!({})).unwrap();
+    assert_eq!((s["result"].as_str(), s["termination"].as_str()), (Some("1-0"), Some("Black resigns")));
+    let pgn = app.call("play_pgn", serde_json::json!({})).unwrap();
+    let pgn = pgn.as_str().unwrap();
+    assert!(pgn.contains("[White \"Mock 1.0\"]") && pgn.contains("[Black \"Tester\"]") && pgn.contains(" Nf6"), "{pgn}");
+    assert!(pgn.trim_end().ends_with("1-0"), "{pgn}");
+    // a mate on the board ends the game
+    app.call("play_start", serde_json::json!({"config": {"engine_id": id, "human_white": true, "base_ms": 0, "inc_ms": 0, "movetime_ms": 50, "start_fen": "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1", "threads": 1, "hash": 16}})).unwrap();
+    let s = app.call("play_move", serde_json::json!({"uci": "d1d8"})).unwrap();
+    assert_eq!((s["result"].as_str(), s["termination"].as_str(), s["active"].as_bool()), (Some("1-0"), Some("Black is checkmated"), Some(false)));
+    app.call("play_stop", serde_json::json!({})).unwrap();
+}

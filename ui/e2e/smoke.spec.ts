@@ -305,7 +305,7 @@ test("TC calculator reproduces the reference Blitz TC", async ({ page }) => {
 test("every screen renders without errors", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  for (const p of ["/", "/tournaments", "/live", "/games", "/engines", "/ccrl", "/bench", "/export", "/settings", "/settings?tab=hardware", "/settings?tab=maintenance", "/logs", "/help", "/start", "/analysis", "/suites"]) {
+  for (const p of ["/", "/tournaments", "/live", "/games", "/engines", "/ccrl", "/bench", "/export", "/settings", "/settings?tab=hardware", "/settings?tab=maintenance", "/logs", "/help", "/start", "/analysis", "/suites", "/play"]) {
     await page.goto(`/#${p}`);
     await page.waitForTimeout(600);
   }
@@ -581,4 +581,91 @@ test("CCRL lists: the source of each list, and a warning for two identical lists
   await page.request.post("/api/ccrl_delete_list", { data: { id: bad.id } });
   await page.reload();
   await expect(page.getByText(/exactly the same rows/)).toHaveCount(0);
+});
+
+/** Clicks a square of the board (White at the bottom). */
+async function clickSquare(page: import("@playwright/test").Page, sq: string, flipped = false) {
+  const box = (await page.getByTestId("board").first().boundingBox())!;
+  const f = sq.charCodeAt(0) - 97;
+  const r = Number(sq[1]) - 1;
+  const x = flipped ? 7 - f : f;
+  const y = flipped ? r : 7 - r;
+  await page.mouse.click(box.x + ((x + 0.5) * box.width) / 8, box.y + ((y + 0.5) * box.height) / 8);
+}
+
+test("play against an engine: moves on the board, take back, resign, analyse", async ({ page }) => {
+  await page.goto("/#/play");
+  await page.getByTestId("play-engine").selectOption({ label: "Mock Alpha 1.0" });
+  await page.getByTestId("play-tc").selectOption("move1");
+  await page.getByTestId("play-start").click();
+  await expect(page.getByTestId("play-moves")).toContainText("Your move");
+  await clickSquare(page, "e2");
+  await clickSquare(page, "e4");
+  await expect(page.getByTestId("play-moves")).toContainText("e4");
+  // the engine answers
+  await expect(page.getByTestId("play-moves").locator("button")).toHaveCount(2, { timeout: 20_000 });
+  await page.getByTestId("play-undo").click();
+  await expect(page.getByTestId("play-moves")).toContainText("Your move");
+  await clickSquare(page, "d2");
+  await clickSquare(page, "d4");
+  await expect(page.getByTestId("play-moves").locator("button")).toHaveCount(2, { timeout: 20_000 });
+  await page.getByTestId("play-resign").click();
+  await expect(page.getByTestId("play-result")).toContainText("0-1");
+  await expect(page.getByTestId("play-result")).toContainText("White resigns");
+  await page.getByTestId("play-analyse").click();
+  await expect(page).toHaveURL(/#\/analysis\?from=play/);
+  await expect(page.getByTestId("analysis-moves")).toContainText("d4");
+  // a promotion asks for the piece
+  await page.goto("/#/play");
+  await page.getByTestId("play-engine").selectOption({ label: "Mock Alpha 1.0" });
+  await page.getByTestId("play-fen").fill("8/4P1k1/8/8/8/8/8/4K3 w - - 0 1");
+  await page.getByTestId("play-start").click();
+  // the new game is on the board before the move
+  await expect(page.getByTestId("play-moves")).toContainText("Your move");
+  await clickSquare(page, "e7");
+  await clickSquare(page, "e8");
+  await page.getByTestId("play-promotion").getByRole("button", { name: "promote to n" }).click();
+  await expect(page.getByTestId("play-moves")).toContainText("e8=N");
+  // king and knight against king: drawn at once
+  await expect(page.getByTestId("play-result")).toContainText("insufficient material");
+});
+
+test("tournament insights: Elo graph and openings", async ({ page }) => {
+  const list = await (await page.request.post("/api/tournaments_list", { data: {} })).json();
+  const t = list.find((x: any) => x.record.done_games >= 4) ?? list[0];
+  await page.goto(`/#/tournaments/${encodeURIComponent(t.record.id)}`);
+  await page.getByTestId("tab-elo").click();
+  await expect(page.getByTestId("elo-player")).toBeVisible();
+  if (t.record.done_games >= 4) await expect(page.getByTestId("elo-graph")).toBeVisible();
+  await page.getByTestId("tab-openings").click();
+  if (t.record.done_games >= 1) await expect(page.getByTestId("openings-table").locator("tbody tr").first()).toBeVisible();
+  const o = await (await page.request.post("/api/tournament_openings", { data: { id: t.record.id } })).json();
+  expect(o.games).toBe(o.openings.reduce((n: number, x: any) => n + x.games, 0));
+});
+
+test("game analysis is saved as PGN with evaluations", async ({ page }) => {
+  await page.goto("/#/analysis");
+  await page.getByTestId("analysis-text").fill("1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7# 1-0");
+  await page.getByTestId("analysis-load").click();
+  await page.getByTestId("analysis-engine").selectOption({ label: "Mock Alpha 1.0" });
+  await page.getByRole("combobox", { name: "Time per move" }).selectOption("100");
+  await page.getByTestId("review-start").click();
+  await expect(page.getByTestId("pgn-save")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId("review-start")).toBeVisible({ timeout: 60_000 });
+  await page.getByTestId("pgn-save").click();
+  await expect(page.getByText(/Saved: .*analysis/)).toBeVisible();
+  const sources = await (await page.request.post("/api/archive_sources", { data: {} })).json();
+  const saved = sources.find((s: any) => s.kind === "file" && /analysis/.test(s.path));
+  expect(saved).toBeTruthy();
+  const games = await (await page.request.post("/api/archive_games", { data: { source: saved.id } })).json();
+  expect(games.length).toBe(1);
+});
+
+test("settings: notifications, update check, more test suites", async ({ page }) => {
+  await page.goto("/#/settings");
+  await expect(page.getByTestId("desktop-notifications")).toBeChecked();
+  await expect(page.getByTestId("check-updates")).toBeChecked();
+  const suites = await (await page.request.post("/api/suites_builtin", { data: {} })).json();
+  expect(suites.find((s: any) => s.id === "wac300").positions).toBe(300);
+  expect(suites.length).toBeGreaterThanOrEqual(9);
 });

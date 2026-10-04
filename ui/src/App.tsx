@@ -10,6 +10,7 @@ import {
   Rocket,
   Cpu,
   Download,
+  Gamepad2,
   Gauge,
   LayoutDashboard,
   ListOrdered,
@@ -52,6 +53,7 @@ import { Tournaments } from "./pages/Tournaments";
 import { Wizard } from "./pages/Wizard";
 import { AnalysisPage } from "./pages/Analysis";
 import { SuitesPage } from "./pages/Suites";
+import { PlayPage } from "./pages/Play";
 import { THEMES, useTheme, type ThemeId } from "./lib/theme";
 
 type NavItem = { to: string; label: string; icon: typeof Trophy; key: string };
@@ -84,6 +86,7 @@ const GROUPS: { id: string; label: string; items: NavItem[] }[] = [
     items: [
       { to: "/analysis", label: "Game analysis", icon: Microscope, key: "y" },
       { to: "/suites", label: "Test suites", icon: Puzzle, key: "p" },
+      { to: "/play", label: "Play vs engine", icon: Gamepad2, key: "v" },
     ],
   },
   {
@@ -497,6 +500,7 @@ function Layout() {
               <Route path="/games" element={<Games />} />
               <Route path="/analysis" element={<AnalysisPage />} />
               <Route path="/suites" element={<SuitesPage />} />
+              <Route path="/play" element={<PlayPage />} />
               <Route path="/help" element={<Help />} />
               <Route path="/start" element={<GettingStarted />} />
               <Route path="/engines" element={<Engines />} />

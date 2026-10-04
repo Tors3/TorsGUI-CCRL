@@ -442,6 +442,10 @@ position. Pick an engine of the library, its threads and hash.
   (the same winning-chance thresholds as Lichess), with the engine's best move and line. For
   each side: accuracy, average centipawn loss (ACPL) and the counts.
 
+Below the review, **Copy PGN** and **Save PGN** give the game with the evaluations
+(`[%eval]`), the marks ($6 ?!, $2 ?, $4 ??) and the engine's better line as a variation; saved
+games go to `<export folder>/analysis` and appear in **Games**.
+
 ## 14. Test suites
 
 **Analysis → Test suites** runs engines on EPD positions with a known answer: puzzles and mate
@@ -449,10 +453,11 @@ finding. A position is solved when the engine's final move is a solution (`bm`),
 move to avoid (`am`), or when it announces a mate at most as long as asked (`dm`, mate in N:
 another mate that short counts too).
 
-- Positions: two built-in samples (*Mate finding*, mates in 1 to 7; *Win at Chess*, the first
-  20 positions of Fred Reinfeld's classic test, solutions checked with Stockfish 10), any EPD
-  file (WAC, ECM, STS, Arasan, mate collections…) or pasted lines. Lines that cannot be read
-  are listed and skipped.
+- Positions: built-in suites — *Mate finding* (mates in 1 to 7) and the first 20 *Win at
+  Chess* positions (checked with Stockfish 10), plus, from the test collection of the Arasan
+  engine by Jon Dart (MIT licence), the complete WAC (300, revised), ECM GCP, IQ4, BT-2630,
+  LCT II, a pawn endgame test and the Eigenmann Endgame Test — any EPD file (STS, Arasan, mate
+  collections…) or pasted lines. Lines that cannot be read are listed and skipped.
 - Engines: one or more, a time per position, threads, hash and how many engine processes run
   at once.
 - Results: one column per engine, ✓ with the time the solution was found (and kept to the end)
@@ -460,7 +465,18 @@ another mate that short counts too).
   Click a position to see it with the solution (green), the move to avoid (red) and the
   engines' moves as arrows. Every run is kept (pick it in the list, or delete it).
 
-## 15. Look and navigation
+## 15. Play against an engine
+
+**Analysis → Play vs engine**: pick an engine of the library, your colour (or random), a time
+control (1+0 to 15+10, or the engine thinking 1 or 5 s a move with no clock for you) and, when
+the engine offers it, a strength: *UCI_Elo* (with the range the engine declares) or its *Skill
+Level*. A start position can be given as a FEN. Drag or click the pieces; promotions ask for
+the piece. **Take back** undoes your last move and the engine's reply; **Resign**; the game ends
+on mate, stalemate, threefold repetition, the fifty-move rule, insufficient material or time.
+*Show the engine's evaluation* is off by default (no spoilers). **Save PGN** stores the game in
+`<export folder>/play` (shown in Games); **Analyse the game** opens it in Game analysis.
+
+## 16. Look and navigation
 
 The sidebar groups the screens: **Testing** (tournaments, live games, archive, export),
 **Engines** (library, CCRL lists, bench), **Analysis** (game analysis, test suites) and **App**
@@ -477,9 +493,23 @@ timeline, Recent & events), *Bench* (Run & latest result, History, TC calculator
 Lists* (Lists, Suggest opponents, Name matching, Thresholds). *Engines → Add engine* gathers
 every way to add engines.
 
+## 17. Notifications, updates and insights
+
+- **Desktop notifications** (Settings → General): a tournament finished or ended with games
+  missing, the next tournament of the queue started, an engine crashed (at most one a minute per
+  tournament), a bench, a test suite or a game analysis finished. They come also while TorsGUI
+  sits in the tray.
+- **Updates**: at start TorsGUI asks GitHub for its latest release and shows a bar with the
+  download link when there is a newer one (*Not now* hides it until the next version).
+- A tournament's **Elo graph** shows how the Elo of a player (the seed by default) moved game
+  after game, with its 95 % band, or its performance when the opponents have CCRL ratings.
+- **Openings**: every opening of the book with its results, White's score, draws, and the pairs
+  (the same two engines with both colours) that White or Black won twice — openings that decide
+  the game more than the engines — or that the same engine swept. Click one to replay a game.
+
 ## Keyboard
 
-`Ctrl K` or `/` command palette · `g` then `d t l a e c b x s o r h y p` to navigate (`a` = Games,
-`r` = Getting started, `h` = Help, `y` = Game analysis, `p` = Test suites) ·
+`Ctrl K` or `/` command palette · `g` then `d t l a e c b x s o r h y p v` to navigate (`a` = Games,
+`r` = Getting started, `h` = Help, `y` = Game analysis, `p` = Test suites, `v` = Play) ·
 `n` new tournament · `t` next colour theme · in the game viewer `←` `→` `Home` `End`, `Space` play/pause,
 `f` flip, `t` theater mode.

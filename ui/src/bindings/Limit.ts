@@ -3,4 +3,4 @@
 /**
  * How long to search.
  */
-export type Limit = { "MoveTime": number } | { "Depth": number } | { "Nodes": number } | "Infinite";
+export type Limit = { "MoveTime": number } | { "Depth": number } | { "Nodes": number } | "Infinite" | { "Clock": { wtime: number, btime: number, winc: number, binc: number, } };

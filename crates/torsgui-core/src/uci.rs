@@ -164,6 +164,8 @@ pub enum Limit {
     Depth(u32),
     Nodes(u64),
     Infinite,
+    /// A game clock: remaining time and increment of each side (ms).
+    Clock { wtime: u64, btime: u64, winc: u64, binc: u64 },
 }
 
 impl Limit {
@@ -173,6 +175,7 @@ impl Limit {
             Limit::Depth(d) => format!("go depth {d}"),
             Limit::Nodes(n) => format!("go nodes {n}"),
             Limit::Infinite => "go infinite".into(),
+            Limit::Clock { wtime, btime, winc, binc } => format!("go wtime {wtime} btime {btime} winc {winc} binc {binc}"),
         }
     }
 }
@@ -279,6 +282,7 @@ impl Engine {
         // a movetime search that runs far past its time is stopped; a hung engine fails
         let hard = match limit {
             Limit::MoveTime(ms) => Some(Duration::from_millis(ms * 2 + 5000)),
+            Limit::Clock { wtime, btime, .. } => Some(Duration::from_millis(wtime.max(btime) + 5000)),
             _ => None,
         };
         let mut stop_at: Option<Instant> = None;

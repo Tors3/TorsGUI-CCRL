@@ -1,6 +1,25 @@
 # Changelog
 
-## [Unreleased]
+## [0.6.0] - 2026-10-04
+
+### Added
+- **Play against an engine** (*Analysis → Play vs engine*): any engine of the library, your
+  colour, a clock (1+0 … 15+10) or a fixed engine time per move, the engine's strength (UCI_Elo
+  or Skill Level when it has them), a start position; moves by drag or click, promotion choice,
+  take-backs, resignation, every end of game (mate, stalemate, repetition, fifty moves,
+  insufficient material, time); save the PGN or analyse the game.
+- **Desktop notifications** for the important events (tournament finished, queue, engine
+  problems, bench, test suites, game analysis), also while TorsGUI is in the tray; Settings
+  switch.
+- **Update check**: a bar when a newer TorsGUI release is on GitHub (Settings switch).
+- Tournament **Elo graph**: the Elo (or performance) of a player game after game with its 95 %
+  band.
+- Tournament **Openings**: results per opening of the book, White's score, draws, pairs won
+  twice by the same colour or swept by the same engine.
+- Game analysis **as PGN** (copy or save) with `[%eval]`, ?! ? ?? and the engine's lines.
+- More **test suites** bundled: WAC (300, revised), ECM GCP, IQ4, BT-2630, LCT II, a pawn
+  endgame test and the Eigenmann Endgame Test, from the Arasan engine's collection (MIT).
+- Links open in the system browser in the desktop app.
 
 ### Fixed
 - **CCRL lists all the same after a download**: for every list TorsGUI tries several addresses

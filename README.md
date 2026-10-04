@@ -33,7 +33,10 @@ Python scripts, `.bat` files and scheduled tasks with one elegant, dense tool th
 - **analyses games** with an engine of the library: live lines (MultiPV), evaluation graph,
   inaccuracies / mistakes / blunders, accuracy and ACPL per side;
 - runs **test suites** (EPD puzzles and mate finding: `bm`, `am`, `dm`) on several engines,
-  with built-in mate and *Win at Chess* samples;
+  with built-in suites (mates, WAC, ECM, IQ4, BT-2630, LCT II, endgames);
+- lets you **play against any engine** of the library (clock, strength, take-backs);
+- shows a tournament's **Elo graph** with its error band and **statistics per opening**, sends
+  **desktop notifications** and tells you when a **new version** is out;
 - comes in **colour themes** (dark, light, the sober Graphite and Paper, Nord, pure black,
   forest, high contrast, or following the system), with a sidebar grouped by task;
 - plays **Chess960 / Fischer Random** (and double Chess960): engines that support it are

@@ -54,6 +54,24 @@ export function AnalysisPage() {
     if (settings) setHash(settings.hash_per_thread_mb || 256);
   }, [settings]);
 
+  // a game just played (Play → Analyse the game)
+  useEffect(() => {
+    if (params.get("from") !== "play") return;
+    let text = "";
+    try {
+      text = sessionStorage.getItem("torsgui-analysis-text") ?? "";
+    } catch {
+      /* private mode */
+    }
+    if (!text) return;
+    setText(text);
+    call<ViewerGame>("analysis_load_text", { text })
+      .then((g) => {
+        setGame(g);
+        setPly(g.plies.length);
+      })
+      .catch((e) => setLoadErr(e.message));
+  }, [params]);
   // a game of the archive (from the game viewer) or nothing
   useEffect(() => {
     const source = params.get("source");

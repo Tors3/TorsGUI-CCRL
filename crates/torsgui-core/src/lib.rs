@@ -28,6 +28,7 @@ pub mod model;
 pub mod names;
 pub mod notify;
 pub mod pgn;
+pub mod play;
 pub mod pieces;
 pub mod platform;
 pub mod runner;

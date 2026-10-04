@@ -8,7 +8,8 @@ import { piecesClass, themeStyle, useBoardPrefs } from "../lib/boardPrefs";
 export type Arrow = { uci: string; brush?: "green" | "blue" | "yellow" | "red" | "paleBlue" | "paleGreen" | "paleGrey" };
 
 /**
- * View-only chessground board with the user's theme, piece set and animation speed.
+ * Chessground board with the user's theme, piece set and animation speed: view-only, or
+ * with `movable` the side to play and its legal targets (`onMove` gets each move).
  * `lastMove` is a UCI move ("e2e4"); `check` highlights the king of the side to move.
  */
 export function Board(props: {
@@ -19,6 +20,11 @@ export function Board(props: {
   check?: boolean;
   mini?: boolean;
   className?: string;
+  /** A board the viewer plays on (fixed for the life of the board). */
+  interactive?: boolean;
+  /** Moves the viewer may play now: the side and, per square, its targets. */
+  movable?: { color: "white" | "black"; dests: Map<Key, Key[]> } | null;
+  onMove?: (orig: Key, dest: Key) => void;
 }) {
   const prefs = useBoardPrefs();
   const el = useRef<HTMLDivElement>(null);
@@ -38,11 +44,18 @@ export function Board(props: {
   );
   const animation = { enabled: prefs.animation > 0, duration: props.mini ? Math.min(prefs.animation, 180) : prefs.animation };
   const coordinates = !props.mini && prefs.coordinates;
+  const onMove = useRef(props.onMove);
+  onMove.current = props.onMove;
+  const movableCfg = props.movable
+    ? { free: false, color: props.movable.color, dests: props.movable.dests, showDests: true, events: { after: (o: Key, d: Key) => onMove.current?.(o, d) } }
+    : { free: false, color: undefined, dests: new Map() };
   useEffect(() => {
     if (!el.current) return;
     api.current = Chessground(el.current, {
       fen: props.fen,
-      viewOnly: true,
+      viewOnly: !props.interactive,
+      movable: movableCfg,
+      premovable: { enabled: false },
       coordinates,
       orientation: props.orientation ?? "white",
       turnColor: turn,
@@ -52,13 +65,13 @@ export function Board(props: {
       drawable: { enabled: false, visible: true, autoShapes: shapes },
     });
     return () => api.current?.destroy();
-    // chessground renders coordinates only at creation
+    // chessground renders coordinates and binds the mouse only at creation
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coordinates]);
+  }, [coordinates, props.interactive]);
   useEffect(() => {
-    api.current?.set({ fen: props.fen, turnColor: turn, check: !!props.check, lastMove: lm, orientation: props.orientation ?? "white", animation, drawable: { autoShapes: shapes } });
+    api.current?.set({ fen: props.fen, turnColor: turn, check: !!props.check, lastMove: lm, orientation: props.orientation ?? "white", animation, drawable: { autoShapes: shapes }, movable: movableCfg });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.fen, props.lastMove, props.orientation, props.check, shapes, prefs.animation]);
+  }, [props.fen, props.lastMove, props.orientation, props.check, shapes, prefs.animation, props.movable]);
   return (
     <div className={`board-box board-theme-${prefs.theme} ${piecesClass(prefs.pieces)} ${props.mini ? "board-mini" : ""} ${props.className ?? ""}`} style={themeStyle(prefs) as CSSProperties}>
       <div ref={el} className="w-full h-full" data-testid="board" />
