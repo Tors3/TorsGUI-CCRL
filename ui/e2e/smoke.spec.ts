@@ -718,10 +718,10 @@ test("an 8CPU seed against 1CPU opponents: preset, names, lanes and export", asy
   await expect(page.getByTestId("event-name")).toHaveValue(/8CPU vs 1CPU$/);
   const alpha = await page.getByLabel(/seed Mock Alpha/).evaluate((el) => (el.closest("tr")!.querySelector("[data-testid^=wizard-threads-]") as HTMLInputElement).dataset.testid!);
   await expect(page.getByTestId(alpha)).toHaveValue("8");
-  await page.getByTestId(alpha).fill("4");
-  await expect(page.getByTestId("event-name")).toHaveValue(/4CPU vs 1CPU$/);
+  await page.getByTestId(alpha).fill("2");
+  await expect(page.getByTestId("event-name")).toHaveValue(/2CPU vs 1CPU$/);
   await page.getByTestId("wizard-step-conditions").click();
-  await expect(page.getByTestId("wizard-cpu-label")).toHaveText("4CPU vs 1CPU");
+  await expect(page.getByTestId("wizard-cpu-label")).toHaveText("2CPU vs 1CPU");
   await page.getByTestId("games-per-pairing").fill("2");
   await page.getByTestId("create-draft").click();
   await expect(page.getByTestId("edit-tournament")).toBeVisible();
@@ -729,17 +729,17 @@ test("an 8CPU seed against 1CPU opponents: preset, names, lanes and export", asy
   const d = await (await page.request.post("/api/tournament_get", { data: { id } })).json();
   const c = d.summary.record.config;
   expect(c.threads).toBe(1);
-  expect(c.participants.find((p: any) => p.role === "seed").threads).toBe(4);
-  expect(c.participants.find((p: any) => p.role === "seed").hash_mb).toBe(4 * 512);
+  expect(c.participants.find((p: any) => p.role === "seed").threads).toBe(2);
+  expect(c.participants.find((p: any) => p.role === "seed").hash_mb).toBe(2 * 512);
   expect(c.participants.find((p: any) => p.role === "opponent").threads ?? null).toBeNull();
-  // the busy threads count the heaviest engine of a lane; the export writes 4CPU / no suffix
+  // the busy threads count the heaviest engine of a lane; the export writes 2CPU / no suffix (2 threads fit even a 2-core CI machine)
   const pv = await (await page.request.post("/api/wizard_preview", { data: { config: c } })).json();
-  expect(pv.busy_threads).toBe(c.lanes_per_node * c.nodes.length * 4);
+  expect(pv.busy_threads).toBe(c.lanes_per_node * c.nodes.length * 2);
   const ex = await (await page.request.post("/api/export_defaults", { data: { id } })).json();
-  expect(ex.threads_of).toEqual({ "Mock Alpha 1.0": 4 });
-  await expect(page.getByText("4CPU vs 1CPU").first()).toBeVisible();
+  expect(ex.threads_of).toEqual({ "Mock Alpha 1.0": 2 });
+  await expect(page.getByText("2CPU vs 1CPU").first()).toBeVisible();
   // the tournament file keeps the engines' own threads
   const toml = await (await page.request.post("/api/tfile_export", { data: { id } })).json();
-  expect(String(toml)).toContain('"Mock Alpha 1.0" = 4');
+  expect(String(toml)).toContain('"Mock Alpha 1.0" = 2');
   await page.request.post("/api/tournament_delete", { data: { id, delete_files: true } });
 });
