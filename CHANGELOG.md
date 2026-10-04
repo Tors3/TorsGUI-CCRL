@@ -9,6 +9,7 @@
   the Create buttons on the right; *Dashboard* (Now · Queue & timeline · Recent & events);
   *Bench* (Run & latest result · History · TC calculator, where a click on a measured factor
   uses it); *CCRL Lists* (Lists · Suggest opponents · Name matching · Thresholds).
+- **Paper** is the default colour theme (a theme chosen in the picker is kept).
 - *Engines*: the six buttons at the top become one **Add engine** menu (GitHub, local file,
   Cute Chess, bundled engines, REPORT.md) next to *Report*.
 

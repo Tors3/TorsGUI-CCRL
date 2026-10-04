@@ -3,10 +3,10 @@ import { useSyncExternalStore } from "react";
 /** Colour themes of the app (the board has its own themes in Settings → Board appearance). */
 export const THEMES = [
   { id: "system", label: "System", scheme: "auto", about: "Dark or Light, following the operating system" },
-  { id: "dark", label: "Dark", scheme: "dark", about: "The default: dark blue-grey with a blue accent" },
+  { id: "paper", label: "Paper", scheme: "light", about: "The default: sober and warm, off-white paper with an ink-blue accent" },
+  { id: "dark", label: "Dark", scheme: "dark", about: "Dark blue-grey with a blue accent" },
   { id: "light", label: "Light", scheme: "light", about: "Bright, for daylight" },
   { id: "graphite", label: "Graphite", scheme: "dark", about: "Sober: neutral greys, a quiet steel accent" },
-  { id: "paper", label: "Paper", scheme: "light", about: "Sober and warm: off-white paper, ink-blue accent" },
   { id: "nord", label: "Nord", scheme: "dark", about: "Cool arctic blues (Nord palette)" },
   { id: "midnight", label: "Midnight", scheme: "dark", about: "Pure black, for OLED screens and dark rooms" },
   { id: "forest", label: "Forest", scheme: "dark", about: "Dark green, easy on the eyes for long sessions" },
@@ -15,16 +15,21 @@ export const THEMES = [
 export type ThemeId = (typeof THEMES)[number]["id"];
 
 const KEY = "torsgui-theme";
+const KEY_CHOSEN = "torsgui-theme-chosen";
+export const DEFAULT_THEME: ThemeId = "paper";
 const listeners = new Set<() => void>();
 
 function read(): ThemeId {
   try {
     const v = localStorage.getItem(KEY);
-    if (v && THEMES.some((t) => t.id === v)) return v as ThemeId;
+    // before 0.5.2 "dark" was stored on every start without being chosen: only a theme picked
+    // in the new picker (marked by KEY_CHOSEN) overrides the default
+    const chosen = localStorage.getItem(KEY_CHOSEN) === "1";
+    if (v && THEMES.some((t) => t.id === v) && (chosen || v !== "dark")) return v as ThemeId;
   } catch {
     /* private mode */
   }
-  return "dark";
+  return DEFAULT_THEME;
 }
 
 let current: ThemeId = read();
@@ -50,6 +55,7 @@ export function setTheme(id: ThemeId) {
   current = id;
   try {
     localStorage.setItem(KEY, id);
+    localStorage.setItem(KEY_CHOSEN, "1");
   } catch {
     /* private mode */
   }

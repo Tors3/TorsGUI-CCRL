@@ -486,6 +486,11 @@ test("Swiss and knockout tournaments from the wizard", async ({ page }) => {
 
 test("sidebar sections, compact sidebar and colour themes", async ({ page }) => {
   await page.goto("/#/");
+  // Paper is the default, also over the "dark" stored automatically by older versions
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "paper");
+  await page.evaluate(() => localStorage.setItem("torsgui-theme", "dark"));
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "paper");
   const side = page.getByTestId("sidebar");
   await expect(side.getByRole("group", { name: "Analysis" }).getByRole("link", { name: "Test suites" })).toBeVisible();
   // a section folds, and stays open while one of its pages is shown

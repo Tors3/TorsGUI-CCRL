@@ -466,8 +466,9 @@ The sidebar groups the screens: **Testing** (tournaments, live games, archive, e
 **Engines** (library, CCRL lists, bench), **Analysis** (game analysis, test suites) and **App**
 (settings, logs, help). Click a section title to fold it; *Icons only* narrows the sidebar
 for small screens. **Colour themes**: the list at the bottom of the sidebar or *Settings →
-Appearance* (with previews): System (follows the operating system), Dark, Light, the sober
-**Graphite** and **Paper**, Nord, Midnight (pure black), Forest and High contrast. Settings
+Appearance* (with previews): **Paper** (the default: sober, warm off-white), System (follows
+the operating system), Dark, Light, the sober **Graphite**, Nord, Midnight (pure black), Forest
+and High contrast. Settings
 are split into sections (General, Appearance, Paths & fastchess, Opening books, Live broadcast,
 CPU topology, Maintenance). The busier pages have **sub-tabs** at the top of their main area:
 *New tournament* goes step by step (Type & engines → Seeding for Swiss/cup → Conditions → NUMA
