@@ -1,5 +1,6 @@
-import { CloudDownload, ClipboardPaste, FileUp, Link2, PackageOpen, Trash2 } from "lucide-react";
+import { CloudDownload, ClipboardPaste, Download, FileUp, Link2, PackageOpen, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { CcrlList } from "../bindings/CcrlList";
 import type { EngineEntry } from "../bindings/EngineEntry";
@@ -88,6 +89,7 @@ export function CcrlLists() {
   const { data: engines } = usePoll<EngineEntry[]>("engines_list", {}, 0);
   const { data: ts } = usePoll<TournamentSummary[]>("tournaments_list", {}, 0);
   const { data: aliases, refresh: refreshAliases } = usePoll<[string, string, string][]>("aliases_list", {}, 0);
+  const nav = useNavigate();
   const [sel, setSel] = useState<number | null>(null);
   const [tab, setTab] = useTabParam(["lists", "suggest", "match", "threshold"] as const, "lists");
   const [cpu, setCpu] = useState("all");
@@ -277,14 +279,22 @@ export function CcrlLists() {
                 {rows.map((e) => {
                   const inst = installed.get(norm(e.name)) ?? (aliasMap.get(norm(e.name)) ? installed.get(norm(aliasMap.get(norm(e.name))!)) : undefined);
                   return (
-                    <tr key={`${e.rank}-${e.name}`}>
+                    <tr key={`${e.rank}-${e.name}`} className="clickable" onClick={() => nav(`/engines?github=${encodeURIComponent(e.name)}`)} title="Download this engine (Engines → Add from GitHub)">
                       <td className="r tnum muted">{e.rank}</td>
                       <td className="font-medium">{e.name}</td>
                       <td className="r tnum">{num(e.rating)}</td>
                       <td className="r tnum muted">{e.err_plus != null ? num(e.err_plus) : ""}</td>
                       <td className="r tnum muted">{e.games != null ? num(e.games) : ""}</td>
                       <td className="r tnum muted">{e.score != null ? `${e.score}%` : ""}</td>
-                      <td>{inst ? <span className="chip chip-win">{inst.display_name}</span> : ""}</td>
+                      <td>
+                        {inst ? (
+                          <span className="chip chip-win">{inst.display_name}</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 muted text-[11.5px] row-get">
+                            <Download size={12} /> get
+                          </span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}

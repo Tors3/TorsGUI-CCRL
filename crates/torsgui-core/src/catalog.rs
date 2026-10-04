@@ -28,6 +28,13 @@ pub fn known_repos() -> Vec<KnownRepo> {
     serde_json::from_str(include_str!("../data/known_repos.json")).expect("data/known_repos.json")
 }
 
+/// The known repository of an engine named as in the CCRL lists ("Stockfish 19 64-bit 8CPU"):
+/// the family that matches the longest part of the name.
+pub fn repo_for(name: &str) -> Option<KnownRepo> {
+    let base = crate::names::ccrl_base(name);
+    known_repos().into_iter().filter(|r| is_family(&base, &r.ccrl_name) || is_family(&base, &r.name)).max_by_key(|r| r.ccrl_name.len())
+}
+
 /// Whether a CCRL or library name belongs to this engine family ("Stockfish 19 64-bit 8CPU").
 pub fn is_family(name: &str, family: &str) -> bool {
     let n = name.to_lowercase();
@@ -38,6 +45,13 @@ pub fn is_family(name: &str, family: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn repositories_of_list_names() {
+        assert_eq!(repo_for("Stockfish 19 64-bit 8CPU").map(|r| r.repo), Some("official-stockfish/Stockfish".to_string()));
+        assert_eq!(repo_for("Alexandria 9.0.0 64-bit 4CPU").map(|r| r.repo), Some("PGG106/Alexandria".to_string()));
+        assert!(repo_for("Nonexistent Engine 1.0 64-bit").is_none());
+    }
 
     #[test]
     fn at_least_thirty_distinct_repositories() {

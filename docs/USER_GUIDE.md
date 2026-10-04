@@ -193,6 +193,12 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
   otherwise the list median, otherwise the default in Settings (32). Estimated values are
   marked **est.** everywhere.
 
+**From the list to the download**: click an engine in a CCRL list and *Engines → Add from
+GitHub* opens with its official repository and the release of the version in the list already
+selected; check the build TorsGUI proposes and press *Download, extract & verify*. Engines whose
+repository TorsGUI does not know yet (closed-source engines among them) open the same dialog with
+a note: paste the address, or download them from their site and use *Add engine → Local file*.
+
 ## 5. Create a gauntlet
 
 **Tournaments → New tournament**:

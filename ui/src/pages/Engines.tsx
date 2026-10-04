@@ -1,5 +1,6 @@
 import { CheckCircle2, Copy, FileText, FolderOpen, Pencil, PackagePlus, RefreshCw, Search, Trash2, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import type { AssetPolicy } from "../bindings/AssetPolicy";
 import type { BundledEngine } from "../bindings/BundledEngine";
@@ -17,8 +18,20 @@ import { call, usePoll } from "../lib/api";
 
 type ReleasesResp = { repo: RepoRef; latest_stable: string | null; releases: { release: Release; selection: Selection }[]; policy: AssetPolicy };
 
-function GithubDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: boolean) => void; onDone: () => void }) {
+/** An engine to get, from a CCRL list row: its repository when known and the version listed. */
+export type GithubTarget = { name: string; family: string; version: string; repo: KnownRepo | null };
+
+/** The release whose tag carries the version ("v9.0.0", "sf_19", "Koivisto_9.0" for "9.0"). */
+export function tagForVersion(tags: string[], version: string): string | undefined {
+  const norm = (v: string) => (v.match(/\d+(?:[._]\d+)*/)?.[0] ?? "").replace(/_/g, ".").replace(/(\.0)+$/, "");
+  const want = norm(version);
+  if (!want) return undefined;
+  return tags.find((t) => norm(t) === want);
+}
+
+function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpen: (o: boolean) => void; onDone: () => void; target?: GithubTarget | null }) {
   const [url, setUrl] = useState("");
+  const [versionNote, setVersionNote] = useState<string>();
   const [data, setData] = useState<ReleasesResp>();
   const [tag, setTag] = useState<string>();
   const [asset, setAsset] = useState<string>();
@@ -38,13 +51,16 @@ function GithubDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
   useEffect(() => {
     if (open && !known) call<KnownRepo[]>("known_repos").then(setKnown).catch(() => setKnown([]));
   }, [open, known]);
-  const list = async (u: string = url) => {
+  const list = async (u: string = url, version?: string) => {
     setBusy("list");
     setError(undefined);
+    setVersionNote(undefined);
     try {
       const d = await call<ReleasesResp>("github_releases", { url: u, ...policyArgs });
       setData(d);
-      const t = d.repo.tag ?? d.latest_stable ?? d.releases[0]?.release.tag;
+      const wanted = version ? tagForVersion(d.releases.map((r) => r.release.tag), version) : undefined;
+      if (version && !wanted) setVersionNote(`No release tagged ${version} found: the latest is proposed.`);
+      const t = wanted ?? d.repo.tag ?? d.latest_stable ?? d.releases[0]?.release.tag;
       setTag(t ?? undefined);
       setAsset(d.releases.find((r) => r.release.tag === t)?.selection.chosen ?? undefined);
     } catch (e) {
@@ -53,6 +69,19 @@ function GithubDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
       setBusy(null);
     }
   };
+  // opened from a CCRL list: the engine's repository and the version of the list
+  useEffect(() => {
+    if (!open || !target) return;
+    if (target.repo) {
+      setUrl(target.repo.repo);
+      list(target.repo.repo, target.version);
+    } else {
+      setUrl("");
+      setData(undefined);
+      setKq(target.family);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, target]);
   const cur = data?.releases.find((r) => r.release.tag === tag);
   const install = async () => {
     setBusy("install");
@@ -86,6 +115,17 @@ function GithubDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
       }
     >
       <div className="flex flex-col gap-3">
+        {target && (
+          <div className="text-[12.5px]" data-testid="github-target">
+            From the CCRL list: <b>{target.name}</b>
+            {target.repo ? (
+              <span className="muted"> · repository {target.repo.repo}{target.version ? ` · version ${target.version}` : ""}</span>
+            ) : (
+              <span style={{ color: "var(--warn)" }}> · no repository known for {target.family} yet: paste its GitHub address (owner/repo) below.</span>
+            )}
+            {versionNote && <div className="muted">{versionNote}</div>}
+          </div>
+        )}
         <div className="flex gap-2">
           <input className="input" placeholder="https://github.com/owner/repo  or  owner/repo  or a release URL" value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && list()} data-testid="github-url" />
           <button className="btn" onClick={() => list()} disabled={!url || !!busy}>
@@ -402,6 +442,23 @@ function CuteChessDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o
 export function Engines() {
   const { data, error, refresh } = usePoll<EngineEntry[]>("engines_list", {}, 0);
   const [gh, setGh] = useState(false);
+  const [ghTarget, setGhTarget] = useState<GithubTarget | null>(null);
+  const [params, setParams] = useSearchParams();
+  // from CCRL Lists: /engines?github=<name in the list>
+  useEffect(() => {
+    const name = params.get("github");
+    if (!name) return;
+    call<GithubTarget>("ccrl_repo_for", { name })
+      .then((t) => {
+        setGhTarget(t);
+        setGh(true);
+      })
+      .catch((e) => toast.error(e.message));
+    const next = new URLSearchParams(params);
+    next.delete("github");
+    setParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
   const [edit, setEdit] = useState<EngineEntry | null>(null);
   const [report, setReport] = useState<string | null>(null);
   const [local, setLocal] = useState(false);
@@ -643,7 +700,15 @@ export function Engines() {
           </div>
         )}
       </Panel>
-      <GithubDialog open={gh} setOpen={setGh} onDone={refresh} />
+      <GithubDialog
+        open={gh}
+        setOpen={(o) => {
+          setGh(o);
+          if (!o) setGhTarget(null);
+        }}
+        onDone={refresh}
+        target={ghTarget}
+      />
       <EditDialog e={edit} setE={setEdit} onDone={refresh} />
       <CuteChessDialog open={cute} setOpen={setCute} onDone={refresh} />
       <Modal open={local} onOpenChange={setLocal} title="Add a local engine" footer={<button className="btn btn-primary" onClick={addLocal} disabled={!localPath}>Add &amp; verify</button>}>

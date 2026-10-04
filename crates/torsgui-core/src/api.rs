@@ -812,6 +812,18 @@ impl App {
                 ok(json!({"repo": r, "latest_stable": latest, "releases": with_sel, "policy": policy}))
             }
             "github_install" => ok(self.github_install(&store, &a)?),
+            "ccrl_repo_for" => {
+                // a CCRL list row -> the engine's repository, for Add from GitHub
+                let name: String = arg(&a, "name")?;
+                let base = crate::names::ccrl_base(&name);
+                ok(json!({
+                    "name": name,
+                    // the name as written in the list, without the version
+                    "family": base.split_whitespace().take_while(|t| !t.chars().next().is_some_and(|c| c.is_ascii_digit()) && !(t.len() > 1 && t.starts_with(['v', 'V']) && t[1..].starts_with(|c: char| c.is_ascii_digit()))).collect::<Vec<_>>().join(" "),
+                    "version": crate::names::version_of(&base),
+                    "repo": crate::catalog::repo_for(&name),
+                }))
+            }
             "known_repos" => {
                 ensure_ccrl_snapshots(&store)?;
                 let engines = store.engines()?;

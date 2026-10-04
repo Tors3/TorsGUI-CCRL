@@ -19,6 +19,9 @@
 - Game analysis **as PGN** (copy or save) with `[%eval]`, ?! ? ?? and the engine's lines.
 - More **test suites** bundled: WAC (300, revised), ECM GCP, IQ4, BT-2630, LCT II, a pawn
   endgame test and the Eigenmann Endgame Test, from the Arasan engine's collection (MIT).
+- **From the CCRL list to the download**: click an engine in *CCRL Lists* and *Engines → Add
+  from GitHub* opens with its repository and the release of the version listed already chosen
+  (73 engines mapped so far; for the others the dialog says so and the address can be pasted).
 - Links open in the system browser in the desktop app.
 
 ### Fixed

@@ -669,3 +669,16 @@ test("settings: notifications, update check, more test suites", async ({ page })
   expect(suites.find((s: any) => s.id === "wac300").positions).toBe(300);
   expect(suites.length).toBeGreaterThanOrEqual(9);
 });
+
+test("CCRL list row: download the engine from GitHub", async ({ page }) => {
+  await page.goto("/#/ccrl");
+  await page.getByTestId("ccrl-table").getByRole("row", { name: /Stockfish 19 64-bit/ }).first().click();
+  await expect(page).toHaveURL(/#\/engines/);
+  await expect(page.getByTestId("github-target")).toContainText("official-stockfish/Stockfish");
+  await expect(page.getByTestId("github-target")).toContainText("version 19");
+  await expect(page.getByTestId("github-url")).toHaveValue("official-stockfish/Stockfish");
+  // an engine whose repository is not known yet
+  await page.goto("/#/engines?github=" + encodeURIComponent("Unknownfish 1.0 64-bit"));
+  await expect(page.getByTestId("github-target")).toContainText("no repository known for Unknownfish");
+  await expect(page.getByTestId("known-filter")).toHaveValue("Unknownfish");
+});
