@@ -314,7 +314,7 @@ fn run_session(ws: &Workspace, store: &Store, id: &str, cfg: &TournamentConfig, 
             warnings.push(format!("NUMA node {n} does not exist on this machine: its lanes run without placement"));
         }
     }
-    let plans: Vec<LanePlan> = platform::plan_lanes(&topo, &phys_nodes, cfg.lanes_per_node, cfg.threads, cfg.placement);
+    let plans: Vec<LanePlan> = platform::plan_lanes(&topo, &phys_nodes, cfg.lanes_per_node, cfg.cores_per_lane(), cfg.placement);
     let host = sysinfo::System::host_name().unwrap_or_default();
     let status = RunnerStatus {
         pid: std::process::id(),

@@ -22,6 +22,7 @@ import { UciOptionsEditor } from "../components/UciOptions";
 import { cmpNum, EloCell, matchesEngine, SortTh, useEngineRatings, type RatingList, type SortDir } from "../components/EngineRatings";
 import { Empty, ErrorBox, Field, Modal, PageHeader, PageTabs, Panel, Seg, Spinner, Tip, useTabParam, Warn } from "../components/ui";
 import { call, usePoll } from "../lib/api";
+import { coresPerLane, cpuLabel } from "../lib/cpu";
 import { duration, num } from "../lib/format";
 
 const WIZARD_STEPS = ["engines", "seeding", "conditions", "numa"] as const;
@@ -90,6 +91,14 @@ export function Wizard() {
   const { ratings: libRatings } = useEngineRatings();
   // UCI options of the engines in this tournament (they start from Engines → Edit)
   const [partOpts, setPartOpts] = useState<Record<number, Record<string, string>>>({});
+  // threads of single engines when they differ from the tournament's (an 8CPU seed vs 1CPU opponents)
+  const [partThreads, setPartThreads] = useState<Record<number, number>>({});
+  // custom: single engines with their own threads (an 8CPU seed vs 1CPU opponents)
+  const [customThreads, setCustomThreads] = useState(false);
+  const threadsOfEngine = (e: EngineEntry) => partThreads[e.id!] ?? threads;
+  // cores one lane needs (the two engines of the heaviest pairing): known from the ids alone
+  const laneCores = coresPerLane(kind, [...seeds.map((id) => ({ role: "seed" as const, threads: partThreads[id] ?? null })), ...opps.map((id) => ({ role: "opponent" as const, threads: partThreads[id] ?? null }))], threads);
+  const laneCoresKey = `${laneCores}`;
   const [optsFor, setOptsFor] = useState<EngineEntry | null>(null);
   const [optsDraft, setOptsDraft] = useState<Record<string, string>>({});
   const [optsRev, setOptsRev] = useState(0);
@@ -116,8 +125,9 @@ export function Wizard() {
       return;
     }
     const n = topo.nodes.find((x) => x.id === nodes[0]);
-    if (n) setLanes(Math.max(1, Math.floor(n.physical_cores / (2 * threads))));
-  }, [threads, topo, nodes]);
+    if (n) setLanes(Math.max(1, Math.floor(n.physical_cores / laneCores)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threads, topo, nodes, laneCoresKey]);
 
   // edit mode: load the tournament once the engines, the topology and the settings are known
   useEffect(() => {
@@ -141,6 +151,9 @@ export function Wizard() {
         setOpps(pick("opponent"));
         if (c.kind === "swiss" || c.kind === "knockout") setSeedOrder(c.participants.filter((p) => p.engine_id != null && ids.has(p.engine_id)).map((p) => p.engine_id!));
         setThreads(c.threads);
+        const own = c.participants.filter((p) => p.engine_id != null && ids.has(p.engine_id) && p.threads != null);
+        setPartThreads(Object.fromEntries(own.map((p) => [p.engine_id!, p.threads!])));
+        setCustomThreads(own.length > 0);
         setHashAuto(c.hash_mb === (settings.hash_per_thread_mb ?? 512) * c.threads);
         setHash(c.hash_mb);
         setTc(c.tc);
@@ -187,20 +200,30 @@ export function Wizard() {
   const oppEngines = opps.map((i) => byId.get(i)).filter(Boolean) as EngineEntry[];
   const kindLabel = KIND_LABEL[kind];
   const dynamicKind = kind === "swiss" || kind === "knockout";
-  const autoEvent = kind === "round_robin" || dynamicKind ? `CCRL ${list} ${kindLabel} ${threads}CPU` : `CCRL ${list} ${kindLabel} ${seedEngines.map((e) => e.display_name).join(" + ") || "<seed>"} ${threads}CPU`;
+  const roleRows = [...seedEngines.map((e) => ({ role: "seed" as const, threads: partThreads[e.id!] ?? null })), ...oppEngines.map((e) => ({ role: "opponent" as const, threads: partThreads[e.id!] ?? null }))];
+  const cpus = cpuLabel(roleRows, threads);
+  const mixed = cpus !== `${threads}CPU`;
+  const autoEvent = kind === "round_robin" || dynamicKind ? `CCRL ${list} ${kindLabel} ${cpus}` : `CCRL ${list} ${kindLabel} ${seedEngines.map((e) => e.display_name).join(" + ") || "<seed>"} ${cpus}`;
   useEffect(() => {
     if (eventAuto) setEventName(autoEvent);
   }, [autoEvent, eventAuto]);
 
   // ratings of the selected engines in the target list / CPU category
   const names = (engines ?? []).map((e) => e.display_name);
+  const partThreadsKey = JSON.stringify(partThreads);
   useEffect(() => {
     if (!names.length) return;
-    call<RatingLookup[]>("ccrl_ratings", { list, cpus: threads, names })
-      .then((r) => setRatings(Object.fromEntries(r.map((x) => [x.name, x]))))
+    // each engine in the CPU category it plays in
+    const groups = new Map<number, string[]>();
+    for (const e of engines ?? []) {
+      const t = partThreads[e.id!] ?? threads;
+      groups.set(t, [...(groups.get(t) ?? []), e.display_name]);
+    }
+    Promise.all([...groups].map(([cpus, names]) => call<RatingLookup[]>("ccrl_ratings", { list, cpus, names })))
+      .then((rs) => setRatings(Object.fromEntries(rs.flat().map((x) => [x.name, x]))))
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(names), list, threads]);
+  }, [JSON.stringify(names), list, threads, partThreadsKey]);
 
   // Swiss / knockout: one block of openings per match, `passes` = Swiss rounds
   const rpp = dynamicKind ? (games > 0 && games % 2 === 0 ? [games / 2] : null) : splitOpenings(games, passes, Math.max(1, nodes.length));
@@ -234,7 +257,9 @@ export function Wizard() {
     const was = editing?.config.participants.find((p) => p.engine_id === e.id);
     const opts: Record<string, string> = partOpts[e.id!] ?? baseOptions(e);
     const r = ratings[e.display_name];
-    return { name: e.display_name, cmd: e.path, dir: e.dir, args: was?.args ?? e.args ?? "", options: opts, role, engine_id: e.id, has_syzygy: e.has_syzygy, uci_id: e.uci_id, rating: r?.rating ?? null, rating_estimated: r?.estimated ?? false };
+    const own = partThreads[e.id!];
+    const ownThreads = own != null && own !== threads ? own : null;
+    return { name: e.display_name, cmd: e.path, dir: e.dir, args: was?.args ?? e.args ?? "", options: opts, role, engine_id: e.id, has_syzygy: e.has_syzygy, uci_id: e.uci_id, rating: r?.rating ?? null, rating_estimated: r?.estimated ?? false, threads: ownThreads, hash_mb: ownThreads != null ? (settings?.hash_per_thread_mb ?? 512) * ownThreads : null };
   };
   const config: TournamentConfig | null = adj
     ? {
@@ -470,6 +495,7 @@ export function Wizard() {
                       Engine
                     </SortTh>
                     <th>Build</th>
+                    {customThreads && <th className="r" title="Threads of this engine in the tournament (empty = the tournament's)">Threads</th>}
                     <th className="r">Threads max</th>
                     <th>Syzygy</th>
                     <th>960</th>
@@ -482,7 +508,8 @@ export function Wizard() {
                 <tbody>
                   {filtered.map((e) => {
                     const r = ratings[e.display_name];
-                    const tooFew = e.threads_max != null && e.threads_max < threads;
+                    const tooFew = e.threads_max != null && e.threads_max < threadsOfEngine(e);
+                    const selected = seeds.includes(e.id!) || opps.includes(e.id!);
                     return (
                       <tr key={e.id}>
                         {seedMode && (
@@ -519,6 +546,31 @@ export function Wizard() {
                           </span>
                         </td>
                         <td className="mono truncate max-w-[180px]" title={e.build}>{e.build || "—"}</td>
+                        {customThreads && (
+                        <td className="r">
+                          {selected && (
+                            <input
+                              className="input tnum"
+                              style={{ width: 58, height: 24, padding: "0 6px", textAlign: "right", opacity: partThreads[e.id!] != null && partThreads[e.id!] !== threads ? 1 : 0.6 }}
+                              type="number"
+                              min={1}
+                              placeholder={String(threads)}
+                              value={partThreads[e.id!] ?? ""}
+                              onChange={(ev) => {
+                                const v = ev.target.value === "" ? null : Math.max(1, +ev.target.value);
+                                setPartThreads((m) => {
+                                  const n = { ...m };
+                                  if (v == null) delete n[e.id!];
+                                  else n[e.id!] = v;
+                                  return n;
+                                });
+                              }}
+                              aria-label={`threads of ${e.display_name}`}
+                              data-testid={`wizard-threads-${e.id}`}
+                            />
+                          )}
+                        </td>
+                        )}
                         <td className="r" style={{ color: tooFew ? "var(--loss)" : undefined }}>
                           {e.threads_max ?? "?"}
                         </td>
@@ -547,7 +599,7 @@ export function Wizard() {
                   })}
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="muted">
+                      <td colSpan={customThreads ? 9 : 8} className="muted">
                         The engine library is empty: add engines first (Engines → Add from GitHub).
                       </td>
                     </tr>
@@ -638,10 +690,71 @@ export function Wizard() {
             ))}
           {shownStep === "conditions" && (
           <Panel title="Conditions">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-3 text-[12.5px]" data-testid="wizard-cpu-block">
+              <span className="font-medium">CPU category</span>
+              <span className="inline-flex items-center gap-1">
+                {[1, 2, 4, 8].map((n) => (
+                  <button key={n} className={`chip ${threads === n ? "chip-accent" : ""}`} onClick={() => setThreads(n)} data-testid={`wizard-cpu-${n}`}>
+                    {n}CPU
+                  </button>
+                ))}
+              </span>
+              <input className="input tnum" style={{ width: 64 }} type="number" min={1} value={threads} onChange={(e) => setThreads(Math.max(1, +e.target.value))} aria-label="Threads per engine" />
+              <span className="muted">threads per engine; the list category of every engine</span>
+              <span className="muted">·</span>
+              <label className="inline-flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={customThreads}
+                  onChange={(e) => {
+                    setCustomThreads(e.target.checked);
+                    if (!e.target.checked) setPartThreads({});
+                  }}
+                  data-testid="wizard-custom-threads"
+                />
+                Custom per engine
+              </label>
+              {customThreads && (kind === "gauntlet" || kind === "multi_gauntlet") && (
+                <button
+                  className="btn btn-sm"
+                  title="The CCRL Blitz list is built with 8-thread engines against 1-thread opponents: the seed gets 8 threads, the opponents keep 1"
+                  onClick={() => {
+                    setThreads(1);
+                    setPartThreads(Object.fromEntries(seedEngines.map((e) => [e.id!, 8])));
+                  }}
+                  data-testid="wizard-preset-8v1"
+                >
+                  seed 8CPU vs opponents 1CPU
+                </button>
+              )}
+              {!customThreads && (kind === "gauntlet" || kind === "multi_gauntlet") && (
+                <button
+                  className="underline muted"
+                  onClick={() => {
+                    setCustomThreads(true);
+                    setThreads(1);
+                    setPartThreads(Object.fromEntries(seedEngines.map((e) => [e.id!, 8])));
+                  }}
+                  data-testid="wizard-preset-8v1"
+                >
+                  seed 8CPU vs opponents 1CPU
+                </button>
+              )}
+              {customThreads && (
+                <span className="muted">
+                  {mixed ? (
+                    <>
+                      <b data-testid="wizard-cpu-label" style={{ color: "var(--fg)" }}>
+                        {cpus}
+                      </b>{" "}
+                      ·{" "}
+                    </>
+                  ) : null}
+                  set each engine's threads in the <i>Threads</i> column of step 1 (empty = {threads})
+                </span>
+              )}
+            </div>
             <div className="grid gap-3 cond-grid">
-              <Field label="Threads / engine">
-                <input className="input tnum" type="number" min={1} value={threads} onChange={(e) => setThreads(Math.max(1, +e.target.value))} />
-              </Field>
               <Field label="Hash (MB)" hint={hashAuto ? `${settings?.hash_per_thread_mb ?? 512} MB × threads` : <button className="underline" onClick={() => setHashAuto(true)}>automatic</button>}>
                 <input className="input tnum" type="number" value={hash} onChange={(e) => { setHashAuto(false); setHash(+e.target.value); }} />
               </Field>
@@ -664,7 +777,16 @@ export function Wizard() {
                   <input className="input tnum" disabled value={Math.max(1, Math.ceil(Math.log2(Math.max(2, seedEngines.length + oppEngines.length))))} />
                 </Field>
               ) : (
-                <Field label={kind === "swiss" ? "Rounds" : "Passes"} hint={kind === "swiss" ? `each round pairs equal scores, no rematches (up to ${Math.max(1, seedEngines.length + oppEngines.length - 1)} rounds)` : "openings of pass 2 follow pass 1"}>
+                <Field
+                  label={kind === "swiss" ? "Rounds" : "Passes (stages)"}
+                  hint={
+                    kind === "swiss"
+                      ? `each round pairs equal scores, no rematches (up to ${Math.max(1, seedEngines.length + oppEngines.length - 1)} rounds)`
+                      : passes > 1
+                        ? `${passes} stages of ${games / passes} games per opponent, each with its own openings: stop after any stage and the result stays balanced`
+                        : "1 = everything at once. More stages play every opponent the same number of games per stage, with fresh openings: you can stop after a stage with a balanced result"
+                  }
+                >
                   <input className="input tnum" type="number" min={1} value={passes} onChange={(e) => setPasses(Math.max(1, +e.target.value))} data-testid="passes" />
                 </Field>
               )}
@@ -772,7 +894,7 @@ export function Wizard() {
                   ))}
                 </div>
               </Field>
-              <Field label="Lanes per node" hint={`suggested: cores / (2 × threads) = ${topo?.nodes[0] ? Math.max(1, Math.floor(topo.nodes[0].physical_cores / (2 * threads))) : "?"}`}>
+              <Field label="Lanes per node" hint={`suggested: cores / ${laneCores} (the two engines of a lane) = ${topo?.nodes[0] ? Math.max(1, Math.floor(topo.nodes[0].physical_cores / laneCores)) : "?"}`}>
                 <input className="input tnum" type="number" min={1} value={lanes} onChange={(e) => setLanes(Math.max(1, +e.target.value))} />
               </Field>
               <Field label="Placement" className="col-span-2">

@@ -134,6 +134,13 @@ pub struct TournamentFile {
     /// UCI options per engine name: `[options."Stockfish 17"] Contempt = "0"`.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub options: BTreeMap<String, BTreeMap<String, String>>,
+    /// Threads of single engines when they differ from `threads` (`[threads_of]` "Stockfish 17" = 1):
+    /// an 8CPU seed against 1CPU opponents, as the CCRL Blitz list is built.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub threads_of: BTreeMap<String, u32>,
+    /// Hash of single engines when it differs (default 512 MB × their threads).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub hash_of: BTreeMap<String, u32>,
     /// What the import proposes: "draft", "queue" or "start" (default "queue").
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub after_import: Option<String>,
@@ -305,8 +312,11 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
                         out.errors.push(format!("{} does not support Chess960 (no UCI_Chess960 option)", e.display_name));
                     }
                 }
+                let own_threads = f.threads_of.get(input).or_else(|| f.threads_of.get(&e.display_name)).copied().map(|t| t.max(1)).filter(|t| *t != threads);
+                let own_hash = f.hash_of.get(input).or_else(|| f.hash_of.get(&e.display_name)).copied().or_else(|| own_threads.map(|t| s.hash_per_thread_mb * t));
+                let my_threads = own_threads.unwrap_or(threads);
                 if let Some(tm) = e.threads_max {
-                    if (threads as i64) > tm {
+                    if (my_threads as i64) > tm {
                         out.errors.push(format!("{} supports at most {tm} threads", e.display_name));
                     }
                 }
@@ -317,7 +327,7 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
                 if let Some(o) = f.options.get(input).or_else(|| f.options.get(&e.display_name)) {
                     options.extend(o.clone());
                 }
-                let (rating, est) = (env.rating)(&e.display_name, threads);
+                let (rating, est) = (env.rating)(&e.display_name, my_threads);
                 participants.push(Participant {
                     name: e.display_name.clone(),
                     cmd: e.path.clone(),
@@ -328,6 +338,8 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
                     engine_id: e.id,
                     has_syzygy: e.has_syzygy,
                     uci_id: if e.uci_id.is_empty() { None } else { Some(e.uci_id.clone()) },
+                    threads: own_threads,
+                    hash_mb: own_hash,
                     rating,
                     rating_estimated: est,
                 });
@@ -409,11 +421,14 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
         _ => "gauntlet",
     };
     let seed_names: Vec<&str> = participants.iter().filter(|p| p.role == Role::Seed).map(|p| p.name.as_str()).collect();
+    // the CPU label and the lanes come from the engines' own threads (8CPU vs 1CPU…)
+    let cpu_label = crate::model::cpu_label(&participants, threads);
+    let lanes = if f.lanes_per_node.is_some() { lanes } else { (cores / crate::model::cores_per_lane(kind, &participants, threads)).max(1) };
     let event = f.event.clone().filter(|e| !e.trim().is_empty()).unwrap_or_else(|| {
         if matches!(kind, TournamentKind::RoundRobin | TournamentKind::Swiss | TournamentKind::Knockout) {
-            format!("CCRL {list} {label} {threads}CPU")
+            format!("CCRL {list} {label} {cpu_label}")
         } else {
-            format!("CCRL {list} {label} {} {threads}CPU", if seed_names.is_empty() { "<seed>".to_string() } else { seed_names.join(" + ") })
+            format!("CCRL {list} {label} {} {cpu_label}", if seed_names.is_empty() { "<seed>".to_string() } else { seed_names.join(" + ") })
         }
     });
     let name = f.name.clone().filter(|n| !n.trim().is_empty()).unwrap_or_else(|| event.trim_start_matches("CCRL ").to_string());
@@ -465,6 +480,8 @@ pub fn from_config(c: &TournamentConfig) -> TournamentFile {
         engines: if gauntlet { vec![] } else { c.participants.iter().map(|p| p.name.clone()).collect() },
         threads: Some(c.threads),
         hash_mb: Some(c.hash_mb),
+        threads_of: c.participants.iter().filter_map(|p| p.threads.map(|t| (p.name.clone(), t))).collect(),
+        hash_of: c.participants.iter().filter_map(|p| p.hash_mb.map(|h| (p.name.clone(), h))).collect(),
         tc: Some(c.tc.clone()),
         games_per_opponent: Some(c.games_per_pairing),
         passes: Some(c.passes),
@@ -520,6 +537,8 @@ opponents = [
 ]
 # engines = ["A 1.0", "B 2.0", "C 3.0"]   # instead of seed/opponents for round_robin / match
 threads = 1                  # per engine
+# [threads_of]               # engines whose threads differ (an 8CPU seed vs 1CPU opponents):
+# "Engine Under Test 1.0" = 8   #   their hash defaults to {hash} MB x threads; [hash_of] sets it
 games_per_opponent = 30      # even
 # passes = 1                 # split the openings into passes (stop after a pass stays balanced)
 # tc = "103+1"               # default: computed from the list and the machine factor

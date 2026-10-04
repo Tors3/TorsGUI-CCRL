@@ -21,4 +21,13 @@ options: { [key in string]: string }, role: Role, engine_id: number | null, has_
 /**
  * CCRL list rating used for ordering and statistics.
  */
-rating: number | null, rating_estimated: boolean, };
+rating: number | null, rating_estimated: boolean, 
+/**
+ * Threads of this engine when they differ from the tournament's (an 8CPU seed against
+ * 1CPU opponents).
+ */
+threads?: number | null, 
+/**
+ * Hash (MB) of this engine when it differs from the tournament's.
+ */
+hash_mb?: number | null, };

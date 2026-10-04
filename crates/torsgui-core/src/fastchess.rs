@@ -63,7 +63,7 @@ pub fn engine_args(p: &Participant, cfg: &TournamentConfig) -> Vec<String> {
         a.push(format!("args={}", p.args));
     }
     for (k, v) in &p.options {
-        let v = v.replace("${THREADS}", &cfg.threads.to_string()).replace("${HASH}", &cfg.hash_mb.to_string());
+        let v = v.replace("${THREADS}", &cfg.threads_of(p).to_string()).replace("${HASH}", &cfg.hash_of(p).to_string());
         a.push(format!("option.{k}={v}"));
     }
     if !cfg.syzygy_path.is_empty() && supports(p, "SyzygyPath") && !p.options.contains_key("SyzygyPath") {
@@ -213,6 +213,17 @@ mod tests {
         assert!(s.starts_with("-engine cmd=/engines/Triumviratus 7.0 name=Triumviratus 7.0 dir=/engines option.Hash=4096 option.Threads=8 option.SyzygyPath=C:\\tb\\syzygy\\3-4-5 -engine cmd=/engines/Stockfish 19"));
         assert!(s.contains("-openings file=book.pgn format=pgn order=sequential start=1 -rounds 1 -games 1 -reverse -concurrency 1 -recover"));
         assert!(s.contains("-event CCRL Blitz gauntlet Triumviratus 7.0 8CPU node0 pass1 r1 -site Milan"));
+        // an 8CPU seed against 1CPU opponents: each engine gets its own threads and hash
+        let mut m = c.clone();
+        m.threads = 1;
+        m.hash_mb = 512;
+        m.participants[0].threads = Some(8);
+        m.participants[0].hash_mb = Some(4096);
+        let s = game_args(&m, &(m.participants[0].clone(), m.participants[1].clone()), j, Path::new("p.pgn"), Path::new("l.log"), Path::new("s.json")).join(" ");
+        assert!(s.contains("name=Triumviratus 7.0 dir=/engines option.Hash=4096 option.Threads=8"), "{s}");
+        assert!(s.contains("name=Stockfish 19 dir=/engines option.Hash=512 option.Threads=1"), "{s}");
+        assert_eq!(m.cores_per_lane(), 9);
+        assert_eq!(m.cpu_label(), "8CPU vs 1CPU");
         assert!(s.ends_with("-draw movenumber=35 movecount=8 score=10 -resign movecount=4 score=600 twosided=true"));
         assert!(!s.contains("config file="), "never resume from fastchess state");
         assert_eq!(pick_asset(&["fastchess-windows-x86-64.zip".into(), "fastchess-linux-x86-64.tar".into(), "fastchess-macos-arm64.tar".into()]).is_some(), true);

@@ -82,6 +82,8 @@ fn part(name: &str, role: Role, args: &str) -> Participant {
         uci_id: None,
         rating: None,
         rating_estimated: false,
+        threads: None,
+        hash_mb: None,
     }
 }
 

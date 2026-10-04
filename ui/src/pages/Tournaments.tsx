@@ -1,6 +1,7 @@
 import { FileCode2, FolderInput, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { cpuLabel } from "../lib/cpu";
 import { toast } from "sonner";
 import type { TournamentSummary } from "../bindings/TournamentSummary";
 import { TournamentActions } from "../components/TournamentActions";
@@ -155,7 +156,7 @@ export function Tournaments() {
                   </td>
                   <td className="tnum">{t.score_line ?? "—"}</td>
                   <td className="mono">{t.record.config.tc}</td>
-                  <td className="r tnum">{t.record.config.threads}</td>
+                  <td className="r tnum">{cpuLabel(t.record.config.participants, t.record.config.threads).replace(/CPU/g, "")}</td>
                   <td className="r tnum">{t.record.state === "running" ? duration(t.progress.eta_s) : "—"}</td>
                   <td className="r" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-1">

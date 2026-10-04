@@ -28,6 +28,9 @@ pub struct ExportOptions {
     pub players: Vec<String>,
     pub threads: u32,
     pub hash_mb: u32,
+    /// Threads of the players that differ from `threads` (an 8CPU seed vs 1CPU opponents).
+    #[serde(default)]
+    pub threads_of: BTreeMap<String, u32>,
     pub book: String,
     pub egtb: u32,
     pub make_zip: bool,
@@ -153,7 +156,7 @@ pub fn build(files: &[PathBuf], o: &ExportOptions) -> Result<(String, String, us
     if sel.blocks.is_empty() {
         bail!("no finished game");
     }
-    let export_name = |n: &str| ccrl_name(o.ccrl_names.get(n).map(|s| s.trim()).filter(|s| !s.is_empty()).unwrap_or(n), o.threads);
+    let export_name = |n: &str| ccrl_name(o.ccrl_names.get(n).map(|s| s.trim()).filter(|s| !s.is_empty()).unwrap_or(n), o.threads_of.get(n).copied().unwrap_or(o.threads));
     let seed = export_name(&o.seed);
     let event = event_name(&seed, &sel.blocks)?;
     let names: HashMap<String, String> = o.players.iter().map(|n| (n.clone(), export_name(n))).collect();
@@ -255,6 +258,7 @@ mod tests {
             players: vec!["Pawnocchio 2.1".into(), "Integral v8".into()],
             threads: 4,
             hash_mb: 512,
+            threads_of: BTreeMap::from([("Integral v8".to_string(), 1)]),
             book: "b".into(),
             egtb: 5,
             make_zip: false,
@@ -264,9 +268,9 @@ mod tests {
         let (text, event, n, _, players) = build(&[pgn], &o).unwrap();
         assert_eq!(n, 2);
         assert_eq!(event, "pawnocchio 2.1 64-bit 4CPU - Sep 27");
-        assert!(text.contains("[White \"pawnocchio 2.1 64-bit 4CPU\"]") && text.contains("[Black \"Integral 8 64-bit 4CPU\"]"));
+        assert!(text.contains("[White \"pawnocchio 2.1 64-bit 4CPU\"]") && text.contains("[Black \"Integral 8 64-bit\"]"));
         assert!(!text.contains("Integral v8"));
-        assert_eq!(players, vec!["Integral 8 64-bit 4CPU", "pawnocchio 2.1 64-bit 4CPU"]);
+        assert_eq!(players, vec!["Integral 8 64-bit", "pawnocchio 2.1 64-bit 4CPU"]);
         std::fs::remove_dir_all(&dir).ok();
     }
 }

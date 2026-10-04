@@ -118,6 +118,8 @@ pub fn tournament(engine: &Path, ids: &[Option<i64>], variant: Variant, book: &P
             uci_id: Some("TorsGUI Demo Engine".into()),
             rating: None,
             rating_estimated: false,
+            threads: None,
+            hash_mb: None,
         })
         .collect();
     let frc = variant == Variant::Chess960;

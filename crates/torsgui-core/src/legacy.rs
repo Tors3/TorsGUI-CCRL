@@ -89,6 +89,8 @@ fn participant(v: &serde_json::Value, role: Role) -> Participant {
         uci_id: v["uci_id"].as_str().map(|s| s.to_string()),
         rating: None,
         rating_estimated: false,
+        threads: None,
+        hash_mb: None,
     }
 }
 

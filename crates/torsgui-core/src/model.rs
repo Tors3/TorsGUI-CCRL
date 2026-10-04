@@ -76,6 +76,13 @@ pub struct Participant {
     pub rating: Option<f64>,
     #[serde(default)]
     pub rating_estimated: bool,
+    /// Threads of this engine when they differ from the tournament's (an 8CPU seed against
+    /// 1CPU opponents).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub threads: Option<u32>,
+    /// Hash (MB) of this engine when it differs from the tournament's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hash_mb: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ts_rs::TS)]
@@ -244,7 +251,78 @@ fn placement_node() -> Placement {
     Placement::Node
 }
 
+/// The heaviest pairing: the largest value of `of` among seeds plus the largest among
+/// opponents (a gauntlet), else the two largest overall; `default` when nobody is there.
+fn heaviest_pair(kind: TournamentKind, participants: &[Participant], of: impl Fn(&Participant) -> u32, default: u32) -> u32 {
+    let gauntlet = matches!(kind, TournamentKind::Gauntlet | TournamentKind::MultiGauntlet);
+    let seeds = participants.iter().filter(|p| p.role == Role::Seed).map(&of).max();
+    let opps = participants.iter().filter(|p| p.role == Role::Opponent).map(&of).max();
+    if let (true, Some(s), Some(o)) = (gauntlet, seeds, opps) {
+        return s + o;
+    }
+    let mut all: Vec<u32> = participants.iter().map(&of).collect();
+    all.sort_unstable_by(|a, b| b.cmp(a));
+    match all.len() {
+        0 => 2 * default,
+        1 => 2 * all[0],
+        _ => all[0] + all[1],
+    }
+}
+
+/// "8CPU", or "8CPU vs 1CPU" for a gauntlet whose seeds and opponents differ (the CCRL
+/// Blitz list is built that way).
+pub fn cpu_label(participants: &[Participant], threads: u32) -> String {
+    let t = |p: &Participant| p.threads.unwrap_or(threads).max(1);
+    if participants.iter().all(|p| t(p) == threads) {
+        return format!("{threads}CPU");
+    }
+    let mut seeds: Vec<u32> = participants.iter().filter(|p| p.role == Role::Seed).map(t).collect();
+    let mut opps: Vec<u32> = participants.iter().filter(|p| p.role == Role::Opponent).map(t).collect();
+    seeds.sort_unstable();
+    seeds.dedup();
+    opps.sort_unstable();
+    opps.dedup();
+    let join = |v: &[u32]| v.iter().map(|t| format!("{t}CPU")).collect::<Vec<_>>().join("/");
+    if seeds.is_empty() || opps.is_empty() {
+        let mut all = seeds;
+        all.extend(opps);
+        all.sort_unstable();
+        all.dedup();
+        return join(&all);
+    }
+    format!("{} vs {}", join(&seeds), join(&opps))
+}
+
+/// Physical cores one lane needs: the two engines of the heaviest possible pairing.
+pub fn cores_per_lane(kind: TournamentKind, participants: &[Participant], threads: u32) -> u32 {
+    heaviest_pair(kind, participants, |p| p.threads.unwrap_or(threads).max(1), threads.max(1)).max(2)
+}
+
 impl TournamentConfig {
+    /// Threads of a participant: its own, else the tournament's.
+    pub fn threads_of(&self, p: &Participant) -> u32 {
+        p.threads.unwrap_or(self.threads).max(1)
+    }
+    pub fn hash_of(&self, p: &Participant) -> u32 {
+        p.hash_mb.unwrap_or(self.hash_mb)
+    }
+    pub fn threads_of_name(&self, name: &str) -> u32 {
+        self.participant(name).map(|p| self.threads_of(p)).unwrap_or(self.threads)
+    }
+    /// Whether the participants do not all run with the same number of threads.
+    pub fn mixed_cpus(&self) -> bool {
+        self.participants.iter().any(|p| self.threads_of(p) != self.threads)
+    }
+    pub fn cpu_label(&self) -> String {
+        cpu_label(&self.participants, self.threads)
+    }
+    pub fn cores_per_lane(&self) -> u32 {
+        cores_per_lane(self.kind, &self.participants, self.threads)
+    }
+    /// Hash in MB the engines of one lane take together (the heaviest pairing).
+    pub fn hash_per_lane(&self) -> u32 {
+        heaviest_pair(self.kind, &self.participants, |p| self.hash_of(p), self.hash_mb)
+    }
     pub fn seeds(&self) -> Vec<&Participant> {
         self.participants.iter().filter(|p| p.role == Role::Seed).collect()
     }
@@ -329,5 +407,28 @@ mod tests {
             a.join(" "),
             "-draw movenumber=35 movecount=8 score=10 -resign movecount=4 score=600 twosided=true"
         );
+    }
+}
+
+#[cfg(test)]
+mod cpu_tests {
+    use super::*;
+
+    fn p(name: &str, role: Role, threads: Option<u32>) -> Participant {
+        Participant { name: name.into(), cmd: String::new(), dir: String::new(), args: String::new(), options: Default::default(), role, engine_id: None, has_syzygy: false, uci_id: None, rating: None, rating_estimated: false, threads, hash_mb: None }
+    }
+
+    #[test]
+    fn mixed_cpu_tournaments() {
+        let v = vec![p("Seed", Role::Seed, Some(8)), p("A", Role::Opponent, None), p("B", Role::Opponent, None)];
+        assert_eq!(cpu_label(&v, 1), "8CPU vs 1CPU");
+        assert_eq!(cores_per_lane(TournamentKind::Gauntlet, &v, 1), 9);
+        let same = vec![p("Seed", Role::Seed, None), p("A", Role::Opponent, None)];
+        assert_eq!(cpu_label(&same, 4), "4CPU");
+        assert_eq!(cores_per_lane(TournamentKind::Gauntlet, &same, 4), 8);
+        let rr = vec![p("A", Role::Seed, Some(4)), p("B", Role::Opponent, Some(2)), p("C", Role::Opponent, Some(1))];
+        assert_eq!(cores_per_lane(TournamentKind::RoundRobin, &rr, 1), 6);
+        assert_eq!(cpu_label(&rr, 1), "4CPU vs 1CPU/2CPU");
+        assert_eq!(cores_per_lane(TournamentKind::Gauntlet, &[], 2), 4);
     }
 }

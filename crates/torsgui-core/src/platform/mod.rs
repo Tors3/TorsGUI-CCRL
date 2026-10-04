@@ -123,7 +123,7 @@ pub struct LanePlan {
 }
 
 /// Plans the lanes of a tournament.
-pub fn plan_lanes(topo: &Topology, nodes: &[u32], lanes_per_node: u32, threads: u32, placement: crate::model::Placement) -> Vec<LanePlan> {
+pub fn plan_lanes(topo: &Topology, nodes: &[u32], lanes_per_node: u32, cores_per_lane: u32, placement: crate::model::Placement) -> Vec<LanePlan> {
     use crate::model::Placement;
     let mut out = Vec::new();
     for (pi, &node) in nodes.iter().enumerate() {
@@ -139,7 +139,7 @@ pub fn plan_lanes(topo: &Topology, nodes: &[u32], lanes_per_node: u32, threads: 
                     }
                 }
                 Placement::Lane => {
-                    let per = (2 * threads.max(1)) as usize;
+                    let per = cores_per_lane.max(2) as usize;
                     let start = lane as usize * per;
                     if start + per <= prim.len() {
                         Some(CpuSet::from_cpus(node, &prim[start..start + per]))
@@ -299,13 +299,13 @@ mod tests {
         assert_eq!(set.group, 1);
         assert_eq!(t.suggested_lanes(0, 8), 1);
         assert_eq!(t.suggested_lanes(0, 4), 2);
-        let lanes = plan_lanes(&t, &[0, 1], 2, 4, P::Lane);
+        let lanes = plan_lanes(&t, &[0, 1], 2, 8, P::Lane);
         assert_eq!(lanes.len(), 4);
         assert_eq!(lanes[1].cpuset.as_ref().unwrap().cpus.len(), 8);
         assert_ne!(lanes[0].cpuset, lanes[1].cpuset);
-        let lanes = plan_lanes(&t, &[0, 1], 2, 8, P::Node);
+        let lanes = plan_lanes(&t, &[0, 1], 2, 16, P::Node);
         assert_eq!(lanes[0].cpuset, lanes[1].cpuset);
-        assert!(plan_lanes(&t, &[0], 1, 1, P::None)[0].cpuset.is_none());
+        assert!(plan_lanes(&t, &[0], 1, 2, P::None)[0].cpuset.is_none());
     }
     #[test]
     fn cpulist() {

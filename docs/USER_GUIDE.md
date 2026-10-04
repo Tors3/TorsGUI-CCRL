@@ -219,7 +219,16 @@ is remembered for the next time.
    factor), book, book start, Syzygy path, site, adjudication (defaults `-draw movenumber=35
    movecount=8 score=10`, `-resign movecount=4 score=600 twosided=true`) and extra fastchess
    arguments.
-4. *NUMA placement*: nodes, lanes per node (suggested: physical cores per node / (2 × threads))
+   **Engines with different threads** (the CCRL Blitz list is built with 8-thread engines
+   against 1-thread opponents): the preset *seed 8CPU vs opponents 1CPU* under *Threads /
+   engine*, or a number in the *Threads* column of the engine table for any engine (empty = the
+   tournament's). Each engine gets its own threads and hash (512 MB × its threads), its rating is
+   taken from the right CPU category of the list, the event and the exported names say
+   *8CPU vs 1CPU* (a 1-thread engine has no suffix, as in the lists), and the lanes are sized
+   on the two engines of the heaviest pairing (8 + 1 = 9 cores). In a tournament file:
+   `[threads_of] "Engine 1.0" = 8` (and `[hash_of]`).
+4. *NUMA placement*: nodes, lanes per node (suggested: physical cores per node / the cores of
+   the two engines of a lane)
    and the placement mode: *Node* (every lane uses the node's one-thread-per-core set, like the
    old scripts), *Disjoint cores per lane*, or *None*.
 
@@ -515,6 +524,11 @@ every way to add engines.
   version.
 - A tournament's **Elo graph** shows how the Elo of a player (the seed by default) moved game
   after game, with its 95 % band, or its performance when the opponents have CCRL ratings.
+- **Where it lands**: the seed's rating from this test (the MLE anchored on the CCRL ratings
+  when the opponents are rated, else the performance) with its 95 % band, drawn among the
+  neighbours of the CCRL list in its CPU category (8CPU for an 8-thread seed); the rank it would
+  take, its current entry when an earlier version is already listed (orange rows: the same
+  engine's other versions).
 - **Openings**: every opening of the book with its results, White's score, draws, and the pairs
   (the same two engines with both colours) that White or Black won twice — openings that decide
   the game more than the engines — or that the same engine swept. Click one to replay a game.

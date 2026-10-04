@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.6.1] - 2026-10-04
+
+### Added
+- **CPU category of the tournament** (1, 2, 4, 8CPU… for every engine) and, apart, **custom
+  threads per engine** (an 8CPU seed against 1CPU opponents, as the CCRL Blitz list is built):
+  a preset in the wizard and a *Threads* column in the engine table; each engine gets its own threads and hash, its rating from the right CPU category, the
+  event and the exported names say *8CPU vs 1CPU*, the lanes are sized on the heaviest pairing.
+  Tournament files: `[threads_of]` and `[hash_of]`.
+- Tournament tab **Where it lands**: the seed's rating from this test (MLE anchored on the CCRL
+  ratings, or the performance), with its 95 % band, drawn among its neighbours of the CCRL list
+  in its CPU category; the rank it would take, and its current entry when it is already listed.
+  Imported tournaments are rated against the list too.
+
+### Changed
+- *Passes* are called *Passes (stages)* in the wizard, with an explanation: each stage plays
+  every opponent the same number of games with fresh openings, so a tournament stopped after a
+  stage stays balanced.
+
 ## [0.6.0] - 2026-10-04
 
 ### Added

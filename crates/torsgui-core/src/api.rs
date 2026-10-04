@@ -299,7 +299,7 @@ impl App {
                 let topo = crate::platform::os().topology();
                 let nodes: Vec<u32> = arg(&a, "nodes")?;
                 let placement: Placement = opt(&a, "placement").unwrap_or(Placement::Node);
-                ok(crate::platform::plan_lanes(&topo, &nodes, arg(&a, "lanes")?, arg(&a, "threads")?, placement))
+                ok(crate::platform::plan_lanes(&topo, &nodes, arg(&a, "lanes")?, opt::<u32>(&a, "cores_per_lane").unwrap_or(2 * arg::<u32>(&a, "threads")?), placement))
             }
             "health" => ok(crate::health::collect(&self.ws, &mut self.sys.lock().unwrap())),
             "events_since" => ok(store.events_since(opt(&a, "seq").unwrap_or(0), opt(&a, "limit").unwrap_or(200))?),
@@ -329,6 +329,63 @@ impl App {
                     .unwrap_or_default();
                 let ratings: HashMap<String, f64> = analysis::ratings(&t.config).into_iter().map(|(k, (r, _))| (k, r)).collect();
                 ok(crate::insights::EloHistory { points: crate::insights::elo_history(&loaded.games, &player, &ratings, 400), player, players })
+            }
+            "tournament_placement" => {
+                // where the seed lands in its CCRL list (its CPU category)
+                let id: String = arg(&a, "id")?;
+                let t = store.tournament(&id)?.context("tournament not found")?;
+                let loaded = self.loaded(&store, &id)?;
+                let st = analysis::tournament_standings(&t.config, &loaded, None, RowOrder::Rating);
+                let seed = st.seed.clone();
+                let cpus = t.config.threads_of_name(&seed);
+                let list = if t.config.ccrl_list.is_empty() { "Blitz".to_string() } else { t.config.ccrl_list.clone() };
+                let lists = store.ccrl_lists()?;
+                let s = store.settings()?;
+                let aliases: HashMap<String, String> = store.aliases()?.into_iter().map(|(a, c, _)| (a, c)).collect();
+                let idx = RatingIndex::new(&lists, &list, aliases.clone(), s.default_cpu_gap);
+                let seed_family = crate::names::family(aliases.get(&seed).unwrap_or(&seed));
+                let mut seen = std::collections::HashSet::new();
+                let mut cat: Vec<crate::insights::ListPlacementRow> = idx
+                    .entries
+                    .iter()
+                    .filter(|e| e.cpus() == cpus && seen.insert(ccrl::base_key(&e.name)))
+                    .map(|e| crate::insights::ListPlacementRow { rank: e.rank, name: e.name.clone(), rating: e.rating, err_plus: e.err_plus, err_minus: e.err_minus, family: crate::names::family(&e.name) == seed_family })
+                    .collect();
+                cat.sort_by(|a, b| b.rating.total_cmp(&a.rating));
+                for (i, r) in cat.iter_mut().enumerate() {
+                    r.rank = i as i64 + 1;
+                }
+                let mle = st.elo.iter().find(|e| e.name == seed && e.games > 0 && e.anchored);
+                // an imported tournament has no ratings in its configuration: the opponents are
+                // rated now from the list (their own CPU category) and the performance computed
+                let fallback = || -> Option<(f64, f64, f64)> {
+                    let mut results = Vec::new();
+                    let mut opp_sum = 0.0;
+                    for g in &loaded.games {
+                        let Some(s) = g.white_score() else { continue };
+                        let (r, opp) = if g.white() == seed { (s, g.black()) } else if g.black() == seed { (1.0 - s, g.white()) } else { continue };
+                        let rated = t.config.participant(opp).and_then(|p| p.rating).or_else(|| idx.rating(opp, t.config.threads_of_name(opp)).rating)?;
+                        results.push(r);
+                        opp_sum += rated;
+                    }
+                    if results.is_empty() {
+                        return None;
+                    }
+                    let row = crate::stats::Row::from_results(&seed, &results);
+                    let (elo, err) = (row.elo?, row.elo_err.unwrap_or(0.0));
+                    let perf = opp_sum / results.len() as f64 + elo;
+                    Some((perf, perf - err, perf + err))
+                };
+                let (rating, lo, hi, method) = match mle {
+                    Some(m) => (Some(m.elo), Some(m.lo), Some(m.hi), "MLE anchored on the CCRL ratings".to_string()),
+                    None => match st.performance.map(|p| (p, p - st.total.elo_err.unwrap_or(0.0), p + st.total.elo_err.unwrap_or(0.0))).or_else(fallback) {
+                        Some((p, l, h)) => (Some(p), Some(l), Some(h), "performance (average opponent rating + Elo difference)".to_string()),
+                        None => (None, None, None, "no rated games yet".to_string()),
+                    },
+                };
+                let (would_rank, neighbours) = crate::insights::place(&cat, rating, 10);
+                let listed = idx.find(&seed, cpus).map(|e| crate::insights::ListPlacementRow { rank: cat.iter().position(|r| r.name == e.name).map(|p| p as i64 + 1).unwrap_or(e.rank), name: e.name.clone(), rating: e.rating, err_plus: e.err_plus, err_minus: e.err_minus, family: true });
+                ok(crate::insights::ListPlacement { list, cpus, seed, games: st.total.games, rating, lo, hi, method, would_rank, category_size: cat.len() as i64, listed, neighbours })
             }
             "tournament_openings" => {
                 let id: String = arg(&a, "id")?;
@@ -1578,15 +1635,16 @@ impl App {
         }
         let topo = crate::platform::os().topology();
         p.concurrent_games = cfg.lanes_per_node * cfg.nodes.len().max(1) as u32;
-        p.busy_threads = p.concurrent_games * cfg.threads;
+        // the heaviest engine of a lane thinks alone (ponder is off)
+        p.busy_threads = p.concurrent_games * cfg.participants.iter().map(|x| cfg.threads_of(x)).max().unwrap_or(cfg.threads);
         p.physical_cores = cfg.nodes.iter().map(|n| topo.node(*n).map(|x| x.physical_cores).unwrap_or(0)).sum::<u32>();
         for n in &cfg.nodes {
             if topo.node(*n).is_none() {
                 p.warnings.push(format!("NUMA node {n} does not exist on this machine"));
             }
         }
-        if p.physical_cores > 0 && p.concurrent_games * cfg.threads * 2 > p.physical_cores {
-            p.warnings.push(format!("{} lanes x 2 engines x {} threads = {} threads for {} physical cores (ponder is off: one engine thinks at a time, but hash and startup overlap)", p.concurrent_games, cfg.threads, p.concurrent_games * cfg.threads * 2, p.physical_cores));
+        if p.physical_cores > 0 && p.concurrent_games * cfg.cores_per_lane() > p.physical_cores {
+            p.warnings.push(format!("{} lanes x {} threads (the two engines of a lane) = {} threads for {} physical cores (ponder is off: one engine thinks at a time, but hash and startup overlap)", p.concurrent_games, cfg.cores_per_lane(), p.concurrent_games * cfg.cores_per_lane(), p.physical_cores));
         }
         if p.physical_cores > 0 && p.busy_threads > p.physical_cores {
             p.errors.push(format!("{} busy threads exceed the {} physical cores of the selected nodes", p.busy_threads, p.physical_cores));
@@ -1594,12 +1652,14 @@ impl App {
         let mut sys = self.sys.lock().unwrap();
         sys.refresh_memory();
         p.ram_total_mb = sys.total_memory() / 1024 / 1024;
-        p.ram_needed_mb = crate::health::ram_needed_mb(p.concurrent_games, cfg.hash_mb);
+        p.ram_needed_mb = crate::health::ram_needed_mb(p.concurrent_games, cfg.hash_per_lane() / 2);
         if p.ram_total_mb > 0 && p.ram_needed_mb as f64 > p.ram_total_mb as f64 * 0.85 {
             p.errors.push(format!("estimated RAM {} MB exceeds 85 % of the {} MB installed (fastchess keeps both engines alive)", p.ram_needed_mb, p.ram_total_mb));
         }
-        if cfg.hash_mb != 512 * cfg.threads {
-            p.warnings.push(format!("hash {} MB differs from the CCRL rule 512 MB x {} threads = {} MB", cfg.hash_mb, cfg.threads, 512 * cfg.threads));
+        for x in &cfg.participants {
+            if cfg.hash_of(x) != 512 * cfg.threads_of(x) {
+                p.warnings.push(format!("{}: hash {} MB differs from the CCRL rule 512 MB x {} threads = {} MB", x.name, cfg.hash_of(x), cfg.threads_of(x), 512 * cfg.threads_of(x)));
+            }
         }
         if cfg.book.is_empty() || !Path::new(&cfg.book).exists() {
             p.warnings.push("opening book not found on this machine".into());
@@ -1824,6 +1884,7 @@ impl App {
             players: t.config.participants.iter().map(|p| p.name.clone()).collect(),
             threads: t.config.threads,
             hash_mb: t.config.hash_mb,
+            threads_of: t.config.participants.iter().filter(|p| p.threads.is_some()).map(|p| (p.name.clone(), t.config.threads_of(p))).collect(),
             book: t.config.book_name(),
             egtb: t.config.syzygy_pieces(),
             make_zip: true,
@@ -1856,13 +1917,13 @@ impl App {
         let seed = st.seed.clone();
         let next = store.queue()?.into_iter().find(|q| q.id != id).map(|q| {
             let seed = q.config.seeds().first().map(|p| p.name.clone()).unwrap_or(q.name.clone());
-            format!("{} {}CPU {}", seed, q.config.threads, kind_label(q.config.kind))
+            format!("{} {} {}", seed, q.config.cpu_label(), kind_label(q.config.kind))
         });
         let opps = st.rows.len() as u32;
         let summary = self.summary(t.clone(), false);
         let per_opp = if opps > 0 { st.total.games / opps.max(1) } else { 0 };
         let c = PostContext {
-            seed_export: crate::names::ccrl_name(self.ccrl_spellings(store, &t.config)?.0.get(&seed).unwrap_or(&seed), t.config.threads),
+            seed_export: crate::names::ccrl_name(self.ccrl_spellings(store, &t.config)?.0.get(&seed).unwrap_or(&seed), t.config.threads_of_name(&seed)),
             kind_label: kind_label(t.config.kind).into(),
             total_games: st.total.games,
             expected_games: t.expected_games,

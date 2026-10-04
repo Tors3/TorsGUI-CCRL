@@ -639,6 +639,15 @@ test("tournament insights: Elo graph and openings", async ({ page }) => {
   if (t.record.done_games >= 4) await expect(page.getByTestId("elo-graph")).toBeVisible();
   await page.getByTestId("tab-openings").click();
   if (t.record.done_games >= 1) await expect(page.getByTestId("openings-table").locator("tbody tr").first()).toBeVisible();
+  // where the seed lands in its CCRL list
+  await page.getByTestId("tab-placement").click();
+  await expect(page.getByTestId("placement-chart")).toBeVisible();
+  const pl = await (await page.request.post("/api/tournament_placement", { data: { id: t.record.id } })).json();
+  expect(pl.neighbours.length).toBeGreaterThan(5);
+  if (pl.rating != null) {
+    expect(pl.would_rank).toBeGreaterThan(0);
+    await expect(page.getByTestId("placement-chart").locator("[data-kind=seed]")).toHaveCount(1);
+  }
   const o = await (await page.request.post("/api/tournament_openings", { data: { id: t.record.id } })).json();
   expect(o.games).toBe(o.openings.reduce((n: number, x: any) => n + x.games, 0));
 });
@@ -691,4 +700,46 @@ test("CCRL list row: download the engine from GitHub", async ({ page }) => {
   await page.goto("/#/");
   await page.goto("/#/engines?github=" + encodeURIComponent("Dragon by Komodo 3.2 64-bit 8CPU"));
   await expect(page.getByTestId("github-homepage")).toHaveAttribute("href", "https://komodochess.com/");
+});
+
+test("an 8CPU seed against 1CPU opponents: preset, names, lanes and export", async ({ page }) => {
+  await page.goto("/#/tournaments/new");
+  await page.getByLabel(/seed Mock Alpha/).check();
+  await page.getByLabel(/opponent Mock Bravo/).check();
+  await page.getByTestId("wizard-step-conditions").click();
+  // the CPU category of the tournament, then the custom preset
+  await page.getByTestId("wizard-cpu-4").click();
+  await expect(page.getByTestId("event-name")).toHaveCount(0);
+  await page.getByTestId("wizard-preset-8v1").click();
+  await expect(page.getByTestId("wizard-custom-threads")).toBeChecked();
+  await expect(page.getByTestId("wizard-cpu-label")).toHaveText("8CPU vs 1CPU");
+  // the seed's own threads are shown in the engine table (with the event name), and can be changed there
+  await page.getByTestId("wizard-back").click();
+  await expect(page.getByTestId("event-name")).toHaveValue(/8CPU vs 1CPU$/);
+  const alpha = await page.getByLabel(/seed Mock Alpha/).evaluate((el) => (el.closest("tr")!.querySelector("[data-testid^=wizard-threads-]") as HTMLInputElement).dataset.testid!);
+  await expect(page.getByTestId(alpha)).toHaveValue("8");
+  await page.getByTestId(alpha).fill("4");
+  await expect(page.getByTestId("event-name")).toHaveValue(/4CPU vs 1CPU$/);
+  await page.getByTestId("wizard-step-conditions").click();
+  await expect(page.getByTestId("wizard-cpu-label")).toHaveText("4CPU vs 1CPU");
+  await page.getByTestId("games-per-pairing").fill("2");
+  await page.getByTestId("create-draft").click();
+  await expect(page.getByTestId("edit-tournament")).toBeVisible();
+  const id = decodeURIComponent(page.url().split("/tournaments/")[1]);
+  const d = await (await page.request.post("/api/tournament_get", { data: { id } })).json();
+  const c = d.summary.record.config;
+  expect(c.threads).toBe(1);
+  expect(c.participants.find((p: any) => p.role === "seed").threads).toBe(4);
+  expect(c.participants.find((p: any) => p.role === "seed").hash_mb).toBe(4 * 512);
+  expect(c.participants.find((p: any) => p.role === "opponent").threads ?? null).toBeNull();
+  // the busy threads count the heaviest engine of a lane; the export writes 4CPU / no suffix
+  const pv = await (await page.request.post("/api/wizard_preview", { data: { config: c } })).json();
+  expect(pv.busy_threads).toBe(c.lanes_per_node * c.nodes.length * 4);
+  const ex = await (await page.request.post("/api/export_defaults", { data: { id } })).json();
+  expect(ex.threads_of).toEqual({ "Mock Alpha 1.0": 4 });
+  await expect(page.getByText("4CPU vs 1CPU").first()).toBeVisible();
+  // the tournament file keeps the engines' own threads
+  const toml = await (await page.request.post("/api/tfile_export", { data: { id } })).json();
+  expect(String(toml)).toContain('"Mock Alpha 1.0" = 4');
+  await page.request.post("/api/tournament_delete", { data: { id, delete_files: true } });
 });

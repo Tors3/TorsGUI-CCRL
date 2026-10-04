@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { EloHistory } from "../bindings/EloHistory";
 import type { OpeningStat } from "../bindings/OpeningStat";
 import type { OpeningsReport } from "../bindings/OpeningsReport";
+import type { ListPlacement } from "../bindings/ListPlacement";
 import { usePoll } from "../lib/api";
 import { num, signed } from "../lib/format";
 import { LineChart } from "./Chart";
@@ -159,6 +160,88 @@ export function OpeningsStats({ id, running, open }: { id: string; running: bool
         <Tip content="Click a row to replay one of its games">
           <span>Click an opening to replay one of its games.</span>
         </Tip>
+      </div>
+    </Panel>
+  );
+}
+
+/** Where the seed lands in its CCRL list: its rating, with the error band, among the neighbours. */
+export function PlacementChart({ id, running }: { id: string; running: boolean }) {
+  const { data } = usePoll<ListPlacement>("tournament_placement", { id }, running ? 30000 : 0);
+  if (!data) return <Spinner />;
+  const rows = data.neighbours;
+  if (!rows.length) return <Empty>No CCRL {data.list} list for {data.cpus}CPU engines is imported (CCRL Lists → Fetch all).</Empty>;
+  // one row per neighbour, plus the seed inserted where it lands
+  type R = { rank: number | null; name: string; rating: number; lo: number; hi: number; kind: "seed" | "family" | "other" };
+  const all: R[] = rows.map((r) => ({ rank: Number(r.rank), name: r.name, rating: r.rating, lo: r.rating - (r.err_minus ?? 0), hi: r.rating + (r.err_plus ?? 0), kind: r.family ? "family" : "other" }));
+  if (data.rating != null) {
+    const seed: R = { rank: data.would_rank != null ? Number(data.would_rank) : null, name: `${data.seed} (this test)`, rating: data.rating, lo: data.lo ?? data.rating, hi: data.hi ?? data.rating, kind: "seed" };
+    const at = all.findIndex((r) => r.rating < seed.rating);
+    all.splice(at < 0 ? all.length : at, 0, seed);
+  }
+  const min = Math.min(...all.map((r) => r.lo)) - 10;
+  const max = Math.max(...all.map((r) => r.hi)) + 10;
+  const W = 720;
+  const LEFT = 250;
+  const RIGHT = 60;
+  const ROW = 22;
+  const H = all.length * ROW + 24;
+  const x = (v: number) => LEFT + ((v - min) / Math.max(1, max - min)) * (W - LEFT - RIGHT);
+  const ticks: number[] = [];
+  for (let v = Math.ceil(min / 25) * 25; v <= max; v += 25) ticks.push(v);
+  const color = (k: R["kind"]) => (k === "seed" ? "var(--accent)" : k === "family" ? "var(--warn)" : "var(--border-strong)");
+  return (
+    <Panel title={`Where ${data.seed} lands in the CCRL ${data.list} list (${data.cpus}CPU)`}>
+      <div className="flex flex-wrap gap-4 text-[12.5px] mb-2" data-testid="placement-summary">
+        {data.rating != null ? (
+          <span>
+            <b className="tnum">{num(data.rating)}</b>
+            {data.lo != null && data.hi != null && <span className="muted tnum"> ({num(data.lo)} – {num(data.hi)})</span>} after <b>{data.games}</b> games:{" "}
+            {data.would_rank != null && (
+              <span>
+                it would be <b>#{data.would_rank}</b> of {data.category_size}
+              </span>
+            )}
+            <span className="muted"> · {data.method}</span>
+          </span>
+        ) : (
+          <span className="muted">No rated result yet ({data.method}).</span>
+        )}
+        {data.listed && (
+          <span className="muted">
+            Already in the list as <b>{data.listed.name}</b>: #{data.listed.rank}, {num(data.listed.rating)}
+          </span>
+        )}
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ maxWidth: W, fontSize: 11.5 }} data-testid="placement-chart" role="img" aria-label="Placement in the CCRL list">
+        {ticks.map((v) => (
+          <g key={v}>
+            <line x1={x(v)} x2={x(v)} y1={0} y2={H - 20} stroke="var(--border)" strokeWidth={1} />
+            <text x={x(v)} y={H - 6} textAnchor="middle" fill="var(--muted)">
+              {v}
+            </text>
+          </g>
+        ))}
+        {all.map((r, i) => {
+          const y = i * ROW + ROW / 2;
+          const c = color(r.kind);
+          return (
+            <g key={`${r.name}-${i}`} data-kind={r.kind}>
+              <text x={LEFT - 8} y={y + 4} textAnchor="end" fill={r.kind === "seed" ? "var(--accent)" : "var(--fg)"} fontWeight={r.kind === "other" ? 400 : 600}>
+                {r.rank != null ? `${r.rank}. ` : ""}
+                {r.name.length > 34 ? `${r.name.slice(0, 33)}…` : r.name}
+              </text>
+              {r.hi > r.lo && <rect x={x(r.lo)} y={y - (r.kind === "seed" ? 7 : 4)} width={Math.max(1, x(r.hi) - x(r.lo))} height={r.kind === "seed" ? 14 : 8} rx={2} fill={c} opacity={r.kind === "seed" ? 0.3 : 0.35} />}
+              <line x1={x(r.rating)} x2={x(r.rating)} y1={y - (r.kind === "seed" ? 9 : 6)} y2={y + (r.kind === "seed" ? 9 : 6)} stroke={c} strokeWidth={r.kind === "seed" ? 3 : 2} />
+              <text x={x(r.hi) + 6} y={y + 4} fill="var(--muted)" className="tnum">
+                {num(r.rating)}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      <div className="muted text-[11.5px] mt-1">
+        Bands are the published error margins of the list, and the 95 % interval of this test for the seed. <span style={{ color: "var(--warn)" }}>Orange</span>: other versions of the same engine.
       </div>
     </Panel>
   );

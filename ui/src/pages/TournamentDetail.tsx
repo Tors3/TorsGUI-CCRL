@@ -12,13 +12,14 @@ import type { StagesView } from "../bindings/StagesView";
 import type { TournamentDetail } from "../bindings/TournamentDetail";
 import { GameViewer, type GameRef } from "../components/GameViewer";
 import { GamesTable } from "../components/GamesTable";
-import { EloGraph, OpeningsStats } from "../components/Insights";
+import { EloGraph, OpeningsStats, PlacementChart } from "../components/Insights";
 import { ExportTournamentFile } from "../components/TournamentFileDialog";
 import { TournamentBroadcast } from "../components/Broadcast";
 import { TournamentActions } from "../components/TournamentActions";
 import { UciOptionsEditor } from "../components/UciOptions";
 import { Empty, ErrorBox, Field, Kpi, PageHeader, Panel, ProgressBar, Result, Seg, StateChip, Tip, Warn, Wdl, WdlBar } from "../components/ui";
 import { call, usePoll } from "../lib/api";
+import { cpuLabel } from "../lib/cpu";
 import { duration, num, pct, shortTime, signed } from "../lib/format";
 
 function Standings({ d, order, setOrder }: { d: TournamentDetail; order: RowOrder; setOrder: (o: RowOrder) => void }) {
@@ -127,7 +128,7 @@ function Standings({ d, order, setOrder }: { d: TournamentDetail; order: RowOrde
         <Panel
           title="Rating (logistic MLE)"
           actions={
-            <Tip content={`Ratings of the participants from the imported CCRL ${d.summary.record.config.ccrl_list || "Blitz"} list (${d.summary.record.config.threads}CPU; 1CPU + gap when missing)`}>
+            <Tip content={`Ratings of the participants from the imported CCRL ${d.summary.record.config.ccrl_list || "Blitz"} list (${cpuLabel(d.summary.record.config.participants, d.summary.record.config.threads)}; 1CPU + gap when missing)`}>
               <button
                 className="btn btn-sm"
                 onClick={() =>
@@ -552,7 +553,7 @@ export function TournamentDetailPage() {
             {r.imported && <span className="chip">imported</span>}
           </span>
         }
-        sub={`${r.config.event} · ${r.config.kind.replace("_", " ")}${r.config.variant === "chess960" ? " · Chess960" : ""} · TC ${r.config.tc} · ${r.config.threads} threads · hash ${r.config.hash_mb} MB · ${r.config.book.split(/[\\/]/).pop()} · ${r.config.nodes.length} node(s) × ${r.config.lanes_per_node} lanes`}
+        sub={`${r.config.event} · ${r.config.kind.replace("_", " ")}${r.config.variant === "chess960" ? " · Chess960" : ""} · TC ${r.config.tc} · ${cpuLabel(r.config.participants, r.config.threads)} · hash ${r.config.hash_mb} MB · ${r.config.book.split(/[\\/]/).pop()} · ${r.config.nodes.length} node(s) × ${r.config.lanes_per_node} lanes`}
         actions={
           <>
             <Tip content="CCRL export and forum post">
@@ -596,6 +597,7 @@ export function TournamentDetailPage() {
           <Tabs.Trigger className="tab" value="standings">Standings</Tabs.Trigger>
           <Tabs.Trigger className="tab" value="elo" data-testid="tab-elo">Elo graph</Tabs.Trigger>
           <Tabs.Trigger className="tab" value="openings" data-testid="tab-openings">Openings</Tabs.Trigger>
+          <Tabs.Trigger className="tab" value="placement" data-testid="tab-placement">Where it lands</Tabs.Trigger>
           <Tabs.Trigger className="tab" value="lanes">Lanes &amp; placement</Tabs.Trigger>
           <Tabs.Trigger className="tab" value="games">Games</Tabs.Trigger>
           <Tabs.Trigger className="tab" value="decisive">Decisive ({st.decisive.length})</Tabs.Trigger>
@@ -620,6 +622,9 @@ export function TournamentDetailPage() {
         </Tabs.Content>
         <Tabs.Content value="openings">
           <OpeningsStats id={id} running={r.state === "running"} open={setGame} />
+        </Tabs.Content>
+        <Tabs.Content value="placement">
+          <PlacementChart id={id} running={r.state === "running"} />
         </Tabs.Content>
         <Tabs.Content value="lanes">
           <Lanes d={d} />

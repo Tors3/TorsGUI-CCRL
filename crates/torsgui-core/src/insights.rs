@@ -79,6 +79,55 @@ fn thin(v: Vec<EloPoint>, max: usize) -> Vec<EloPoint> {
     out
 }
 
+// ------------------------------------------------------------------ placement
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
+pub struct ListPlacementRow {
+    pub rank: i64,
+    pub name: String,
+    pub rating: f64,
+    pub err_plus: Option<f64>,
+    pub err_minus: Option<f64>,
+    /// Another version of the seed's family.
+    pub family: bool,
+}
+
+/// Where the seed lands in its CCRL list: its rating with the error band among the
+/// neighbours of its CPU category.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
+pub struct ListPlacement {
+    pub list: String,
+    pub cpus: u32,
+    pub seed: String,
+    pub games: u32,
+    /// None before the first decisive result.
+    pub rating: Option<f64>,
+    pub lo: Option<f64>,
+    pub hi: Option<f64>,
+    /// "MLE anchored on the CCRL ratings" or "performance".
+    pub method: String,
+    /// The rank the seed would take in the category, and how many engines are in it.
+    pub would_rank: Option<i64>,
+    pub category_size: i64,
+    /// The seed's own entry when it is already in the list (an earlier submission).
+    pub listed: Option<ListPlacementRow>,
+    pub neighbours: Vec<ListPlacementRow>,
+}
+
+/// Picks the neighbours of `rating` in `category` (sorted by rating, best first), `around` on
+/// each side; the rank the seed would take is the first position with a lower rating.
+pub fn place(category: &[ListPlacementRow], rating: Option<f64>, around: usize) -> (Option<i64>, Vec<ListPlacementRow>) {
+    let Some(r) = rating else {
+        return (None, category.iter().take(2 * around).cloned().collect());
+    };
+    let pos = category.iter().position(|e| e.rating < r).unwrap_or(category.len());
+    let from = pos.saturating_sub(around);
+    let to = (pos + around).min(category.len());
+    (Some(pos as i64 + 1), category[from..to].to_vec())
+}
+
 // ------------------------------------------------------------------ openings
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
@@ -253,6 +302,17 @@ mod tests {
         assert!(last.elo.unwrap() > 80.0 && last.lo.unwrap() < last.elo.unwrap() && last.hi.unwrap() > last.elo.unwrap());
         assert!((last.perf.unwrap() - (3050.0 + last.elo.unwrap())).abs() < 1e-6);
         assert_eq!(thin((0..50).map(|i| EloPoint { games: i, ..Default::default() }).collect(), 10).last().unwrap().games, 49);
+    }
+
+    #[test]
+    fn placement_among_neighbours() {
+        let cat: Vec<ListPlacementRow> = (0..30).map(|i| ListPlacementRow { rank: i + 1, name: format!("E{i}"), rating: 3600.0 - 10.0 * i as f64, ..Default::default() }).collect();
+        let (rank, n) = place(&cat, Some(3505.0), 4);
+        assert_eq!(rank, Some(11));
+        assert_eq!(n.iter().map(|r| r.rank).collect::<Vec<_>>(), vec![7, 8, 9, 10, 11, 12, 13, 14]);
+        assert_eq!(place(&cat, Some(3700.0), 4).0, Some(1));
+        assert_eq!(place(&cat, Some(3000.0), 4).0, Some(31));
+        assert_eq!(place(&cat, None, 4).1.len(), 8);
     }
 
     #[test]
