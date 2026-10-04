@@ -165,6 +165,12 @@ impl App {
     pub fn new(root: PathBuf) -> Result<App> {
         let ws = Workspace::new(root);
         ws.open()?; // creates the database
+        // files left in use by the previous update
+        if crate::updater::install_kind() != crate::updater::InstallKind::Unknown {
+            if let Some(dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(|p| p.to_path_buf())) {
+                crate::updater::cleanup_old(&dir);
+            }
+        }
         Ok(App {
             ws,
             sys: Mutex::new(sysinfo::System::new()),
@@ -206,14 +212,73 @@ impl App {
             }
             "update_check" => {
                 let current = env!("CARGO_PKG_VERSION");
+                let token = store.settings()?.github_token;
+                let (tag, assets) = crate::updater::latest_release(Some(&token))?;
+                let kind = crate::updater::install_kind();
+                let asset = crate::updater::pick_asset(&kind, &assets);
                 let (owner, repo) = crate::github::APP_REPO;
-                let tag = crate::github::latest_tag_via_redirect(owner, repo)?;
                 ok(json!({
                     "current": current,
                     "latest": tag.trim_start_matches('v'),
                     "newer": crate::github::is_newer(&tag, current),
                     "url": format!("https://github.com/{owner}/{repo}/releases/tag/{tag}"),
+                    "kind": kind.label(),
+                    "asset": asset,
                 }))
+            }
+            "update_install" => {
+                // download the release file for this kind of install and install it
+                {
+                    let jobs = self.jobs.lock().unwrap();
+                    if jobs.get("update").is_some_and(|j| j["running"] == true) {
+                        bail!("the update is already running");
+                    }
+                }
+                let token = store.settings()?.github_token;
+                let (tag, assets) = crate::updater::latest_release(Some(&token))?;
+                if !crate::github::is_newer(&tag, env!("CARGO_PKG_VERSION")) {
+                    bail!("TorsGUI {} is already the latest version", env!("CARGO_PKG_VERSION"));
+                }
+                let kind = crate::updater::install_kind();
+                let asset = crate::updater::pick_asset(&kind, &assets).with_context(|| format!("no release file for this {} ({tag}): download it from the release page", kind.label()))?;
+                let jobs = self.jobs.clone();
+                let ws = self.ws.clone();
+                let set = move |v: Value| {
+                    jobs.lock().unwrap().insert("update".into(), v);
+                };
+                set(json!({"running": true, "phase": "download", "done": 0, "total": asset.size, "asset": asset.name, "version": tag}));
+                std::thread::spawn(move || {
+                    let dir = std::env::temp_dir().join("torsgui-update");
+                    let _ = std::fs::create_dir_all(&dir);
+                    let file = dir.join(&asset.name);
+                    let mut last = std::time::Instant::now();
+                    let r = crate::updater::download(&asset, &file, |done, total| {
+                        if last.elapsed().as_millis() > 200 {
+                            last = std::time::Instant::now();
+                            set(json!({"running": true, "phase": "download", "done": done, "total": total, "asset": asset.name, "version": tag}));
+                        }
+                    })
+                    .and_then(|_| {
+                        set(json!({"running": true, "phase": "install", "asset": asset.name, "version": tag}));
+                        crate::updater::apply(&kind, &file)
+                    });
+                    match r {
+                        Ok(msg) => {
+                            let restart = crate::updater::restart_needed(&kind);
+                            if let Ok(s) = ws.open() {
+                                let _ = s.push_event("success", "update_installed", None, &format!("TorsGUI {tag}: {msg}"));
+                            }
+                            set(json!({"running": false, "phase": "done", "message": msg, "restart": restart, "version": tag}));
+                            if restart {
+                                // the installer / the new copy takes over; tournaments keep running
+                                std::thread::sleep(std::time::Duration::from_millis(1500));
+                                std::process::exit(0);
+                            }
+                        }
+                        Err(e) => set(json!({"running": false, "phase": "failed", "error": format!("{e:#}"), "version": tag})),
+                    }
+                });
+                ok(true)
             }
             "open_url" => {
                 let url: String = arg(&a, "url")?;

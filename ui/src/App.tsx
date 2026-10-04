@@ -34,6 +34,7 @@ import type { EventRecord } from "./bindings/EventRecord";
 import type { Health } from "./bindings/Health";
 import type { TournamentSummary } from "./bindings/TournamentSummary";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ProgressBar } from "./components/ui";
 import { call, isTauri, usePoll } from "./lib/api";
 import { setUserPieceSets } from "./lib/boardPrefs";
 import type { UserPieceSet } from "./bindings/UserPieceSet";
@@ -408,49 +409,107 @@ function useExternalLinks() {
   }, []);
 }
 
-type UpdateInfo = { current: string; latest: string; newer: boolean; url: string };
+type UpdateInfo = { current: string; latest: string; newer: boolean; url: string; kind: string; asset: { name: string; size: number } | null };
+type UpdateJob = { running: boolean; phase: string; done?: number; total?: number; message?: string; error?: string; restart?: boolean };
 
-/** A newer TorsGUI on GitHub (checked once at start, Settings → General). */
+/** A newer TorsGUI on GitHub (checked at start, or from Settings), installed from here. */
 function UpdateBanner() {
   const [u, setU] = useState<UpdateInfo>();
   const [hidden, setHidden] = useState(false);
-  useEffect(() => {
-    call<{ check_updates: boolean }>("settings_get")
-      .then((s) => (s.check_updates ? call<UpdateInfo>("update_check") : undefined))
+  const [job, setJob] = useState<UpdateJob>();
+  const check = useCallback((manual: boolean) => {
+    call<UpdateInfo>("update_check")
       .then((x) => {
-        if (!x?.newer) return;
-        try {
-          if (localStorage.getItem("torsgui-update-dismissed") === x.latest) return;
-        } catch {
-          /* private mode */
+        if (!x.newer) {
+          if (manual) toast.success(`TorsGUI ${x.current} is the latest version`);
+          return;
         }
+        if (!manual) {
+          try {
+            if (localStorage.getItem("torsgui-update-dismissed") === x.latest) return;
+          } catch {
+            /* private mode */
+          }
+        }
+        setHidden(false);
         setU(x);
       })
-      .catch(() => {});
+      .catch((e) => manual && toast.error(String(e.message ?? e)));
   }, []);
+  useEffect(() => {
+    call<{ check_updates: boolean }>("settings_get")
+      .then((s) => s.check_updates && check(false))
+      .catch(() => {});
+    const onAsk = () => check(true);
+    window.addEventListener("torsgui-check-update", onAsk);
+    return () => window.removeEventListener("torsgui-check-update", onAsk);
+  }, [check]);
+  useEffect(() => {
+    if (!job?.running) return;
+    const t = setInterval(() => call<UpdateJob | null>("job_status", { id: "update" }).then((j) => j && setJob(j)).catch(() => {}), 400);
+    return () => clearInterval(t);
+  }, [job?.running]);
+  const install = async () => {
+    try {
+      await call("update_install");
+      setJob({ running: true, phase: "download", done: 0, total: u?.asset?.size ?? 0 });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
   if (!u || hidden) return null;
+  const mb = (b?: number) => ((b ?? 0) / 1048576).toFixed(1);
   return (
     <div className="flex flex-wrap items-center gap-2 px-4 py-1.5 text-[12.5px]" style={{ background: "var(--accent-bg)", borderBottom: "1px solid var(--border)" }} data-testid="update-banner">
       <Download size={13} style={{ color: "var(--accent)" }} />
       <span>
         <b>TorsGUI {u.latest}</b> is available <span className="muted">(you have {u.current})</span>
       </span>
-      <a className="btn btn-sm btn-primary" href={u.url} target="_blank" rel="noreferrer">
-        Download
-      </a>
-      <button
-        className="btn btn-sm btn-ghost"
-        onClick={() => {
-          try {
-            localStorage.setItem("torsgui-update-dismissed", u.latest);
-          } catch {
-            /* private mode */
-          }
-          setHidden(true);
-        }}
-      >
-        Not now
-      </button>
+      {job ? (
+        job.phase === "download" ? (
+          <span className="flex items-center gap-2 tnum" data-testid="update-progress">
+            downloading {mb(job.done)} / {mb(job.total)} MB
+            <span className="inline-block w-40">
+              <ProgressBar value={job.done ?? 0} max={Math.max(1, job.total ?? 1)} />
+            </span>
+          </span>
+        ) : job.phase === "install" ? (
+          <span>installing… tournaments keep running</span>
+        ) : job.phase === "failed" ? (
+          <span className="l">
+            {job.error}{" "}
+            <a className="link" href={u.url} target="_blank" rel="noreferrer">
+              release page
+            </a>
+          </span>
+        ) : (
+          <span className="w">{job.message}</span>
+        )
+      ) : (
+        <>
+          {u.asset ? (
+            <button className="btn btn-sm btn-primary" onClick={install} title={`${u.asset.name} (${mb(u.asset.size)} MB) for this ${u.kind}`} data-testid="update-install">
+              Update now
+            </button>
+          ) : null}
+          <a className={`btn btn-sm ${u.asset ? "" : "btn-primary"}`} href={u.url} target="_blank" rel="noreferrer">
+            {u.asset ? "What's new" : "Download"}
+          </a>
+          <button
+            className="btn btn-sm btn-ghost"
+            onClick={() => {
+              try {
+                localStorage.setItem("torsgui-update-dismissed", u.latest);
+              } catch {
+                /* private mode */
+              }
+              setHidden(true);
+            }}
+          >
+            Not now
+          </button>
+        </>
+      )}
     </div>
   );
 }

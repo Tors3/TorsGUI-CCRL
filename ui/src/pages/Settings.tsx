@@ -156,7 +156,12 @@ export function SettingsPage() {
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={s.check_updates} onChange={(e) => set("check_updates", e.target.checked)} data-testid="check-updates" /> Tell me when a new TorsGUI version is out
             </label>
-            <div className="muted text-[11.5px] -mt-1 ml-6">At start, TorsGUI asks GitHub for the latest release (nothing is sent about you or your machine).</div>
+            <div className="muted text-[11.5px] -mt-1 ml-6">At start, TorsGUI asks GitHub for the latest release (nothing is sent about you or your machine). <b>Update now</b> downloads it (size and SHA-256 checked) and installs it like this copy was installed; running tournaments keep running.</div>
+            <div>
+              <button className="btn btn-sm" onClick={() => window.dispatchEvent(new Event("torsgui-check-update"))} data-testid="check-update-now">
+                Check for updates now
+              </button>
+            </div>
           </div>
         </Panel>
         <Panel title="Engine builds">

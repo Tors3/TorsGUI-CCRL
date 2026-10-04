@@ -39,4 +39,5 @@ pub mod tc;
 pub mod suite;
 pub mod tournament_file;
 pub mod uci;
+pub mod updater;
 pub mod util;

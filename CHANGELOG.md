@@ -11,7 +11,11 @@
 - **Desktop notifications** for the important events (tournament finished, queue, engine
   problems, bench, test suites, game analysis), also while TorsGUI is in the tray; Settings
   switch.
-- **Update check**: a bar when a newer TorsGUI release is on GitHub (Settings switch).
+- **Update from inside the app**: when a newer TorsGUI release is on GitHub a bar offers
+  **Update now**: the file for this kind of install (Windows installer, MSI, portable folder,
+  AppImage, Debian package) is downloaded, its size and SHA-256 checked, and installed; TorsGUI
+  starts again. Running tournaments keep running (files in use are set aside and replaced).
+  *Settings → General*: check at start (switch) or *Check for updates now*.
 - Tournament **Elo graph**: the Elo (or performance) of a player game after game with its 95 %
   band.
 - Tournament **Openings**: results per opening of the book, White's score, draws, pairs won
@@ -21,7 +25,9 @@
   endgame test and the Eigenmann Endgame Test, from the Arasan engine's collection (MIT).
 - **From the CCRL list to the download**: click an engine in *CCRL Lists* and *Engines → Add
   from GitHub* opens with its repository and the release of the version listed already chosen
-  (73 engines mapped so far; for the others the dialog says so and the address can be pasted).
+  (102 engines mapped, from the top of the lists down, plus the official sites of engines not on
+  GitHub). For the others TorsGUI reads the engine's page on the CCRL site for its GitHub or
+  homepage link, and remembers it; an address pasted by hand is remembered too.
 - Links open in the system browser in the desktop app.
 
 ### Fixed

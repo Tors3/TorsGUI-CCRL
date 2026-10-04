@@ -195,9 +195,11 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
 
 **From the list to the download**: click an engine in a CCRL list and *Engines → Add from
 GitHub* opens with its official repository and the release of the version in the list already
-selected; check the build TorsGUI proposes and press *Download, extract & verify*. Engines whose
-repository TorsGUI does not know yet (closed-source engines among them) open the same dialog with
-a note: paste the address, or download them from their site and use *Add engine → Local file*.
+selected; check the build TorsGUI proposes and press *Download, extract & verify*. For an engine
+TorsGUI does not know yet, it reads the engine's page on the CCRL site (its homepage link, often
+GitHub) and remembers what it finds; engines that are not on GitHub (commercial ones, or on their
+own site) show a link to their site, then use *Add engine → Local file*. An address you paste
+is remembered for the next time.
 
 ## 5. Create a gauntlet
 
@@ -505,8 +507,12 @@ every way to add engines.
   missing, the next tournament of the queue started, an engine crashed (at most one a minute per
   tournament), a bench, a test suite or a game analysis finished. They come also while TorsGUI
   sits in the tray.
-- **Updates**: at start TorsGUI asks GitHub for its latest release and shows a bar with the
-  download link when there is a newer one (*Not now* hides it until the next version).
+- **Updates**: at start (or with *Settings → General → Check for updates now*) TorsGUI asks
+  GitHub for its latest release. When there is a newer one a bar offers **Update now**: TorsGUI
+  downloads the file for the way it was installed (Windows installer, MSI, portable folder,
+  AppImage; a Debian package opens in the package manager), checks its size and SHA-256, installs
+  it and starts again. Running tournaments keep running. *Not now* hides the bar until the next
+  version.
 - A tournament's **Elo graph** shows how the Elo of a player (the seed by default) moved game
   after game, with its 95 % band, or its performance when the opponents have CCRL ratings.
 - **Openings**: every opening of the book with its results, White's score, draws, and the pairs
