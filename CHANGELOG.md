@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Fixed
+- **CCRL lists all the same after a download**: for every list TorsGUI tries several addresses
+  of the site and took the first page with rating rows, so a site answering the same page (the
+  Blitz list, a home page) at the other addresses turned every list into that one. Now a page is
+  taken only when its title is the list asked for (Blitz, 40/15, FRC; best or all versions) and
+  its rows are not those of another list; otherwise the next address is tried, and the list keeps
+  what it had when none fits. *CCRL Lists* shows where each list comes from (address and title of
+  the page) and warns when two saved lists have the very same rows (press *Fetch all* again).
+
 ### Changed
 - Pages with many panels are split into **sub-tabs** in their main area (the tab is kept in the
   address, so links and reloads open it): *New tournament* is a step-by-step form (Type &

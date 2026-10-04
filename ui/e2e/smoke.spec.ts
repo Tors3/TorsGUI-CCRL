@@ -565,3 +565,20 @@ test("game analysis: pasted game, review and live engine", async ({ page }) => {
   await expect(page).toHaveURL(/#\/analysis\?source=/);
   await expect(page.getByTestId("analysis-moves").locator("button").first()).toBeVisible();
 });
+
+test("CCRL lists: the source of each list, and a warning for two identical lists", async ({ page }) => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  await page.goto("/#/ccrl");
+  await expect(page.getByTestId("ccrl-source")).toContainText("from ");
+  // an old wrong download: 40/15 "all" with the rows of the Blitz "all" list
+  const text = readFileSync(join(__dirname, "sample-ccrl-blitz.txt"), "utf8");
+  await page.request.post("/api/ccrl_import_text", { data: { list: "40/15", variant: "all", text } });
+  await page.reload();
+  await expect(page.getByText(/exactly the same rows \(.*Blitz all.*40\/15 all|exactly the same rows \(.*40\/15 all.*Blitz all/)).toBeVisible();
+  const lists = await (await page.request.post("/api/ccrl_lists", { data: {} })).json();
+  const bad = lists.find((l: any) => l.list === "40/15" && l.variant === "all");
+  await page.request.post("/api/ccrl_delete_list", { data: { id: bad.id } });
+  await page.reload();
+  await expect(page.getByText(/exactly the same rows/)).toHaveCount(0);
+});

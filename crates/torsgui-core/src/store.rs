@@ -100,6 +100,10 @@ pub struct Settings {
     pub lichess_visibility: String,
     /// First UDP port of the ccrl.live (TLCS-compatible) broadcast: lane N uses port + N.
     pub ccrl_live_port: u16,
+    /// Desktop notifications (tournament finished, engine problems, queue, bench).
+    pub desktop_notifications: bool,
+    /// Look for a newer TorsGUI release on GitHub at start.
+    pub check_updates: bool,
 }
 
 impl Settings {
@@ -145,6 +149,8 @@ impl Default for Settings {
             lichess_token: String::new(),
             lichess_visibility: "public".into(),
             ccrl_live_port: 16001,
+            desktop_notifications: true,
+            check_updates: true,
         }
     }
 }

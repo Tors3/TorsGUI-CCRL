@@ -8,7 +8,7 @@ import type { MatchCandidate } from "../bindings/MatchCandidate";
 import type { Suggestion } from "../bindings/Suggestion";
 import type { Threshold } from "../bindings/Threshold";
 import type { TournamentSummary } from "../bindings/TournamentSummary";
-import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, Seg, Spinner, PageTabs, useTabParam } from "../components/ui";
+import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, Seg, Spinner, PageTabs, useTabParam, Warn } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { num } from "../lib/format";
 
@@ -97,6 +97,14 @@ export function CcrlLists() {
   const cur = lists?.find((l) => l.id === sel) ?? lists?.[0];
   const installed = useMemo(() => new Map((engines ?? []).map((e) => [norm(e.display_name), e])), [engines]);
   const aliasMap = useMemo(() => new Map((aliases ?? []).map(([a, c]) => [norm(c), a])), [aliases]);
+  // lists with the very same rows: downloaded from a page of another list (fixed in 0.5.2)
+  const twins = useMemo(() => {
+    const out: string[] = [];
+    const ls = lists ?? [];
+    const same = (a: CcrlList, b: CcrlList) => a.entries.length === b.entries.length && a.entries.length > 0 && a.entries.every((e, i) => e.name === b.entries[i].name && e.rating === b.entries[i].rating);
+    for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) if ((ls[i].list !== ls[j].list || ls[i].variant !== ls[j].variant) && same(ls[i], ls[j])) out.push(`${ls[i].list} ${ls[i].variant} = ${ls[j].list} ${ls[j].variant}`);
+    return out;
+  }, [lists]);
   const rows = (cur?.entries ?? []).filter((e) => (cpu === "all" || cpusOf(e.name) === Number(cpu)) && (!q || e.name.toLowerCase().includes(q.toLowerCase())));
 
   // tools
@@ -177,6 +185,11 @@ export function CcrlLists() {
         onChange={setTab}
         testid="ccrl-tab"
       />
+      {tab === "lists" && twins.length > 0 && (
+        <Warn>
+          These lists have exactly the same rows ({twins.join(", ")}): they were downloaded from the wrong page of the site. Press <b>Fetch all</b> again: TorsGUI now checks that every page is the list it asked for.
+        </Warn>
+      )}
       {tab === "lists" && (
       <div className="grid gap-3 ccrl-grid">
         <div className="flex flex-col gap-3">
@@ -242,7 +255,12 @@ export function CcrlLists() {
             </>
           }
         >
-          <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 200px)" }}>
+          {cur && (
+            <div className="px-3 py-1.5 muted text-[11.5px] truncate" style={{ borderBottom: "1px solid var(--border)" }} title={cur.source} data-testid="ccrl-source">
+              {cur.entries.length} engines · from {cur.source} · {cur.fetched_at.slice(0, 16).replace("T", " ")}
+            </div>
+          )}
+          <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 230px)" }}>
             <table className="tbl" data-testid="ccrl-table">
               <thead>
                 <tr>

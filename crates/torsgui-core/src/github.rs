@@ -343,3 +343,33 @@ mod tests {
         assert_eq!(files.len(), 1);
     }
 }
+
+/// TorsGUI's own repository, for the update check.
+pub const APP_REPO: (&str, &str) = ("Tors3", "TorsGUI-CCRL");
+
+/// `1.2.3` (or `v1.2.3`) as numbers; pre-release suffixes are ignored.
+pub fn version_tuple(v: &str) -> Option<(u32, u32, u32)> {
+    let v = v.trim().trim_start_matches(['v', 'V']);
+    let core = v.split(['-', '+']).next()?;
+    let mut it = core.split('.').map(|x| x.parse::<u32>().ok());
+    Some((it.next()??, it.next().flatten().unwrap_or(0), it.next().flatten().unwrap_or(0)))
+}
+
+/// Is `latest` newer than `current`?
+pub fn is_newer(latest: &str, current: &str) -> bool {
+    matches!((version_tuple(latest), version_tuple(current)), (Some(a), Some(b)) if a > b)
+}
+
+#[cfg(test)]
+mod version_tests {
+    use super::*;
+    #[test]
+    fn versions_compare() {
+        assert!(is_newer("v0.6.0", "0.5.1"));
+        assert!(is_newer("v0.5.10", "0.5.9"));
+        assert!(!is_newer("v0.5.1", "0.5.1"));
+        assert!(!is_newer("v0.4.9", "0.5.0"));
+        assert!(!is_newer("nightly", "0.5.0"));
+        assert_eq!(version_tuple("v1.2"), Some((1, 2, 0)));
+    }
+}

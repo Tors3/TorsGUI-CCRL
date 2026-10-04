@@ -202,6 +202,17 @@ impl App {
                     "host": sysinfo::System::host_name(),
                 }))
             }
+            "update_check" => {
+                let current = env!("CARGO_PKG_VERSION");
+                let (owner, repo) = crate::github::APP_REPO;
+                let tag = crate::github::latest_tag_via_redirect(owner, repo)?;
+                ok(json!({
+                    "current": current,
+                    "latest": tag.trim_start_matches('v'),
+                    "newer": crate::github::is_newer(&tag, current),
+                    "url": format!("https://github.com/{owner}/{repo}/releases/tag/{tag}"),
+                }))
+            }
             "settings_get" => ok(store.settings()?),
             "settings_save" => {
                 let s: Settings = arg(&a, "settings")?;
@@ -743,7 +754,8 @@ impl App {
             "ccrl_sources" => ok(ccrl::default_sources()),
             "ccrl_fetch" => {
                 let src: ccrl::ListSource = arg(&a, "source")?;
-                let l = ccrl::fetch(&src).map_err(|e| anyhow::anyhow!("{e}. The bundled snapshot of the list stays in use; a saved page (.html) can be imported by hand"))?;
+                let others = store.ccrl_lists()?;
+                let l = ccrl::fetch_avoiding(&src, &others).map_err(|e| anyhow::anyhow!("{e}. The bundled snapshot of the list stays in use; a saved page (.html) can be imported by hand"))?;
                 store.save_ccrl_list(&l)?;
                 ok(json!({"entries": l.entries.len(), "source": l.source}))
             }
@@ -751,10 +763,14 @@ impl App {
                 // every list in turn; a list that cannot be downloaded keeps what it has
                 let mut done = Vec::new();
                 let mut failed = Vec::new();
+                // the lists downloaded in this run: a page with the same rows as one of them is
+                // another list served at the wrong address
+                let mut fetched: Vec<ccrl::CcrlList> = Vec::new();
                 for src in ccrl::default_sources() {
-                    match ccrl::fetch(&src) {
+                    match ccrl::fetch_avoiding(&src, &fetched) {
                         Ok(l) => {
                             store.save_ccrl_list(&l)?;
+                            fetched.push(l.clone());
                             done.push(json!({"list": src.list, "variant": src.variant, "entries": l.entries.len()}));
                         }
                         Err(e) => failed.push(json!({"list": src.list, "variant": src.variant, "error": e.to_string()})),

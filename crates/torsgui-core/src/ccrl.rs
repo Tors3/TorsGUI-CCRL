@@ -289,21 +289,84 @@ pub fn snapshot_lists() -> Vec<CcrlList> {
         .collect()
 }
 
-/// Downloads a list, trying every candidate URL until one has rating rows.
-pub fn fetch(src: &ListSource) -> Result<CcrlList> {
-    fetch_with(src, |u| crate::github::get_page(u))
+/// What a page says it is, from its "CCRL Blitz Rating List - All engines (best versions
+/// only)" title: the list ("Blitz", "40/15", "FRC"), best versions only (Some(true)), all
+/// versions (Some(false)) or not said (None), and the title itself.
+pub fn page_identity(html: &str) -> Option<(String, Option<bool>, String)> {
+    static TITLE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)CCRL\s+([^\n<>]{1,30}?)\s+Rating\s+List([^\n<>]{0,120})").unwrap());
+    let text = strip_tags(html);
+    let c = TITLE.captures(&text)?;
+    let name = c[1].to_string();
+    let n = name.to_lowercase();
+    let list = if n.contains("frc") || n.contains("960") || n.contains("fischer") {
+        "FRC"
+    } else if n.contains("40/15") || n.contains("40/40") || n.contains("4040") {
+        "40/15"
+    } else if n.contains("blitz") || n.contains("40/4") || n.contains("404") || n.contains("40/2") {
+        "Blitz"
+    } else {
+        return None;
+    };
+    let rest = c[2].to_lowercase();
+    let best = if rest.contains("best version") {
+        Some(true)
+    } else if rest.contains("all version") || rest.contains("complete") {
+        Some(false)
+    } else {
+        None
+    };
+    let title = format!("CCRL {} Rating List{}", name.trim(), c[2].trim_end());
+    Some((list.to_string(), best, title.split(", computed").next().unwrap_or(&title).trim().to_string()))
 }
 
-pub fn fetch_with(src: &ListSource, get: impl Fn(&str) -> Result<(u16, String)>) -> Result<CcrlList> {
+/// Same rows (names and ratings): a page served for the wrong list.
+pub fn same_rows(a: &[CcrlEntry], b: &[CcrlEntry]) -> bool {
+    a.len() == b.len() && !a.is_empty() && a.iter().zip(b).all(|(x, y)| x.name == y.name && x.rating == y.rating)
+}
+
+/// Downloads a list, trying every candidate URL until one has rating rows.
+pub fn fetch(src: &ListSource) -> Result<CcrlList> {
+    fetch_with(src, |u| crate::github::get_page(u), &[])
+}
+
+/// Downloads a list; `others` are the other lists already known: a page with the very same
+/// rows as one of them (the site answering with another list) is skipped.
+pub fn fetch_avoiding(src: &ListSource, others: &[CcrlList]) -> Result<CcrlList> {
+    fetch_with(src, |u| crate::github::get_page(u), others)
+}
+
+/// Like `fetch`, with the page download given. A page is taken only when it has rating rows,
+/// does not say it is another list (or the other variant), and is not a copy of another list.
+pub fn fetch_with(src: &ListSource, get: impl Fn(&str) -> Result<(u16, String)>, others: &[CcrlList]) -> Result<CcrlList> {
     let mut tried = Vec::new();
     for url in candidate_urls(src) {
         match get(&url) {
             Ok((200, body)) => {
                 let entries = parse_html(&body);
-                if entries.len() >= 5 {
-                    return Ok(CcrlList { id: None, list: src.list.clone(), cpu: src.cpu.clone(), variant: src.variant.clone(), source: url, fetched_at: crate::store::now(), entries });
+                if entries.len() < 5 {
+                    tried.push(format!("{url}: no rating rows"));
+                    continue;
                 }
-                tried.push(format!("{url}: no rating rows"));
+                let id = page_identity(&body);
+                if let Some((list, best, title)) = &id {
+                    if list != &src.list {
+                        tried.push(format!("{url}: this page is the {list} list ({title})"));
+                        continue;
+                    }
+                    if *best == Some(src.variant == "all") {
+                        tried.push(format!("{url}: this page is the {} list ({title})", if src.variant == "all" { "best-versions" } else { "all-versions" }));
+                        continue;
+                    }
+                }
+                if let Some(o) = others.iter().find(|o| (o.list != src.list || o.variant != src.variant) && same_rows(&o.entries, &entries)) {
+                    tried.push(format!("{url}: the same rows as the {} {} list", o.list, o.variant));
+                    continue;
+                }
+                let source = match id {
+                    Some((_, _, title)) => format!("{url} · {title}"),
+                    None => url,
+                };
+                return Ok(CcrlList { id: None, list: src.list.clone(), cpu: src.cpu.clone(), variant: src.variant.clone(), source, fetched_at: crate::store::now(), entries });
             }
             Ok((st, _)) => tried.push(format!("{url}: HTTP {st}")),
             Err(e) => tried.push(format!("{url}: {e}")),
@@ -730,11 +793,54 @@ mod tests {
         let src = default_sources().into_iter().find(|s| s.list == "40/15" && s.variant == "best").unwrap();
         let rows: String = (1..=8).map(|i| format!("<tr><td>{i}</td><td>Engine{i} 1.0 64-bit 4CPU</td><td>{}</td><td>+10</td><td>-10</td></tr>", 3600 - i * 10)).collect();
         let page = format!("<table><tr><th>Rank</th><th>Name</th><th>Rating</th><th>+</th><th>-</th></tr>{rows}</table>");
-        let l = fetch_with(&src, |u| if u.contains("/ccrl/4040/") { Ok((200, page.clone())) } else if u.contains("www.") { Ok((200, "<html>blocked</html>".into())) } else { Ok((403, String::new())) }).unwrap();
+        let l = fetch_with(&src, |u| if u.contains("/ccrl/4040/") { Ok((200, page.clone())) } else if u.contains("www.") { Ok((200, "<html>blocked</html>".into())) } else { Ok((403, String::new())) }, &[]).unwrap();
         assert_eq!(l.entries.len(), 8);
         assert!(l.source.contains("/ccrl/4040/"));
-        let err = fetch_with(&src, |_| Ok((403, String::new()))).unwrap_err().to_string();
+        let err = fetch_with(&src, |_| Ok((403, String::new())), &[]).unwrap_err().to_string();
         assert!(err.contains("HTTP 403") && err.contains("compare_engines.cgi"), "{err}");
+    }
+
+    /// A site that answers the Blitz page for every unknown address (or a home page showing
+    /// the Blitz list) must not turn every list into the Blitz list.
+    #[test]
+    fn every_list_gets_its_own_page() {
+        let page = |title: &str, base: i64| {
+            let rows: String = (1..=8).map(|i| format!("<tr><td>{i}</td><td>Engine{i}x{base} 1.0 64-bit 4CPU</td><td>{}</td><td>+10</td><td>-10</td></tr>", base - i * 10)).collect();
+            format!("<html><h2>{title}</h2><table><tr><th>Rank</th><th>Name</th><th>Rating</th><th>+</th><th>-</th></tr>{rows}</table></html>")
+        };
+        let blitz = page("CCRL Blitz Rating List - All engines (best versions only), computed on October 1, 2026", 3800);
+        let blitz_all = page("CCRL Blitz Rating List - All engines (all versions), computed on October 1, 2026", 3801);
+        let l4015 = page("CCRL 40/15 Rating List - All engines (best versions only), computed on October 1, 2026", 3600);
+        // FRC: no title at all, and its pages at the old address only as a text export
+        let frc_rows = page("", 4100);
+        let get = |u: &str| -> Result<(u16, String)> {
+            Ok(if u.contains("/ccrl/4040/") && !u.contains("rating_list_all") && !u.contains("cgi") {
+                (200, l4015.clone())
+            } else if u.contains("/404/rating_list_all.html") {
+                (200, blitz_all.clone())
+            } else if u.contains("/404FRC/cgi/") && u.ends_with("only_best_in_class=1") {
+                (200, frc_rows.clone())
+            } else {
+                // every other address: the Blitz best page (soft 404 / home page)
+                (200, blitz.clone())
+            })
+        };
+        let src = |list: &str, variant: &str| default_sources().into_iter().find(|s| s.list == list && s.variant == variant).unwrap();
+        let mut got: Vec<CcrlList> = Vec::new();
+        for (list, variant) in [("Blitz", "best"), ("Blitz", "all"), ("40/15", "best"), ("FRC", "best")] {
+            let l = fetch_with(&src(list, variant), get, &got).unwrap_or_else(|e| panic!("{list} {variant}: {e}"));
+            got.push(l);
+        }
+        assert!(got[0].entries[0].name.contains("x3800") && got[0].source.contains("Blitz Rating List"), "{}", got[0].source);
+        assert!(got[1].entries[0].name.contains("x3801"), "{}", got[1].source);
+        assert!(got[2].entries[0].name.contains("x3600") && got[2].source.contains("/ccrl/4040/"), "{}", got[2].source);
+        // the untitled Blitz copies are skipped: FRC comes from its own text export
+        assert!(got[3].entries[0].name.contains("x4100") && got[3].source.contains("/404FRC/cgi/"), "{}", got[3].source);
+        // 40/15 all versions: only Blitz pages anywhere -> not downloaded, with the reason
+        let err = fetch_with(&src("40/15", "all"), get, &got).unwrap_err().to_string();
+        assert!(err.contains("this page is the Blitz list"), "{err}");
+        assert_eq!(page_identity(&l4015).map(|x| (x.0, x.1)), Some(("40/15".to_string(), Some(true))));
+        assert_eq!(page_identity("<h1>CCRL 40/2 FRC Rating List - All engines</h1>").map(|x| x.0), Some("FRC".to_string()));
     }
 
     #[test]
