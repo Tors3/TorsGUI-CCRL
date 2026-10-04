@@ -16,6 +16,14 @@
   "notes": "verified by TorsGUI's reference tests (avx2 build)"
  },
  {
+  "name": "Allie",
+  "repo": "manyoso/allie",
+  "ccrl_name": "Allie",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
   "name": "Altair",
   "repo": "Alex2262/AltairChessEngine",
   "ccrl_name": "Altair",
@@ -30,6 +38,14 @@
   "tested_tag": null,
   "tested_asset": null,
   "notes": ""
+ },
+ {
+  "name": "Arcanum",
+  "repo": "LarsAur/Arcanum",
+  "ccrl_name": "Arcanum",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
  },
  {
   "name": "Astra",
@@ -120,6 +136,14 @@
   "notes": "AVX2 CPUs only"
  },
  {
+  "name": "Celeris",
+  "repo": "Hin-Yu-Evan-Fung/Celeris",
+  "ccrl_name": "Celeris",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
   "name": "Cinder",
   "repo": "brunocodutra/cinder",
   "ccrl_name": "Cinder",
@@ -134,6 +158,14 @@
   "tested_tag": null,
   "tested_asset": null,
   "notes": ""
+ },
+ {
+  "name": "Clockwork",
+  "repo": "official-clockwork/Clockwork",
+  "ccrl_name": "Clockwork",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
  },
  {
   "name": "Clover",
@@ -160,12 +192,28 @@
   "notes": "verified by TorsGUI's reference tests (avx2 build)"
  },
  {
+  "name": "Eleanor",
+  "repo": "rektdie/Eleanor",
+  "ccrl_name": "Eleanor",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
   "name": "Elixir",
   "repo": "ArjunBasandrai/elixir-chess-engine",
   "ccrl_name": "Elixir",
   "tested_tag": null,
   "tested_asset": null,
   "notes": "C++ (not the Elixir language)"
+ },
+ {
+  "name": "Equisetum",
+  "repo": "justNo4b/Equisetum",
+  "ccrl_name": "Equisetum",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
  },
  {
   "name": "Ethereal",
@@ -198,6 +246,14 @@
   "tested_tag": "v16",
   "tested_asset": "Halogen-16.0.0-windows-x86_64-avx2.exe",
   "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Heimdall",
+  "repo": "nocturn9x/heimdall",
+  "ccrl_name": "Heimdall",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
  },
  {
   "name": "Hobbes",
@@ -240,6 +296,22 @@
   "notes": "verified by TorsGUI's reference tests (avx2 build)"
  },
  {
+  "name": "Jackal",
+  "repo": "TomaszJaworski777/Jackal",
+  "ccrl_name": "Jackal",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
+  "name": "JustBot",
+  "repo": "HasanFakih21/JustBot",
+  "ccrl_name": "JustBot",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
   "name": "Koivisto",
   "repo": "Luecx/Koivisto",
   "ccrl_name": "Koivisto",
@@ -278,6 +350,30 @@
   "tested_tag": "v11.2",
   "tested_asset": "Lizard-11_2-win.exe",
   "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Lunar",
+  "repo": "Synthetica9/lunar",
+  "ccrl_name": "Lunar",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
+  "name": "Marvin",
+  "repo": "bmdanielsson/marvin-chess",
+  "ccrl_name": "Marvin",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
+  "name": "Midnight",
+  "repo": "archishou/MidnightChessEngine",
+  "ccrl_name": "Midnight",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
  },
  {
   "name": "Minic",
@@ -320,12 +416,28 @@
   "notes": "Rust; single-thread"
  },
  {
+  "name": "Panda",
+  "repo": "all-c-a-p-s/Panda",
+  "ccrl_name": "Panda",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
   "name": "Patricia",
   "repo": "Adam-Kulju/Patricia",
   "ccrl_name": "Patricia",
   "tested_tag": null,
   "tested_asset": null,
   "notes": ""
+ },
+ {
+  "name": "pawn",
+  "repo": "ruicoelhopedro/pawn",
+  "ccrl_name": "pawn",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
  },
  {
   "name": "pawnocchio",
@@ -336,12 +448,28 @@
   "notes": "verified by TorsGUI's reference tests (x86-64-v3 build)"
  },
  {
+  "name": "Peacekeeper",
+  "repo": "Sazgr/peacekeeper",
+  "ccrl_name": "Peacekeeper",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
   "name": "PlentyChess",
   "repo": "Yoshie2000/PlentyChess",
   "ccrl_name": "PlentyChess",
   "tested_tag": "b-v7.0.0",
   "tested_asset": "PlentyChess-7.0.0-windows-avx2.exe",
   "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Prelude",
+  "repo": "Quinniboi10/Prelude",
+  "ccrl_name": "Prelude",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
  },
  {
   "name": "Princhess",
@@ -416,12 +544,28 @@
   "notes": ""
  },
  {
+  "name": "Rodent V",
+  "repo": "nescitus/Rodent-V",
+  "ccrl_name": "Rodent V",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
   "name": "RubiChess",
   "repo": "Matthies/RubiChess",
   "ccrl_name": "RubiChess",
   "tested_tag": "20240817",
   "tested_asset": "RubiChess-20240817_x86-64-avx2.exe",
   "notes": "verified by TorsGUI's reference tests (avx2 build)"
+ },
+ {
+  "name": "Schoenemann",
+  "repo": "Jochengehtab/Schoenemann",
+  "ccrl_name": "Schoenemann",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
  },
  {
   "name": "Seer",
@@ -456,6 +600,14 @@
   "notes": ""
  },
  {
+  "name": "Spaghet",
+  "repo": "yl25946/spaghet",
+  "ccrl_name": "Spaghet",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
   "name": "Starzix",
   "repo": "zzzzz151/Starzix",
   "ccrl_name": "Starzix",
@@ -486,6 +638,22 @@
   "tested_tag": "v8.0.0",
   "tested_asset": "stormphrax-8.0.0-avx2-bmi2.exe",
   "notes": "verified by TorsGUI's reference tests (avx2-bmi2 build)"
+ },
+ {
+  "name": "Superultra",
+  "repo": "A1exL1ang/Superultra",
+  "ccrl_name": "Superultra",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
+  "name": "Sykora",
+  "repo": "sb2bg/sykora",
+  "ccrl_name": "Sykora",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
  },
  {
   "name": "Tarnished",
@@ -536,6 +704,38 @@
   "notes": "verified by TorsGUI's reference tests (avx2 build)"
  },
  {
+  "name": "Tucano",
+  "repo": "alcides-schulz/Tucano",
+  "ccrl_name": "Tucano",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
+  "name": "Turbulence",
+  "repo": "ksw0518/Turbulence_v4",
+  "ccrl_name": "Turbulence",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
+  "name": "Ursus",
+  "repo": "zchown/Ursus",
+  "ccrl_name": "Ursus",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
+  "name": "Vajolet",
+  "repo": "elcabesa/vajolet",
+  "ccrl_name": "Vajolet2",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
   "name": "Velvet",
   "repo": "mhonert/velvet-chess",
   "ccrl_name": "Velvet",
@@ -566,6 +766,38 @@
   "tested_tag": null,
   "tested_asset": null,
   "notes": ""
+ },
+ {
+  "name": "Winter",
+  "repo": "rosenthj/Winter",
+  "ccrl_name": "Winter",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
+  "name": "Xiphos",
+  "repo": "milostatarevic/xiphos",
+  "ccrl_name": "Xiphos",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
+  "name": "Ynode",
+  "repo": "OrhanOzturk77/Ynode",
+  "ccrl_name": "Ynode",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
+ },
+ {
+  "name": "Yukari",
+  "repo": "yukarichess/yukari",
+  "ccrl_name": "Yukari",
+  "tested_tag": null,
+  "tested_asset": null,
+  "notes": "found from the CCRL list (October 2026)"
  },
  {
   "name": "Zangdar",

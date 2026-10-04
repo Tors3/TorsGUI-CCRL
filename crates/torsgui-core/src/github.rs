@@ -57,13 +57,17 @@ pub fn parse_repo(s: &str) -> Option<RepoRef> {
 }
 
 pub(crate) fn agent(follow_redirects: bool) -> ureq::Agent {
+    agent_timeout(follow_redirects, 600)
+}
+
+pub(crate) fn agent_timeout(follow_redirects: bool, secs: u64) -> ureq::Agent {
     let tls = ureq::tls::TlsConfig::builder().root_certs(ureq::tls::RootCerts::PlatformVerifier).build();
     ureq::Agent::config_builder()
         .proxy(ureq::Proxy::try_from_env())
         .tls_config(tls)
         .http_status_as_error(false)
         .max_redirects(if follow_redirects { 10 } else { 0 })
-        .timeout_global(Some(std::time::Duration::from_secs(600)))
+        .timeout_global(Some(std::time::Duration::from_secs(secs)))
         .user_agent("TorsGUI (+https://github.com/Tors3/TorsGUI)")
         .build()
         .into()
@@ -72,7 +76,12 @@ pub(crate) fn agent(follow_redirects: bool) -> ureq::Agent {
 /// A web page (not the GitHub API): browser-like headers, so sites that refuse unknown
 /// clients (the CCRL pages) answer as they do in a browser.
 pub fn get_page(url: &str) -> Result<(u16, String)> {
-    let mut resp = agent(true)
+    get_page_within(url, 600)
+}
+
+/// `get_page` that gives up after `secs` seconds.
+pub fn get_page_within(url: &str, secs: u64) -> Result<(u16, String)> {
+    let mut resp = agent_timeout(true, secs)
         .get(url)
         .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36 TorsGUI")
         .header("Accept", "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8")

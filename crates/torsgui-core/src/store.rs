@@ -327,6 +327,13 @@ CREATE TABLE IF NOT EXISTS events (
   tournament_id TEXT,
   message TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS engine_links (
+  family TEXT PRIMARY KEY COLLATE NOCASE,
+  repo TEXT NOT NULL DEFAULT '',
+  homepage TEXT NOT NULL DEFAULT '',
+  source TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS bench_runs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   host TEXT NOT NULL,
@@ -623,6 +630,27 @@ impl Store {
     }
 
     // ------------------------------------------------------------ aliases
+    /// Repository / homepage found for an engine family (CCRL page, or given by the user).
+    pub fn engine_link(&self, family: &str) -> Result<Option<crate::catalog::EngineLink>> {
+        Ok(self
+            .conn
+            .query_row("SELECT family,repo,homepage,source,updated_at FROM engine_links WHERE family=?1", params![family], |r| {
+                Ok(crate::catalog::EngineLink { family: r.get(0)?, repo: r.get(1)?, homepage: r.get(2)?, source: r.get(3)?, updated_at: r.get(4)? })
+            })
+            .optional()?)
+    }
+    pub fn set_engine_link(&self, l: &crate::catalog::EngineLink) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO engine_links(family,repo,homepage,source,updated_at) VALUES(?1,?2,?3,?4,?5) ON CONFLICT(family) DO UPDATE SET repo=excluded.repo, homepage=excluded.homepage, source=excluded.source, updated_at=excluded.updated_at",
+            params![l.family, l.repo, l.homepage, l.source, l.updated_at],
+        )?;
+        Ok(())
+    }
+    pub fn engine_links(&self) -> Result<Vec<crate::catalog::EngineLink>> {
+        let mut st = self.conn.prepare("SELECT family,repo,homepage,source,updated_at FROM engine_links ORDER BY family")?;
+        let rows = st.query_map([], |r| Ok(crate::catalog::EngineLink { family: r.get(0)?, repo: r.get(1)?, homepage: r.get(2)?, source: r.get(3)?, updated_at: r.get(4)? }))?;
+        Ok(rows.collect::<std::result::Result<_, _>>()?)
+    }
     pub fn aliases(&self) -> Result<Vec<(String, String, String)>> {
         let mut st = self.conn.prepare("SELECT alias,canonical,source FROM aliases ORDER BY alias")?;
         let rows = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;

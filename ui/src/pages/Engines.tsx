@@ -19,7 +19,7 @@ import { call, usePoll } from "../lib/api";
 type ReleasesResp = { repo: RepoRef; latest_stable: string | null; releases: { release: Release; selection: Selection }[]; policy: AssetPolicy };
 
 /** An engine to get, from a CCRL list row: its repository when known and the version listed. */
-export type GithubTarget = { name: string; family: string; version: string; repo: KnownRepo | null };
+export type GithubTarget = { name: string; family: string; version: string; repo: KnownRepo | null; homepage: string | null; source: string };
 
 /** The release whose tag carries the version ("v9.0.0", "sf_19", "Koivisto_9.0" for "9.0"). */
 export function tagForVersion(tags: string[], version: string): string | undefined {
@@ -88,6 +88,8 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
     setError(undefined);
     try {
       const r = await call<{ engine: EngineEntry; verify: { ok: boolean; error: string | null } }>("github_install", { url, tag, asset, ...policyArgs });
+      // a repository given by hand for an engine of the lists: remembered for the next time
+      if (target && !target.repo && url.trim()) call("engine_link_set", { family: target.family, repo: url.trim() }).catch(() => {});
       toast[r.verify.ok ? "success" : "warning"](`${r.engine.display_name}: ${r.engine.verify_status}`);
       onDone();
       setOpen(false);
@@ -119,9 +121,26 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
           <div className="text-[12.5px]" data-testid="github-target">
             From the CCRL list: <b>{target.name}</b>
             {target.repo ? (
-              <span className="muted"> · repository {target.repo.repo}{target.version ? ` · version ${target.version}` : ""}</span>
+              <span className="muted">
+                {" "}
+                · repository {target.repo.repo}
+                {target.version ? ` · version ${target.version}` : ""}
+                {target.source && target.source !== "TorsGUI's list" ? ` · ${target.source}` : ""}
+              </span>
+            ) : target.homepage ? (
+              <span>
+                {" "}
+                · not on GitHub: get it from{" "}
+                <a className="link" href={target.homepage} target="_blank" rel="noreferrer" data-testid="github-homepage">
+                  its site
+                </a>{" "}
+                <span className="muted">({target.homepage})</span>, then <i>Add engine → Local file</i>.
+              </span>
             ) : (
-              <span style={{ color: "var(--warn)" }}> · no repository known for {target.family} yet: paste its GitHub address (owner/repo) below.</span>
+              <span style={{ color: "var(--warn)" }}>
+                {" "}
+                · no repository known for {target.family} yet{target.source ? ` (${target.source})` : ""}: paste its GitHub address (owner/repo) below; TorsGUI remembers it.
+              </span>
             )}
             {versionNote && <div className="muted">{versionNote}</div>}
           </div>
@@ -448,14 +467,17 @@ export function Engines() {
   useEffect(() => {
     const name = params.get("github");
     if (!name) return;
-    call<GithubTarget>("ccrl_repo_for", { name })
+    const id = toast.loading(`Looking for ${name}…`);
+    call<GithubTarget>("ccrl_repo_for", { name, list: params.get("list") ?? "Blitz" })
       .then((t) => {
+        toast.dismiss(id);
         setGhTarget(t);
         setGh(true);
       })
-      .catch((e) => toast.error(e.message));
+      .catch((e) => toast.error(e.message, { id }));
     const next = new URLSearchParams(params);
     next.delete("github");
+    next.delete("list");
     setParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);

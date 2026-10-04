@@ -1,0 +1,62 @@
+[
+ {
+  "name": "Revenge",
+  "ccrl_name": "Revenge",
+  "url": "https://www.revengechess.com/",
+  "notes": "free since 4.0; not on GitHub"
+ },
+ {
+  "name": "Uralochka",
+  "ccrl_name": "Uralochka",
+  "url": "https://gitlab.com/freemanzlat/uralochka3/-/releases",
+  "notes": "releases on GitLab"
+ },
+ {
+  "name": "RofChade",
+  "ccrl_name": "rofChade",
+  "url": "https://rofchade.nl/",
+  "notes": "not on GitHub"
+ },
+ {
+  "name": "SlowChess Blitz",
+  "ccrl_name": "SlowChess",
+  "url": "https://www.3dkingdoms.com/chess/slow.htm",
+  "notes": "not on GitHub"
+ },
+ {
+  "name": "Dragon by Komodo",
+  "ccrl_name": "Dragon by Komodo",
+  "url": "https://komodochess.com/",
+  "notes": "commercial"
+ },
+ {
+  "name": "Shredder",
+  "ccrl_name": "Shredder",
+  "url": "https://www.shredderchess.com/",
+  "notes": "commercial"
+ },
+ {
+  "name": "Deep Shredder",
+  "ccrl_name": "Deep Shredder",
+  "url": "https://www.shredderchess.com/",
+  "notes": "commercial"
+ },
+ {
+  "name": "Hiarcs",
+  "ccrl_name": "Hiarcs",
+  "url": "https://www.hiarcs.com/",
+  "notes": "commercial"
+ },
+ {
+  "name": "Fritz",
+  "ccrl_name": "Fritz",
+  "url": "https://shop.chessbase.com/",
+  "notes": "commercial"
+ },
+ {
+  "name": "Rebel",
+  "ccrl_name": "Rebel",
+  "url": "http://rebel13.nl/",
+  "notes": "freeware, not on GitHub"
+ }
+]

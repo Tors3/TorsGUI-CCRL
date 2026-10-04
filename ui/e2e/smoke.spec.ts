@@ -681,4 +681,14 @@ test("CCRL list row: download the engine from GitHub", async ({ page }) => {
   await page.goto("/#/engines?github=" + encodeURIComponent("Unknownfish 1.0 64-bit"));
   await expect(page.getByTestId("github-target")).toContainText("no repository known for Unknownfish");
   await expect(page.getByTestId("known-filter")).toHaveValue("Unknownfish");
+  // a repository given by hand is remembered
+  await page.request.post("/api/engine_link_set", { data: { family: "Unknownfish", repo: "https://github.com/someone/unknownfish" } });
+  await page.goto("/#/");
+  await page.goto("/#/engines?github=" + encodeURIComponent("Unknownfish 1.1 64-bit"));
+  await expect(page.getByTestId("github-target")).toContainText("someone/unknownfish");
+  await expect(page.getByTestId("github-target")).toContainText("added by hand");
+  // an engine that is not on GitHub: its site
+  await page.goto("/#/");
+  await page.goto("/#/engines?github=" + encodeURIComponent("Dragon by Komodo 3.2 64-bit 8CPU"));
+  await expect(page.getByTestId("github-homepage")).toHaveAttribute("href", "https://komodochess.com/");
 });

@@ -375,6 +375,33 @@ pub fn fetch_with(src: &ListSource, get: impl Fn(&str) -> Result<(u16, String)>,
     bail!("CCRL {} ({}) could not be downloaded; tried {}", src.list, src.variant, tried.join(" · "))
 }
 
+/// Addresses of an engine's page on the CCRL site (its homepage link is there), for a list.
+pub fn details_urls(list: &str, name: &str) -> Vec<String> {
+    let dirs: Vec<&str> = LIST_DIRS.iter().filter(|(l, _)| *l == list).map(|(_, d)| *d).chain(LIST_DIRS.iter().map(|(_, d)| *d)).collect();
+    let eng: String = name
+        .trim()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .bytes()
+        .map(|b| match b {
+            b' ' => "+".to_string(),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' => (b as char).to_string(),
+            _ => format!("%{b:02X}"),
+        })
+        .collect();
+    let mut v = Vec::new();
+    for dir in dirs {
+        for prefix in ["/ccrl", ""] {
+            let u = format!("{CCRL_ROOT}{prefix}/{dir}/cgi/engine_details.cgi?print=Details&each_game=0&eng={eng}");
+            if !v.contains(&u) {
+                v.push(u);
+            }
+        }
+    }
+    v
+}
+
 // ------------------------------------------------------------------ lookups
 
 /// Entry key without "64-bit" and CPU suffix.

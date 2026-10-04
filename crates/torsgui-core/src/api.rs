@@ -813,17 +813,75 @@ impl App {
             }
             "github_install" => ok(self.github_install(&store, &a)?),
             "ccrl_repo_for" => {
-                // a CCRL list row -> the engine's repository, for Add from GitHub
+                // a CCRL list row -> the engine's repository (bundled list, found before on this
+                // computer, or read now from the engine's page on the CCRL site) or its homepage
                 let name: String = arg(&a, "name")?;
+                let list: String = opt(&a, "list").unwrap_or_else(|| "Blitz".into());
+                let discover: bool = opt(&a, "discover").unwrap_or(true);
                 let base = crate::names::ccrl_base(&name);
+                let family: String = base
+                    .split_whitespace()
+                    .take_while(|t| !t.chars().next().is_some_and(|c| c.is_ascii_digit()) && !(t.len() > 1 && t.starts_with(['v', 'V']) && t[1..].starts_with(|c: char| c.is_ascii_digit())))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let as_repo = |repo: &str, note: &str| crate::catalog::KnownRepo { name: family.clone(), repo: repo.to_string(), ccrl_name: family.clone(), notes: note.to_string(), ..Default::default() };
+                let mut repo = crate::catalog::repo_for(&name);
+                let mut homepage = crate::catalog::site_for(&name).map(|s| s.url);
+                let mut source = if repo.is_some() { "TorsGUI's list" } else if homepage.is_some() { "TorsGUI's list (site)" } else { "" }.to_string();
+                if repo.is_none() {
+                    if let Some(l) = store.engine_link(&family)? {
+                        if !l.repo.is_empty() {
+                            repo = Some(as_repo(&l.repo, &l.source));
+                        }
+                        if !l.homepage.is_empty() {
+                            homepage = Some(l.homepage.clone());
+                        }
+                        source = l.source.clone();
+                    } else if discover && !family.is_empty() {
+                        // the engine's CCRL page links its homepage (often GitHub)
+                        let mut tried = Vec::new();
+                        for u in ccrl::details_urls(&list, &name).into_iter().take(4) {
+                            match crate::github::get_page_within(&u, 15) {
+                                Ok((200, body)) if body.contains(&*family) || body.to_lowercase().contains(&family.to_lowercase()) => {
+                                    let r = crate::catalog::github_repo_in(&body);
+                                    let h = crate::catalog::homepage_in(&body);
+                                    let link = crate::catalog::EngineLink { family: family.clone(), repo: r.clone().unwrap_or_default(), homepage: h.clone().unwrap_or_default(), source: "CCRL page".into(), updated_at: crate::store::now() };
+                                    store.set_engine_link(&link)?;
+                                    if let Some(r) = r {
+                                        repo = Some(as_repo(&r, "found on the engine's CCRL page"));
+                                    }
+                                    homepage = homepage.or(h);
+                                    source = "CCRL page".into();
+                                    break;
+                                }
+                                Ok((st, _)) => tried.push(format!("{u}: HTTP {st}")),
+                                Err(e) => tried.push(format!("{u}: {e}")),
+                            }
+                        }
+                        if source.is_empty() && !tried.is_empty() {
+                            source = format!("CCRL page not reachable ({})", tried.len());
+                        }
+                    }
+                }
                 ok(json!({
                     "name": name,
-                    // the name as written in the list, without the version
-                    "family": base.split_whitespace().take_while(|t| !t.chars().next().is_some_and(|c| c.is_ascii_digit()) && !(t.len() > 1 && t.starts_with(['v', 'V']) && t[1..].starts_with(|c: char| c.is_ascii_digit()))).collect::<Vec<_>>().join(" "),
+                    "family": family,
                     "version": crate::names::version_of(&base),
-                    "repo": crate::catalog::repo_for(&name),
+                    "repo": repo,
+                    "homepage": homepage,
+                    "source": source,
                 }))
             }
+            "engine_link_set" => {
+                // a repository given by hand for an engine of the lists: remembered
+                let family: String = arg(&a, "family")?;
+                let repo: String = opt(&a, "repo").unwrap_or_default();
+                let repo = crate::catalog::github_repo_in(&format!("https://github.com/{}", repo.trim().trim_start_matches("https://").trim_start_matches("github.com/"))).unwrap_or_default();
+                let homepage: String = opt(&a, "homepage").unwrap_or_default();
+                store.set_engine_link(&crate::catalog::EngineLink { family, repo, homepage, source: "added by hand".into(), updated_at: crate::store::now() })?;
+                ok(true)
+            }
+            "engine_links" => ok(store.engine_links()?),
             "known_repos" => {
                 ensure_ccrl_snapshots(&store)?;
                 let engines = store.engines()?;

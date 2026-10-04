@@ -279,7 +279,7 @@ export function CcrlLists() {
                 {rows.map((e) => {
                   const inst = installed.get(norm(e.name)) ?? (aliasMap.get(norm(e.name)) ? installed.get(norm(aliasMap.get(norm(e.name))!)) : undefined);
                   return (
-                    <tr key={`${e.rank}-${e.name}`} className="clickable" onClick={() => nav(`/engines?github=${encodeURIComponent(e.name)}`)} title="Download this engine (Engines → Add from GitHub)">
+                    <tr key={`${e.rank}-${e.name}`} className="clickable" onClick={() => nav(`/engines?github=${encodeURIComponent(e.name)}&list=${encodeURIComponent(cur?.list ?? "Blitz")}`)} title="Download this engine (Engines → Add from GitHub)">
                       <td className="r tnum muted">{e.rank}</td>
                       <td className="font-medium">{e.name}</td>
                       <td className="r tnum">{num(e.rating)}</td>
