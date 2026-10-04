@@ -1,4 +1,3 @@
-import * as Tabs from "@radix-ui/react-tabs";
 import { CloudDownload, ClipboardPaste, FileUp, Link2, PackageOpen, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -9,7 +8,7 @@ import type { MatchCandidate } from "../bindings/MatchCandidate";
 import type { Suggestion } from "../bindings/Suggestion";
 import type { Threshold } from "../bindings/Threshold";
 import type { TournamentSummary } from "../bindings/TournamentSummary";
-import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, Seg, Spinner } from "../components/ui";
+import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, Seg, Spinner, PageTabs, useTabParam } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { num } from "../lib/format";
 
@@ -90,6 +89,7 @@ export function CcrlLists() {
   const { data: ts } = usePoll<TournamentSummary[]>("tournaments_list", {}, 0);
   const { data: aliases, refresh: refreshAliases } = usePoll<[string, string, string][]>("aliases_list", {}, 0);
   const [sel, setSel] = useState<number | null>(null);
+  const [tab, setTab] = useTabParam(["lists", "suggest", "match", "threshold"] as const, "lists");
   const [cpu, setCpu] = useState("all");
   const [q, setQ] = useState("");
   const [imp, setImp] = useState(false);
@@ -166,6 +166,18 @@ export function CcrlLists() {
         }
       />
       <ErrorBox error={error} />
+      <PageTabs
+        tabs={[
+          { id: "lists", label: "Lists" },
+          { id: "suggest", label: "Suggest opponents" },
+          { id: "match", label: "Name matching", badge: aliases?.length || undefined },
+          { id: "threshold", label: "Thresholds" },
+        ]}
+        value={tab}
+        onChange={setTab}
+        testid="ccrl-tab"
+      />
+      {tab === "lists" && (
       <div className="grid gap-3 ccrl-grid">
         <div className="flex flex-col gap-3">
           <Panel title="Lists" noPad>
@@ -269,14 +281,11 @@ export function CcrlLists() {
             </table>
           </div>
         </Panel>
-        <div className="flex flex-col gap-3 min-w-0">
-          <Tabs.Root defaultValue="suggest" className="panel">
-            <Tabs.List className="tabs px-2" aria-label="Tools">
-              <Tabs.Trigger className="tab" value="suggest">Opponents</Tabs.Trigger>
-              <Tabs.Trigger className="tab" value="match">Name matching</Tabs.Trigger>
-              <Tabs.Trigger className="tab" value="threshold">Threshold</Tabs.Trigger>
-            </Tabs.List>
-            <Tabs.Content value="suggest" className="p-3 flex flex-col gap-2">
+        </div>
+      )}
+      {tab === "suggest" && (
+        <Panel title={cur ? `Suggest opponents · ${cur.list} ${cur.variant}` : "Suggest opponents"} className="max-w-[860px]">
+          <div className="flex flex-col gap-2">
               <p className="muted text-[12px]">Top N of the list, latest version that appears in it, filtered by what is installed and by thread support.</p>
               <div className="grid grid-cols-3 gap-2">
                 <Field label="Top N">
@@ -292,7 +301,7 @@ export function CcrlLists() {
               <button className="btn" onClick={suggest} disabled={!cur}>
                 Suggest ({cpu === "all" ? 1 : cpu}CPU)
               </button>
-              <div className="max-h-[420px] overflow-auto">
+              <div className="max-h-[560px] overflow-auto">
                 {sugg.map((s) => (
                   <div key={s.list_name} className="flex justify-between py-1 text-[12px]" style={{ borderBottom: "1px solid var(--border)" }}>
                     <span className="truncate">
@@ -307,8 +316,12 @@ export function CcrlLists() {
                   </div>
                 ))}
               </div>
-            </Tabs.Content>
-            <Tabs.Content value="match" className="p-3 flex flex-col gap-2">
+          </div>
+        </Panel>
+      )}
+      {tab === "match" && (
+        <Panel title={cur ? `Name matching · ${cur.list} ${cur.variant}` : "Name matching"} className="max-w-[860px]">
+          <div className="flex flex-col gap-2">
               <p className="muted text-[12px]">Fuzzy matching between list, library and PGN names (e.g. “Integral v8” ↔ “Integral 8”). Confirm a candidate to store the alias.</p>
               <div className="flex gap-2">
                 <input className="input" value={matchQ} onChange={(e) => setMatchQ(e.target.value)} placeholder="Name as in the PGN / library" onKeyDown={(e) => e.key === "Enter" && match()} />
@@ -339,8 +352,12 @@ export function CcrlLists() {
                   </div>
                 ))}
               </div>
-            </Tabs.Content>
-            <Tabs.Content value="threshold" className="p-3 flex flex-col gap-2">
+          </div>
+        </Panel>
+      )}
+      {tab === "threshold" && (
+        <Panel title={cur ? `Thresholds · ${cur.list} ${cur.variant}` : "Thresholds"} className="max-w-[860px]">
+          <div className="flex flex-col gap-2">
               <p className="muted text-[12px]">Score the seed needs, against its actual opponents, for its performance to pass rank k of its CPU category.</p>
               <Field label="Tournament">
                 <select className="select" value={tid} onChange={(e) => setTid(e.target.value)}>
@@ -373,10 +390,9 @@ export function CcrlLists() {
                   </div>
                 </div>
               ))}
-            </Tabs.Content>
-          </Tabs.Root>
-        </div>
-      </div>
+          </div>
+        </Panel>
+      )}
       <ImportDialog open={imp} setOpen={setImp} onDone={refresh} />
     </div>
   );

@@ -71,9 +71,10 @@ test("Chess960: FRC list, generated start positions, engines supporting it, live
   await page.getByLabel(/seed Mock Alpha/).check();
   await page.getByLabel(/opponent Mock Bravo/).check();
   await page.getByRole("button", { name: "FRC (960)", exact: true }).click();
-  await expect(page.getByTestId("book")).toHaveValue(/chess960-all-seed1\.epd$/);
   await expect(page.getByTestId("event-name")).toHaveValue(/CCRL FRC gauntlet Mock Alpha 1\.0 1CPU/);
   await expect(page.getByText("does not support Chess960")).toHaveCount(0);
+  await page.getByTestId("wizard-step-conditions").click();
+  await expect(page.getByTestId("book")).toHaveValue(/chess960-all-seed1\.epd$/);
   // a double Chess960 book
   await page.getByTestId("frc-generate").click();
   await page.getByRole("button", { name: "Double 960" }).click();
@@ -155,7 +156,7 @@ test("bundled CCRL opening books: install, then pick one in the wizard", async (
   await page.getByTestId("books-install").first().click();
   await expect(table.locator('tr[data-book="AVT2026d.pgn"]')).toHaveAttribute("data-installed", "yes");
   await expect(table.locator('tr[data-book="Hert500.cgb"]')).toHaveAttribute("data-installed", "yes");
-  await page.goto("/#/tournaments/new");
+  await page.goto("/#/tournaments/new?tab=conditions");
   const select = page.getByTestId("book-select");
   await expect(select.locator("option", { hasText: "LowDraw1000.pgn" })).toHaveCount(1);
   await expect(select.locator("option", { hasText: ".cgb" })).toHaveCount(0);
@@ -168,6 +169,7 @@ test("a draft is edited in the tournament wizard", async ({ page }) => {
   await page.goto("/#/tournaments/new");
   await page.getByLabel(/seed Mock Alpha/).check();
   await page.getByLabel(/opponent Mock Bravo/).check();
+  await page.getByTestId("wizard-next").click();
   await page.getByTestId("games-per-pairing").fill("20");
   await expect(page.getByTestId("total-games")).toHaveText("20");
   await page.getByTestId("create-draft").click();
@@ -176,9 +178,10 @@ test("a draft is edited in the tournament wizard", async ({ page }) => {
   const id = decodeURIComponent(page.url().split("/tournaments/")[1]);
   await page.getByTestId("edit-tournament").click();
   await expect(page).toHaveURL(/\/edit$/);
-  await expect(page.getByTestId("games-per-pairing")).toHaveValue("20");
   await expect(page.getByLabel(/seed Mock Alpha/)).toBeChecked();
   await expect(page.getByLabel(/opponent Mock Bravo/)).toBeChecked();
+  await page.getByTestId("wizard-step-conditions").click();
+  await expect(page.getByTestId("games-per-pairing")).toHaveValue("20");
   await page.getByTestId("games-per-pairing").fill("40");
   await expect(page.getByTestId("total-games")).toHaveText("40");
   await page.getByTestId("create-draft").click(); // "Save changes" in edit mode
@@ -200,7 +203,8 @@ test("CCRL lists bundled with TorsGUI and the known engine repositories", async 
   const known = await (await page.request.post("/api/known_repos", { data: {} })).json();
   expect(known.length).toBeGreaterThanOrEqual(30);
   await page.goto("/#/engines");
-  await page.getByRole("button", { name: /Add from GitHub/ }).first().click();
+  await page.getByTestId("engines-add").click();
+  await page.getByTestId("engines-github").click();
   await expect(page.getByTestId("known-repos")).toBeVisible();
   await page.getByTestId("known-filter").fill("stock");
   await expect(page.getByTestId("known-Stockfish")).toContainText("official-stockfish/Stockfish");
@@ -249,9 +253,15 @@ test("wizard computes the total number of games", async ({ page }) => {
   await page.goto("/#/tournaments/new");
   await page.getByLabel(/seed Mock Alpha/).check();
   await page.getByLabel(/opponent Mock Bravo/).check();
+  await expect(page.getByTestId("event-name")).toHaveValue(/CCRL Blitz gauntlet Mock Alpha 1\.0 1CPU/);
+  await page.getByTestId("wizard-step-conditions").click();
   await page.getByTestId("games-per-pairing").fill("30");
   await expect(page.getByTestId("total-games")).toHaveText("30");
-  await expect(page.getByTestId("event-name")).toHaveValue(/CCRL Blitz gauntlet Mock Alpha 1\.0 1CPU/);
+  // the steps: back to the engines, forward to NUMA
+  await page.getByTestId("wizard-back").click();
+  await expect(page.getByLabel(/seed Mock Alpha/)).toBeChecked();
+  await page.getByTestId("wizard-step-numa").click();
+  await expect(page.getByTestId("wizard-next")).toBeDisabled();
 });
 
 test("CCRL export and forum post", async ({ page }) => {
@@ -287,6 +297,7 @@ test("command palette and keyboard navigation", async ({ page }) => {
 
 test("TC calculator reproduces the reference Blitz TC", async ({ page }) => {
   await page.goto("/#/bench");
+  await page.getByTestId("bench-tab-tc").click();
   await page.getByTestId("tc-factor").fill("0.86");
   await expect(page.getByTestId("tc-result")).toHaveText("103+1");
 });
@@ -406,6 +417,7 @@ test("engines are imported from a Cute Chess engines.json", async ({ page }) => 
     { name: "Old Crafty 25", command: "crafty", protocol: "xboard" },
   ]));
   await page.goto("/#/engines");
+  await page.getByTestId("engines-add").click();
   await page.getByTestId("engines-cutechess").click();
   await page.getByTestId("cute-path").fill(file);
   await page.getByTestId("cute-read").click();
@@ -424,13 +436,14 @@ test("engines are imported from a Cute Chess engines.json", async ({ page }) => 
 test("Swiss and knockout tournaments from the wizard", async ({ page }) => {
   await page.goto("/#/tournaments/new");
   await page.getByRole("button", { name: "Swiss", exact: true }).click();
-  await expect(page.getByTestId("passes")).toHaveValue("5");
   for (const n of ["Mock Alpha", "Mock Bravo", "Stockfish 19", "Caissa 2.0", "Berserk 14"]) await page.getByLabel(new RegExp(`opponent ${n}`)).first().check();
+  await expect(page.getByTestId("event-name")).toHaveValue(/swiss/);
+  await page.getByTestId("wizard-step-conditions").click();
+  await expect(page.getByTestId("passes")).toHaveValue("5");
   await page.getByTestId("games-per-pairing").fill("2");
   await page.getByTestId("passes").fill("3");
   // 5 engines, 3 rounds, 2 games per match: 2 matches per round
   await expect(page.getByTestId("total-games")).toHaveText("12");
-  await expect(page.getByTestId("event-name")).toHaveValue(/swiss/);
   await page.getByTestId("create-draft").click();
   await expect(page.getByTestId("tab-rounds")).toBeVisible();
   const id = decodeURIComponent(page.url().split("/tournaments/")[1]);
@@ -449,9 +462,11 @@ test("Swiss and knockout tournaments from the wizard", async ({ page }) => {
   await page.goto("/#/tournaments/new");
   await page.getByRole("button", { name: "Cup (knockout)", exact: true }).first().click();
   for (const n of ["Mock Alpha", "Mock Bravo", "Stockfish 19", "Caissa 2.0", "Berserk 14"]) await page.getByLabel(new RegExp(`opponent ${n}`)).first().check();
+  await page.getByTestId("wizard-step-conditions").click();
   await page.getByTestId("games-per-pairing").fill("2");
   await expect(page.getByTestId("total-games")).toHaveText("8");
   // seeding by hand: Stockfish 19 (seed 1 by rating) moved down to seed 2
+  await page.getByTestId("wizard-step-seeding").click();
   await expect(page.getByTestId("seed-order").locator("tbody tr").first()).toContainText("Stockfish 19");
   await page.getByRole("button", { name: "seed Stockfish 19 down" }).click();
   await expect(page.getByTestId("seed-order").locator("tbody tr").nth(1)).toContainText("Stockfish 19");
@@ -464,7 +479,7 @@ test("Swiss and knockout tournaments from the wizard", async ({ page }) => {
   const d2 = await (await page.request.post("/api/tournament_get", { data: { id: id2 } })).json();
   expect(d2.summary.record.config.participants[1].name).toBe("Stockfish 19");
   // the order is kept when the draft is edited
-  await page.goto(`/#/tournaments/${encodeURIComponent(id2)}/edit`);
+  await page.goto(`/#/tournaments/${encodeURIComponent(id2)}/edit?tab=seeding`);
   await expect(page.getByTestId("seed-order").locator("tbody tr").nth(1)).toContainText("Stockfish 19");
   await page.request.post("/api/tournament_delete", { data: { id: id2, delete_files: true } });
 });

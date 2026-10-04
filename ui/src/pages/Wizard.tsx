@@ -20,10 +20,12 @@ import type { BookSpec } from "../bindings/BookSpec";
 import type { WizardPreview } from "../bindings/WizardPreview";
 import { UciOptionsEditor } from "../components/UciOptions";
 import { cmpNum, EloCell, matchesEngine, SortTh, useEngineRatings, type RatingList, type SortDir } from "../components/EngineRatings";
-import { ErrorBox, Field, Modal, PageHeader, Panel, Seg, Spinner, Tip, Warn } from "../components/ui";
+import { Empty, ErrorBox, Field, Modal, PageHeader, PageTabs, Panel, Seg, Spinner, Tip, useTabParam, Warn } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { duration, num } from "../lib/format";
 
+const WIZARD_STEPS = ["engines", "seeding", "conditions", "numa"] as const;
+type WizardStep = (typeof WIZARD_STEPS)[number];
 const KIND_LABEL: Record<TournamentKind, string> = { gauntlet: "gauntlet", multi_gauntlet: "gauntlet", round_robin: "round robin", match: "match", swiss: "swiss", knockout: "knockout" };
 
 function splitOpenings(games: number, passes: number, nodes: number): number[] | null {
@@ -57,6 +59,7 @@ export function Wizard() {
   const [opps, setOpps] = useState<number[]>([]);
   /** Swiss / cup: seed order chosen by hand (engine ids, best seed first); null = by rating. */
   const [seedOrder, setSeedOrder] = useState<number[] | null>(null);
+  const [step, setStep] = useTabParam(WIZARD_STEPS, "engines");
   const [threads, setThreads] = useState(1);
   const [hash, setHash] = useState(512);
   const [hashAuto, setHashAuto] = useState(true);
@@ -208,6 +211,9 @@ export function Wizard() {
   const seeded: EngineEntry[] = seedOrder
     ? [...(seedOrder.map((i) => byRating.find((e) => e.id === i)).filter(Boolean) as EngineEntry[]), ...byRating.filter((e) => !seedOrder.includes(e.id!))]
     : byRating;
+  const steps = (dynamicKind ? ["engines", "seeding", "conditions", "numa"] : ["engines", "conditions", "numa"]) as WizardStep[];
+  const shownStep: WizardStep = step === "seeding" && !dynamicKind ? "engines" : step;
+  const stepIndex = steps.indexOf(shownStep);
   const moveSeed = (i: number, d: number) => {
     const ids = seeded.map((e) => e.id!);
     const j = i + d;
@@ -362,7 +368,20 @@ export function Wizard() {
       {editId && !editing && !editError && <div className="muted text-[12px]">Loading the tournament…</div>}
       <div className="grid gap-3 wizard-grid">
         <div className="flex flex-col gap-3 min-w-0">
-          <Panel title="1 · Type">
+          <PageTabs
+            tabs={[
+              { id: "engines", label: "1 · Type & engines", badge: seedEngines.length + oppEngines.length || undefined },
+              { id: "seeding", label: "2 · Seeding", hidden: !dynamicKind },
+              { id: "conditions", label: dynamicKind ? "3 · Conditions" : "2 · Conditions" },
+              { id: "numa", label: dynamicKind ? "4 · NUMA & lanes" : "3 · NUMA & lanes" },
+            ]}
+            value={shownStep}
+            onChange={setStep}
+            testid="wizard-step"
+          />
+          {shownStep === "engines" && (
+            <>
+          <Panel title="Type">
             <div className="flex flex-wrap gap-3 items-end">
               <Field label="Tournament type">
                 <Seg
@@ -408,7 +427,7 @@ export function Wizard() {
             </div>
           </Panel>
           <Panel
-            title={`2 · Engines — ${seedMode ? `${seedEngines.length} seed${multiSeed ? "s" : ""}, ${oppEngines.length} opponents` : `${seedEngines.length + oppEngines.length} engines`}`}
+            title={`Engines — ${seedMode ? `${seedEngines.length} seed${multiSeed ? "s" : ""}, ${oppEngines.length} opponents` : `${seedEngines.length + oppEngines.length} engines`}`}
             actions={
               <>
                 <div className="relative">
@@ -538,7 +557,10 @@ export function Wizard() {
             </div>
             {suggest.length > 0 && <div className="px-3 py-2 muted text-[12px]">Suggested: {suggest.map((s) => `${s.rank}. ${s.list_name} (${num(s.rating)})`).join(" · ")}</div>}
           </Panel>
-          {dynamicKind && seeded.length >= 2 && (
+            </>
+          )}
+          {shownStep === "seeding" &&
+            (seeded.length >= 2 ? (
             <Panel
               title={kind === "knockout" ? "Seeding · bracket of round 1" : "Seeding"}
               actions={
@@ -609,8 +631,13 @@ export function Wizard() {
                 </div>
               </div>
             </Panel>
-          )}
-          <Panel title="3 · Conditions">
+            ) : (
+              <Panel title="Seeding">
+                <Empty>Choose at least two engines first.</Empty>
+              </Panel>
+            ))}
+          {shownStep === "conditions" && (
+          <Panel title="Conditions">
             <div className="grid gap-3 cond-grid">
               <Field label="Threads / engine">
                 <input className="input tnum" type="number" min={1} value={threads} onChange={(e) => setThreads(Math.max(1, +e.target.value))} />
@@ -731,7 +758,9 @@ export function Wizard() {
               </div>
             )}
           </Panel>
-          <Panel title="4 · NUMA placement">
+          )}
+          {shownStep === "numa" && (
+          <Panel title="NUMA placement and lanes">
             <div className="grid gap-3 items-end numa-grid">
               <Field label="Nodes">
                 <div className="flex gap-2 flex-wrap">
@@ -751,6 +780,15 @@ export function Wizard() {
               </Field>
             </div>
           </Panel>
+          )}
+          <div className="flex justify-between">
+            <button className="btn" disabled={stepIndex === 0} onClick={() => setStep(steps[stepIndex - 1])} data-testid="wizard-back">
+              ← Back
+            </button>
+            <button className="btn" disabled={stepIndex === steps.length - 1} onClick={() => setStep(steps[stepIndex + 1])} data-testid="wizard-next">
+              Next →
+            </button>
+          </div>
         </div>
         <div className="flex flex-col gap-3">
           <div className="sticky top-0 flex flex-col gap-3">

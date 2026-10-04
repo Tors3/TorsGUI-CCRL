@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- Pages with many panels are split into **sub-tabs** in their main area (the tab is kept in the
+  address, so links and reloads open it): *New tournament* is a step-by-step form (Type &
+  engines · Seeding · Conditions · NUMA & lanes, with Back / Next) and keeps the summary and
+  the Create buttons on the right; *Dashboard* (Now · Queue & timeline · Recent & events);
+  *Bench* (Run & latest result · History · TC calculator, where a click on a measured factor
+  uses it); *CCRL Lists* (Lists · Suggest opponents · Name matching · Thresholds).
+- *Engines*: the six buttons at the top become one **Add engine** menu (GitHub, local file,
+  Cute Chess, bundled engines, REPORT.md) next to *Report*.
+
 ## [0.5.1] - 2026-10-03
 
 ### Added

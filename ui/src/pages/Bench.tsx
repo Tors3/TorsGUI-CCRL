@@ -9,7 +9,7 @@ import type { Settings } from "../bindings/Settings";
 import type { TcResult } from "../bindings/TcResult";
 import type { Topology } from "../bindings/Topology";
 import { LineChart } from "../components/Chart";
-import { Empty, ErrorBox, Field, PageHeader, Panel, ProgressBar, Spinner, Warn } from "../components/ui";
+import { Empty, ErrorBox, Field, PageHeader, PageTabs, Panel, ProgressBar, Spinner, useTabParam, Warn } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { num } from "../lib/format";
 
@@ -33,6 +33,7 @@ export function Bench() {
   // TC calculator
   const [nominal, setNominal] = useState("blitz");
   const [factor, setFactor] = useState(0.86);
+  const [tab, setTab] = useTabParam(["run", "history", "tc"] as const, "run");
   const [bf, setBf] = useState("");
   const [inf, setInf] = useState("");
   const [tc, setTc] = useState<TcResult>();
@@ -111,7 +112,18 @@ export function Bench() {
   return (
     <div className="flex flex-col gap-3 fade-in">
       <PageHeader help="bench-and-time-control" title="Bench & calibration" sub="Stockfish 10 bench against the CCRL reference i7-4770K (2054 ms, 3 939 338 nodes)" />
-      <div className="grid gap-3 bench-grid">
+      <PageTabs
+        tabs={[
+          { id: "run", label: "Run & latest result" },
+          { id: "history", label: "History", badge: hist?.length || undefined },
+          { id: "tc", label: "TC calculator" },
+        ]}
+        value={tab}
+        onChange={setTab}
+        testid="bench-tab"
+      />
+      {tab === "run" && (
+        <div className="grid gap-3 cols-side-main">
         <Panel title="Run a bench">
           <div className="flex flex-col gap-2.5">
             <div className="kpi-label">Stockfish 10 builds (64-bit only)</div>
@@ -168,7 +180,6 @@ export function Bench() {
             <div className="muted text-[11.5px]">Guards: 32-bit binaries are refused, the CPU must be idle (&lt; 5 % load), the power plan (minimum processor state) and the frequency are recorded.</div>
           </div>
         </Panel>
-        <div className="flex flex-col gap-3 min-w-0">
           <Panel title={latest ? `Latest result — ${latest.host} · ${latest.cpu}` : "Latest result"} noPad>
             {!latest ? (
               <Empty icon={<Gauge size={20} />}>No bench yet.</Empty>
@@ -206,7 +217,7 @@ export function Bench() {
                   </thead>
                   <tbody>
                     {latest.levels.map((l, i) => (
-                      <tr key={i} className="clickable" onClick={() => setFactor(l.factor)} title="Use this factor in the TC calculator">
+                      <tr key={i} className="clickable" onClick={() => { setFactor(l.factor); setTab("tc"); }} title="Use this factor in the TC calculator">
                         <td>
                           <span className="chip">{l.build}</span>
                         </td>
@@ -231,6 +242,10 @@ export function Bench() {
               </>
             )}
           </Panel>
+        </div>
+      )}
+      {tab === "history" && (
+        <div className="flex flex-col gap-3">
           <Panel title="History — factor vs parallel instances (dashed = invalid run)">
             {chart.series.length ? (
               <>
@@ -302,6 +317,9 @@ export function Bench() {
             </div>
           </Panel>
         </div>
+      )}
+      {tab === "tc" && (
+        <div className="grid gap-3 cols-side-main">
         <Panel title="TC calculator">
           <div className="flex flex-col gap-2.5">
             <Field label="CCRL nominal time control">
@@ -313,7 +331,7 @@ export function Bench() {
                 ))}
               </select>
             </Field>
-            <Field label="Factor f" hint="click a result row to use its factor">
+            <Field label="Factor f" hint="from the bench: click a factor on the right">
               <input className="input tnum" type="number" step={0.0001} value={factor} onChange={(e) => setFactor(+e.target.value)} data-testid="tc-factor" />
             </Field>
             <Field label="Base formula" hint="B = nominal base (s), I = increment (s), M = moves, f = factor">
@@ -340,7 +358,32 @@ export function Bench() {
             </div>
           </div>
         </Panel>
-      </div>
+          <Panel title="Factors measured on this machine" noPad>
+            {latest ? (
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th className="r">Instances</th>
+                    <th className="r">Factor</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {latest.levels.map((l, i) => (
+                    <tr key={i} className="clickable" onClick={() => setFactor(l.factor)} title="Use this factor">
+                      <td className="r tnum">{l.instances}</td>
+                      <td className="r tnum">{l.factor.toFixed(4)}</td>
+                      <td className="muted text-[11.5px]">click to use</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <Empty icon={<Gauge size={20} />}>No bench yet: run one in the first tab.</Empty>
+            )}
+          </Panel>
+        </div>
+      )}
     </div>
   );
 }

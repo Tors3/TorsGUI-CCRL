@@ -6,7 +6,7 @@ import type { Health } from "../bindings/Health";
 import type { TimelineItem } from "../bindings/TimelineItem";
 import type { TournamentSummary } from "../bindings/TournamentSummary";
 import { TournamentActions } from "../components/TournamentActions";
-import { Empty, ErrorBox, Kpi, PageHeader, Panel, ProgressBar, StateChip } from "../components/ui";
+import { Empty, ErrorBox, Kpi, PageHeader, PageTabs, Panel, ProgressBar, StateChip, useTabParam } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { ago, duration, num, pct, shortTime } from "../lib/format";
 import type { DashboardData } from "../lib/types";
@@ -140,10 +140,11 @@ function Timeline({ items }: { items: TimelineItem[] }) {
 export function Dashboard() {
   const { data, error, refresh } = usePoll<DashboardData>("dashboard", {}, 3000);
   const nav = useNavigate();
+  const [tab, setTab] = useTabParam(["now", "queue", "history"] as const, "now");
   const ts = data?.tournaments ?? [];
   const running = ts.filter((t) => t.record.state === "running");
   const queued = ts.filter((t) => t.record.state === "queued").sort((a, b) => (a.record.queue_pos ?? 0) - (b.record.queue_pos ?? 0));
-  const recent = ts.filter((t) => ["completed", "incomplete", "paused", "stopped"].includes(t.record.state)).slice(0, 6);
+  const recent = ts.filter((t) => ["completed", "incomplete", "paused", "stopped"].includes(t.record.state)).slice(0, 15);
   const rate = running.reduce((s, t) => s + (t.progress.rate_per_hour ?? 0), 0);
   const move = async (id: string, delta: number) => {
     await call("queue_move", { id, delta });
@@ -175,15 +176,30 @@ export function Dashboard() {
         <Kpi label="Queue ETA" value={data?.queue_eta ? data.queue_eta.slice(5) : "—"} sub="end of the last queued tournament" tone="accent" />
         <Kpi label="Alerts" value={data?.health.anomalies.length ?? 0} tone={(data?.health.anomalies.length ?? 0) > 0 ? "loss" : "win"} sub={data ? `${data.health.runners_alive}/${data.health.runners_expected} runners alive` : ""} />
       </div>
-      <div className="grid gap-3 cols-fit">
-        <div className="col-span-2 flex flex-col gap-3 min-w-0">
+      <PageTabs
+        tabs={[
+          { id: "now", label: "Now", badge: running.length || undefined },
+          { id: "queue", label: "Queue & timeline", badge: queued.length || undefined },
+          { id: "history", label: "Recent & events" },
+        ]}
+        value={tab}
+        onChange={setTab}
+        testid="dash-tab"
+      />
+      {tab === "now" && (
+        <div className="grid gap-3 cols-main-wide-side">
+          <div className="flex flex-col gap-3 min-w-0">
           <Panel title="Running" noPad bodyClass="p-3 flex flex-col gap-3">
             {running.length ? running.map((t) => <RunningCard key={t.record.id} t={t} refresh={refresh} />) : <Empty>No tournament running. Create one or start the queue.</Empty>}
           </Panel>
-          <Panel title="ETA timeline (running + queue)">
-            <Timeline items={data?.timeline ?? []} />
-          </Panel>
-          <div className="grid grid-cols-2 gap-3">
+          </div>
+          <div className="flex flex-col gap-3 min-w-0">
+          {data && <HealthPanel h={data.health} />}
+          </div>
+        </div>
+      )}
+      {tab === "queue" && (
+        <div className="flex flex-col gap-3">
             <Panel title="Queue" noPad>
               {queued.length === 0 ? (
                 <Empty>The queue is empty.</Empty>
@@ -214,6 +230,13 @@ export function Dashboard() {
                 </table>
               )}
             </Panel>
+          <Panel title="ETA timeline (running + queue)">
+            <Timeline items={data?.timeline ?? []} />
+          </Panel>
+        </div>
+      )}
+      {tab === "history" && (
+        <div className="grid gap-3 cols-fit">
             <Panel title="Recent tournaments" noPad>
               <table className="tbl">
                 <tbody>
@@ -236,10 +259,6 @@ export function Dashboard() {
                 </tbody>
               </table>
             </Panel>
-          </div>
-        </div>
-        <div className="flex flex-col gap-3 min-w-0">
-          {data && <HealthPanel h={data.health} />}
           <Panel title="Events" actions={<Link to="/logs" className="text-[12px] muted hover:underline">all</Link>} noPad>
             <div className="flex flex-col">
               {(data?.events ?? []).map((e) => (
@@ -256,7 +275,7 @@ export function Dashboard() {
             </div>
           </Panel>
         </div>
-      </div>
+      )}
     </div>
   );
 }

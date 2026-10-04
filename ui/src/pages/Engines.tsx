@@ -12,7 +12,7 @@ import type { RepoRef } from "../bindings/RepoRef";
 import type { Selection } from "../bindings/Selection";
 import { UciOptionsEditor } from "../components/UciOptions";
 import { cmpNum, EloCell, matchesEngine, RATING_LISTS, SortTh, useEngineRatings, type RatingList, type SortDir } from "../components/EngineRatings";
-import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, Spinner, Tip } from "../components/ui";
+import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, Spinner, Tip, MenuButton } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 
 type ReleasesResp = { repo: RepoRef; latest_stable: string | null; releases: { release: Release; selection: Selection }[]; policy: AssetPolicy };
@@ -490,36 +490,35 @@ export function Engines() {
             <button className="btn" onClick={() => call<string>("engines_report").then(setReport)}>
               <FileText size={14} /> Report
             </button>
-            <button className="btn" onClick={() => setCute(true)} data-testid="engines-cutechess">
-              <FolderOpen size={14} /> Import Cute Chess
-            </button>
-            <button className="btn" onClick={() => setImp(true)}>
-              Import REPORT.md
-            </button>
-            {bundled.length > 0 && (
-              <Tip content={`Engines shipped with TorsGUI: ${bundled.map((b) => `${b.engine} ${b.version} (${b.build})`).join(", ")}`}>
-                <button
-                  className="btn"
-                  data-testid="engines-bundled"
-                  onClick={() =>
+            <MenuButton
+              primary
+              testid="engines-add"
+              label={
+                <>
+                  <PackagePlus size={14} /> Add engine
+                </>
+              }
+              items={[
+                { icon: <PackagePlus size={14} />, label: "From GitHub", hint: "official releases, CCRL build rules", onSelect: () => setGh(true), testid: "engines-github" },
+                { icon: <FolderOpen size={14} />, label: "Local file", hint: "an executable on this computer", onSelect: () => setLocal(true), testid: "engines-local" },
+                { icon: <FolderOpen size={14} />, label: "Import from Cute Chess", hint: "engines.json: folders, arguments, options", onSelect: () => setCute(true), testid: "engines-cutechess" },
+                {
+                  icon: <PackagePlus size={14} />,
+                  label: "Bundled engines",
+                  hint: bundled.map((b) => `${b.engine} ${b.version}`).join(", "),
+                  hidden: bundled.length === 0,
+                  testid: "engines-bundled",
+                  onSelect: () =>
                     call<{ added: string[] }>("bundled_install")
                       .then((r) => {
                         toast.success(r.added.length ? `Added: ${r.added.join(", ")}` : "Already in the library");
                         refresh();
                       })
-                      .catch((e) => toast.error(e.message))
-                  }
-                >
-                  <PackagePlus size={14} /> Bundled engines
-                </button>
-              </Tip>
-            )}
-            <button className="btn" onClick={() => setLocal(true)}>
-              <FolderOpen size={14} /> Add local file
-            </button>
-            <button className="btn btn-primary" onClick={() => setGh(true)}>
-              <PackagePlus size={14} /> Add from GitHub
-            </button>
+                      .catch((e) => toast.error(e.message)),
+                },
+                { icon: <FileText size={14} />, label: "Rebuild from REPORT.md", hint: "the engines report of the old scripts", onSelect: () => setImp(true), testid: "engines-report-import" },
+              ]}
+            />
           </>
         }
       />

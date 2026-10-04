@@ -1,8 +1,10 @@
 import { HelpLink } from "./HelpLink";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { AlertTriangle, Loader2, X } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { AlertTriangle, ChevronDown, Loader2, X } from "lucide-react";
 import type { ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { TState } from "../bindings/TState";
 
 export function Panel(props: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; bodyClass?: string; noPad?: boolean }) {
@@ -197,5 +199,67 @@ export function Seg<T extends string>(props: { value: T; options: { value: T; la
         </button>
       ))}
     </div>
+  );
+}
+
+export type PageTab<T extends string> = { id: T; label: ReactNode; badge?: ReactNode; hidden?: boolean };
+
+/** The sub-tab of a page, kept in the address (`?tab=`) so links and reloads land on it. */
+export function useTabParam<T extends string>(ids: readonly T[], fallback: T): [T, (t: T) => void] {
+  const [params, setParams] = useSearchParams();
+  const v = params.get("tab") as T | null;
+  const tab = v && ids.includes(v) ? v : fallback;
+  const set = (t: T) => {
+    const next = new URLSearchParams(params);
+    if (t === fallback) next.delete("tab");
+    else next.set("tab", t);
+    setParams(next, { replace: true });
+  };
+  return [tab, set];
+}
+
+/** Sub-tabs at the top of a page's main area. */
+export function PageTabs<T extends string>({ tabs, value, onChange, testid = "page-tab" }: { tabs: PageTab<T>[]; value: T; onChange: (t: T) => void; testid?: string }) {
+  return (
+    <div className="tabs flex-wrap mb-3" role="tablist">
+      {tabs
+        .filter((t) => !t.hidden)
+        .map((t) => (
+          <button key={t.id} role="tab" className="tab inline-flex items-center gap-1.5" data-state={value === t.id ? "active" : "inactive"} aria-selected={value === t.id} onClick={() => onChange(t.id)} data-testid={`${testid}-${t.id}`}>
+            {t.label}
+            {t.badge != null && <span className="chip">{t.badge}</span>}
+          </button>
+        ))}
+    </div>
+  );
+}
+
+export type MenuItem = { label: ReactNode; hint?: ReactNode; icon?: ReactNode; onSelect: () => void; testid?: string; hidden?: boolean };
+
+/** A button that opens a short list of actions. */
+export function MenuButton({ label, items, primary, testid }: { label: ReactNode; items: MenuItem[]; primary?: boolean; testid?: string }) {
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button className={`btn ${primary ? "btn-primary" : ""}`} data-testid={testid}>
+          {label} <ChevronDown size={13} />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content className="menu" align="end" sideOffset={4}>
+          {items
+            .filter((i) => !i.hidden)
+            .map((i, k) => (
+              <DropdownMenu.Item key={k} className="menu-item" onSelect={i.onSelect} data-testid={i.testid}>
+                {i.icon && <span className="muted shrink-0 mt-0.5">{i.icon}</span>}
+                <span className="flex flex-col">
+                  <span>{i.label}</span>
+                  {i.hint && <span className="muted text-[11px]">{i.hint}</span>}
+                </span>
+              </DropdownMenu.Item>
+            ))}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }

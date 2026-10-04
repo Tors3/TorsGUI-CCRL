@@ -1,6 +1,5 @@
 import { CheckCircle2, Download, GitBranch, HardDrive, RotateCcw, Save, Server, XCircle } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import type { Housekeeping } from "../bindings/Housekeeping";
 import type { Settings } from "../bindings/Settings";
@@ -8,7 +7,7 @@ import type { Topology } from "../bindings/Topology";
 import { BoardAppearance } from "../components/BoardSettings";
 import { OpeningBooksPanel } from "../components/OpeningBooks";
 import { BroadcastSettings } from "../components/Broadcast";
-import { ErrorBox, Field, PageHeader, Panel, Spinner } from "../components/ui";
+import { ErrorBox, Field, PageHeader, PageTabs, Panel, Spinner, useTabParam } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { bytes } from "../lib/format";
 import type { AppInfo } from "../lib/types";
@@ -76,9 +75,7 @@ export function SettingsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string>();
   const [gitMsg, setGitMsg] = useState("");
-  const [params, setParams] = useSearchParams();
-  const tab = (SETTINGS_TABS.find((t) => t.id === params.get("tab"))?.id ?? "general") as SettingsTab;
-  const setTab = (t: SettingsTab) => setParams(t === "general" ? {} : { tab: t }, { replace: true });
+  const [tab, setTab] = useTabParam(SETTINGS_TABS.map((t) => t.id), "general");
   useEffect(() => {
     if (data) setS(data);
   }, [data]);
@@ -301,13 +298,7 @@ export function SettingsPage() {
         }
       />
       <ErrorBox error={err} />
-      <div className="tabs flex-wrap" role="tablist" aria-label="Settings sections">
-        {SETTINGS_TABS.map((t) => (
-          <button key={t.id} role="tab" className="tab" data-state={tab === t.id ? "active" : "inactive"} aria-selected={tab === t.id} onClick={() => setTab(t.id)} data-testid={`settings-tab-${t.id}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <PageTabs tabs={[...SETTINGS_TABS]} value={tab} onChange={setTab} testid="settings-tab" />
       {panes[tab]}
     </div>
   );
