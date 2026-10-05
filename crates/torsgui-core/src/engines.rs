@@ -72,6 +72,24 @@ pub struct EngineEntry {
     pub added_at: String,
 }
 
+/// The engine's own Gaviota / Nalimov path options (names vary: `GaviotaTbPath`,
+/// `GaviotaTBPath`, `NalimovPath`, `Nalimov Path`…) filled with the paths of the settings.
+pub fn tablebase_options(opts: &[UciOption], gaviota: &str, nalimov: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for o in opts.iter().filter(|o| o.kind == "string") {
+        let n = o.name.to_lowercase();
+        if !n.contains("path") && !n.contains("dir") {
+            continue;
+        }
+        if n.contains("gaviota") && !gaviota.trim().is_empty() {
+            out.push((o.name.clone(), gaviota.trim().to_string()));
+        } else if n.contains("nalimov") && !nalimov.trim().is_empty() {
+            out.push((o.name.clone(), nalimov.trim().to_string()));
+        }
+    }
+    out
+}
+
 impl EngineEntry {
     pub fn export_name(&self, threads: u32) -> String {
         names::ccrl_name(&self.display_name, threads)
@@ -700,5 +718,19 @@ mod tests {
         e.refresh_options();
         assert_eq!(e.default_options.get("EvalFile").map(|s| s.as_str()), Some("nn-b.nnue"));
         assert_eq!(e.tournament_options().get("EvalFile").map(|s| s.as_str()), Some("nn-b.nnue"));
+    }
+}
+
+#[cfg(test)]
+mod tablebase_tests {
+    use super::*;
+
+    #[test]
+    fn gaviota_and_nalimov_options() {
+        let o = |n: &str, k: &str| UciOption { name: n.into(), kind: k.into(), default: None, min: None, max: None, vars: vec![] };
+        let opts = vec![o("GaviotaTbPath", "string"), o("GaviotaTbCache", "spin"), o("Nalimov Path", "string"), o("SyzygyPath", "string"), o("Hash", "spin")];
+        assert_eq!(tablebase_options(&opts, "D:/tb/gaviota", "D:/tb/nalimov"), vec![("GaviotaTbPath".to_string(), "D:/tb/gaviota".to_string()), ("Nalimov Path".to_string(), "D:/tb/nalimov".to_string())]);
+        assert_eq!(tablebase_options(&opts, "", "D:/tb/nalimov").len(), 1);
+        assert!(tablebase_options(&opts, "", "").is_empty());
     }
 }

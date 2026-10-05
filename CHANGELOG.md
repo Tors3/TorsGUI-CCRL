@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.2] - 2026-10-05
+
+### Added
+- **Gaviota and Nalimov tablebases**: their paths in *Settings → Paths*, next to Syzygy, are
+  passed to every engine that has a Gaviota / Nalimov path option (`GaviotaTbPath`,
+  `NalimovPath`…), in the wizard and in tournament files.
+- **Browse…** buttons on the path fields of the desktop app (engines, books, tablebases,
+  folders, Cute Chess `engines.json`, tournament files): the system's file or folder picker.
+
 ## [0.6.1] - 2026-10-04
 
 ### Added

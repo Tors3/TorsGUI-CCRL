@@ -1,4 +1,5 @@
 import { Copy, FileCode2, Inbox, ListPlus, Play, Save } from "lucide-react";
+import { PathInput } from "./PathInput";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -120,7 +121,7 @@ export function TournamentFileDialog({ open, setOpen, onDone }: { open: boolean;
               </div>
             )}
             <div className="flex gap-2">
-              <input className="input mono" placeholder="Path of a .toml file (or paste it below)" value={path} onChange={(e) => setPath(e.target.value)} onKeyDown={(e) => e.key === "Enter" && load()} />
+              <PathInput kind="file" className="flex-1" placeholder="Path of a .toml file (or paste it below)" value={path} onChange={setPath} onEnter={load} filters={[{ name: "Tournament files", extensions: ["toml"] }]} testid="tfile-path" />
               <button className="btn" onClick={load} disabled={!path}>
                 Load
               </button>

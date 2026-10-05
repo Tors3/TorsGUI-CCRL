@@ -20,6 +20,7 @@ import type { BookSpec } from "../bindings/BookSpec";
 import type { WizardPreview } from "../bindings/WizardPreview";
 import { UciOptionsEditor } from "../components/UciOptions";
 import { cmpNum, EloCell, matchesEngine, SortTh, useEngineRatings, type RatingList, type SortDir } from "../components/EngineRatings";
+import { BOOK_FILTERS, PathInput } from "../components/PathInput";
 import { Empty, ErrorBox, Field, Modal, PageHeader, PageTabs, Panel, Seg, Spinner, Tip, useTabParam, Warn } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { coresPerLane, cpuLabel } from "../lib/cpu";
@@ -246,8 +247,19 @@ export function Wizard() {
   };
   const baseOptions = (e: EngineEntry): Record<string, string> => {
     const was = editing?.config.participants.find((p) => p.engine_id === e.id);
-    return was ? { ...was.options } : { Threads: "${THREADS}", Hash: "${HASH}", ...e.default_options };
+    return was ? { ...was.options } : { Threads: "${THREADS}", Hash: "${HASH}", ...tablebaseOptions(e), ...e.default_options };
   };
+  // Gaviota / Nalimov paths of the settings, for the engines that have such an option
+  function tablebaseOptions(e: EngineEntry): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const o of e.options) {
+      const n = o.name.toLowerCase();
+      if (o.kind !== "string" || !(n.includes("path") || n.includes("dir"))) continue;
+      if (n.includes("gaviota") && settings?.gaviota_path?.trim()) out[o.name] = settings.gaviota_path.trim();
+      else if (n.includes("nalimov") && settings?.nalimov_path?.trim()) out[o.name] = settings.nalimov_path.trim();
+    }
+    return out;
+  }
   const customOpts = (e: EngineEntry) => {
     const o = partOpts[e.id!];
     return o != null && JSON.stringify(o) !== JSON.stringify(baseOptions(e));
@@ -834,14 +846,14 @@ export function Wizard() {
                       ))}
                     </select>
                   )}
-                  <input className="input mono" value={book} onChange={(e) => setBook(e.target.value)} placeholder={variant === "chess960" ? "chess960-all-seed1.epd" : "C:\\CCRL\\books\\AVT2026d.pgn"} data-testid="book" />
+                  <PathInput kind="file" className="flex-1" value={book} onChange={setBook} filters={BOOK_FILTERS} placeholder={variant === "chess960" ? "chess960-all-seed1.epd" : "C:\\CCRL\\books\\AVT2026d.pgn"} testid="book" />
                 </div>
               </Field>
               <Field label="Book start">
                 <input className="input tnum" type="number" min={1} value={bookStart} onChange={(e) => setBookStart(Math.max(1, +e.target.value))} />
               </Field>
               <Field label="Syzygy path (engines)" className="col-span-2">
-                <input className="input mono" value={syzygy} onChange={(e) => setSyzygy(e.target.value)} />
+                <PathInput kind="folder" value={syzygy} onChange={setSyzygy} testid="syzygy" />
               </Field>
               <Field label="Site">
                 <input className="input" value={site} onChange={(e) => setSite(e.target.value)} />

@@ -743,3 +743,19 @@ test("an 8CPU seed against 1CPU opponents: preset, names, lanes and export", asy
   expect(String(toml)).toContain('"Mock Alpha 1.0" = 2');
   await page.request.post("/api/tournament_delete", { data: { id, delete_files: true } });
 });
+
+test("Gaviota and Nalimov paths in the settings, passed to the engines that have the option", async ({ page }) => {
+  const before = await (await page.request.post("/api/settings_get", { data: {} })).json();
+  await page.goto("/#/settings?tab=paths");
+  await page.getByTestId("settings-gaviota_path").fill("/tb/gaviota");
+  await page.getByTestId("settings-nalimov_path").fill("/tb/nalimov");
+  await page.getByRole("button", { name: /^Save/ }).first().click();
+  await expect.poll(async () => (await (await page.request.post("/api/settings_get", { data: {} })).json()).gaviota_path).toBe("/tb/gaviota");
+  // in a browser there is no file picker: the fields stay plain
+  await expect(page.getByTestId("settings-gaviota_path-browse")).toHaveCount(0);
+  // a tournament file: the mock engines declare no Gaviota / Nalimov option, so nothing is added
+  const r = await (await page.request.post("/api/tfile_parse", { data: { text: 'seed = "Mock Alpha 1.0"\nopponents = ["Mock Bravo 2.1"]\n' } })).json();
+  const opts = r.import.config.participants[0].options;
+  expect(Object.keys(opts).some((k) => /gaviota|nalimov/i.test(k))).toBe(false);
+  await page.request.post("/api/settings_save", { data: { settings: before } });
+});

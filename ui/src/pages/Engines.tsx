@@ -13,6 +13,7 @@ import type { RepoRef } from "../bindings/RepoRef";
 import type { Selection } from "../bindings/Selection";
 import { UciOptionsEditor } from "../components/UciOptions";
 import { cmpNum, EloCell, matchesEngine, RATING_LISTS, SortTh, useEngineRatings, type RatingList, type SortDir } from "../components/EngineRatings";
+import { ENGINE_FILTERS, PathInput } from "../components/PathInput";
 import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, Spinner, Tip, MenuButton } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 
@@ -372,7 +373,7 @@ function CuteChessDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o
         {!paste ? (
           <div className="flex gap-2 items-end">
             <Field label="engines.json (file or folder)" className="flex-1">
-              <input className="input mono" value={path} onChange={(e) => setPath(e.target.value)} placeholder="C:\Users\you\AppData\Local\cutechess\engines.json" data-testid="cute-path" />
+              <PathInput kind="file" value={path} onChange={setPath} filters={[{ name: "Cute Chess engines", extensions: ["json"] }]} placeholder="C:\Users\you\AppData\Local\cutechess\engines.json" testid="cute-path" />
             </Field>
             <button className="btn" onClick={() => scan(true)} disabled={busy != null} data-testid="cute-find">
               <Search size={13} /> Find it
@@ -735,12 +736,12 @@ export function Engines() {
       <CuteChessDialog open={cute} setOpen={setCute} onDone={refresh} />
       <Modal open={local} onOpenChange={setLocal} title="Add a local engine" footer={<button className="btn btn-primary" onClick={addLocal} disabled={!localPath}>Add &amp; verify</button>}>
         <Field label="Executable path" hint="The engine is verified (uci → isready → go depth 12) and its options are recorded.">
-          <input className="input mono" value={localPath} onChange={(e) => setLocalPath(e.target.value)} placeholder="C:\CCRL\engines\Engine_1.0\engine-avx2.exe" />
+          <PathInput kind="file" value={localPath} onChange={setLocalPath} filters={ENGINE_FILTERS} placeholder="C:\CCRL\engines\Engine_1.0\engine-avx2.exe" testid="local-path" />
         </Field>
       </Modal>
       <Modal open={imp} onOpenChange={setImp} title="Rebuild the library from REPORT.md" footer={<button className="btn btn-primary" onClick={importReport} disabled={!impPath}>Import</button>}>
         <Field label="engines folder containing REPORT.md and uci_options/" hint="Metadata only (release, asset, build, sha256, id name, UCI options, used or not): point each entry to its binary afterwards, or reinstall it from GitHub.">
-          <input className="input mono" value={impPath} onChange={(e) => setImpPath(e.target.value)} placeholder="…/CCRL_ScirptsTests/engines" />
+          <PathInput kind="folder" value={impPath} onChange={setImpPath} placeholder="…/CCRL_ScirptsTests/engines" />
         </Field>
       </Modal>
       <Modal

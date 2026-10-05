@@ -324,6 +324,9 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
                 options.insert("Threads".into(), "${THREADS}".into());
                 options.insert("Hash".into(), "${HASH}".into());
                 options.extend(e.default_options.clone());
+                for (k, v) in crate::engines::tablebase_options(&e.options, &s.gaviota_path, &s.nalimov_path) {
+                    options.entry(k).or_insert(v);
+                }
                 if let Some(o) = f.options.get(input).or_else(|| f.options.get(&e.display_name)) {
                     options.extend(o.clone());
                 }

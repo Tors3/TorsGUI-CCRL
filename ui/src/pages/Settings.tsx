@@ -7,6 +7,7 @@ import type { Topology } from "../bindings/Topology";
 import { BoardAppearance } from "../components/BoardSettings";
 import { OpeningBooksPanel } from "../components/OpeningBooks";
 import { BroadcastSettings } from "../components/Broadcast";
+import { BOOK_FILTERS, PathInput } from "../components/PathInput";
 import { ErrorBox, Field, PageHeader, PageTabs, Panel, Spinner, useTabParam } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { bytes } from "../lib/format";
@@ -110,6 +111,11 @@ export function SettingsPage() {
       <input className={`input ${mono ? "mono" : ""}`} value={String(s[k] ?? "")} onChange={(e) => set(k, e.target.value as never)} />
     </Field>
   );
+  const path = (k: keyof Settings, label: string, kind: "file" | "folder", hint?: string) => (
+    <Field label={label} hint={hint}>
+      <PathInput kind={kind} value={String(s[k] ?? "")} onChange={(v) => set(k, v as never)} filters={k === "default_book" ? BOOK_FILTERS : undefined} testid={`settings-${k}`} />
+    </Field>
+  );
   const panes: Record<SettingsTab, ReactNode> = {
     general: (
       <div className="grid gap-3 cols-fit">
@@ -196,12 +202,14 @@ export function SettingsPage() {
       <div className="grid gap-3 cols-fit">
         <Panel title="Paths">
           <div className="grid grid-cols-1 gap-2.5">
-            {txt("engines_dir", "Engines folder", "downloads go to <folder>/<Repo>_<tag>")}
-            {txt("books_dir", "Books folder")}
-            {txt("default_book", "Default opening book")}
-            {txt("tablebases_dir", "Tablebases folder")}
-            {txt("syzygy_path", "Syzygy path passed to engines")}
-            {txt("output_dir", "Export output folder")}
+            {path("engines_dir", "Engines folder", "folder", "downloads go to <folder>/<Repo>_<tag>")}
+            {path("books_dir", "Books folder", "folder")}
+            {path("default_book", "Default opening book", "file")}
+            {path("tablebases_dir", "Tablebases folder", "folder")}
+            {path("syzygy_path", "Syzygy path passed to engines", "folder", "engines with a SyzygyPath option; fastchess adjudicates with it too")}
+            {path("gaviota_path", "Gaviota path passed to engines", "folder", "engines with a Gaviota path option (GaviotaTbPath…)")}
+            {path("nalimov_path", "Nalimov path passed to engines", "folder", "engines with a Nalimov path option (NalimovPath…)")}
+            {path("output_dir", "Export output folder", "folder")}
           </div>
         </Panel>
         <Panel title="fastchess &amp; runners">

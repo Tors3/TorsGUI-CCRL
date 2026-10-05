@@ -67,7 +67,8 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
    - *Tester name* (used in the export file name, e.g. `Francesco Torsello`) and *Site* (your
      location, the PGN `Site` tag of the export, e.g. `Milan`).
    - *Paths*: engines folder (downloads go to `<folder>/<Repo>_<tag>`), books, the default book,
-     tablebases, the Syzygy path passed to engines, and the export output folder.
+     tablebases, the Syzygy, Gaviota and Nalimov paths passed to the engines that have the matching
+  option, and the export output folder (Browse… opens the file or folder picker).
    - *fastchess*: press **Download** to install the pinned release (`v1.8.2-alpha`) into the
      workspace, or set *Custom fastchess binary*. The green check shows the version found.
    - *Resume interrupted tournaments when TorsGUI starts* (on by default) and, on Windows,

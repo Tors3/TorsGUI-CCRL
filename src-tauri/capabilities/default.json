@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Main window: core IPC only (all backend access goes through the `api` command)",
   "windows": ["main"],
-  "permissions": ["core:default", "notification:default"]
+  "permissions": ["core:default", "notification:default", "dialog:allow-open"]
 }

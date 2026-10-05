@@ -66,6 +66,7 @@ fn main() {
     let notify_app = app.clone();
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(app)
         .setup(move |handle| {
             // the engines bundled as resources (Stockfish 10, Triumviratus 7.0)

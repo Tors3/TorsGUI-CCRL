@@ -67,6 +67,12 @@ pub struct Settings {
     pub output_dir: String,
     pub default_book: String,
     pub syzygy_path: String,
+    /// Gaviota tablebases, passed to engines that have a Gaviota path option.
+    #[serde(default)]
+    pub gaviota_path: String,
+    /// Nalimov tablebases, passed to engines that have a Nalimov path option.
+    #[serde(default)]
+    pub nalimov_path: String,
     pub fastchess_version: String,
     /// Empty = the managed download in `<workspace>/tools/fastchess`.
     pub fastchess_path: String,
@@ -126,6 +132,8 @@ impl Default for Settings {
             output_dir: s(ccrl.join("results")),
             default_book: String::new(),
             syzygy_path: String::new(),
+            gaviota_path: String::new(),
+            nalimov_path: String::new(),
             fastchess_version: crate::fastchess::PINNED_VERSION.into(),
             fastchess_path: String::new(),
             hash_per_thread_mb: 512,
