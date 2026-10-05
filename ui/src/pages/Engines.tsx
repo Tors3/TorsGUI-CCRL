@@ -38,15 +38,16 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
   const [asset, setAsset] = useState<string>();
   const [busy, setBusy] = useState<"list" | "install" | null>(null);
   const [error, setError] = useState<string>();
-  const [personal, setPersonal] = useState<{ allow: boolean; prefer: boolean } | null>(null);
+  // AVX2 only, or the AVX-512 build when this CPU runs it (CCRL accepts both)
+  const [avx2Only, setAvx2Only] = useState<boolean | null>(null);
   useEffect(() => {
-    if (open && !personal) call<Settings>("settings_get").then((s) => setPersonal({ allow: s.allow_avx512, prefer: s.prefer_avx512 })).catch(() => setPersonal({ allow: false, prefer: false }));
-  }, [open, personal]);
-  const policyArgs = { allow_avx512: personal?.allow ?? false, prefer_avx512: personal?.prefer ?? false };
+    if (open && avx2Only == null) call<Settings>("settings_get").then((s) => setAvx2Only(s.avx2_only)).catch(() => setAvx2Only(false));
+  }, [open, avx2Only]);
+  const policyArgs = { avx2_only: avx2Only ?? false };
   useEffect(() => {
     if (data) list();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personal?.allow, personal?.prefer]);
+  }, [avx2Only]);
   const [known, setKnown] = useState<KnownRepo[]>();
   const [kq, setKq] = useState("");
   useEffect(() => {
@@ -191,17 +192,17 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
           </details>
         )}
         <p className="muted text-[12px]">
-          Official releases only. TorsGUI proposes a build and explains why; <b>click another row to choose it yourself</b>. CCRL rule: the Windows <b>AVX2</b> build (x86-64-v3 counts as AVX2); never AVX-512, VNNI or x86-64-v4; bmi2 or generic builds are taken but flagged; never 32-bit; nothing is compiled. When the API is rate-limited TorsGUI falls back to the <span className="mono">releases/latest</span> redirect and the HTML asset listing.
+          Official releases only. TorsGUI proposes a build and explains why; <b>click another row to choose it yourself</b>. CCRL tests <b>AVX2 or AVX-512</b> builds: TorsGUI takes the AVX-512 (VNNI first) build when this CPU runs it, else the AVX2 one (x86-64-v3 counts as AVX2, x86-64-v4 as AVX-512); bmi2 or generic builds are taken but flagged; never 32-bit; nothing is compiled. When the API is rate-limited TorsGUI falls back to the <span className="mono">releases/latest</span> redirect and the HTML asset listing.
         </p>
         <div className="flex items-center gap-4 text-[12.5px] rounded-md px-3 py-2" style={{ background: "var(--bg-2)" }}>
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={personal?.allow ?? false} onChange={(e) => setPersonal({ allow: e.target.checked, prefer: e.target.checked && (personal?.prefer ?? false) })} data-testid="gh-allow-avx512" />
-            Allow AVX-512 builds <span className="chip chip-personal">personal, not CCRL</span>
+            <input type="checkbox" checked={avx2Only ?? false} onChange={(e) => setAvx2Only(e.target.checked)} data-testid="gh-avx2-only" />
+            AVX2 only
           </label>
-          <label className="flex items-center gap-2" style={{ opacity: personal?.allow ? 1 : 0.5 }}>
-            <input type="checkbox" disabled={!personal?.allow} checked={personal?.prefer ?? false} onChange={(e) => setPersonal({ allow: true, prefer: e.target.checked })} /> Prefer them
-            {data?.policy && personal?.allow && <span className="muted">(this CPU: AVX-512 {data.policy.cpu_avx512 ? "yes" : "no"}, VNNI {data.policy.cpu_vnni ? "yes" : "no"})</span>}
-          </label>
+          <span className="muted">
+            {avx2Only ? "the AVX2 build, even on an AVX-512 CPU" : "the AVX-512 build when this CPU runs it, else AVX2 — CCRL accepts both"}
+            {data?.policy && <> · this CPU: AVX-512 {data.policy.cpu_avx512 ? "yes" : "no"}, VNNI {data.policy.cpu_vnni ? "yes" : "no"}</>}
+          </span>
         </div>
         <ErrorBox error={error} />
         {data && (
@@ -231,7 +232,7 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
                           <td>{v.accepted ? <input type="radio" checked={asset === v.name} readOnly aria-label={v.name} /> : <XCircle size={14} className="l" />}</td>
                           <td className="mono">{v.name}</td>
                           <td className="mono muted">
-                            {v.build} {v.accepted && !v.ccrl_ok && <span className="chip chip-personal">not CCRL</span>}
+                            {v.build}
                           </td>
                           <td className="text-[12px]" style={{ color: v.accepted ? (!v.ccrl_ok ? "#b48cff" : v.flagged ? "var(--warn)" : "var(--win)") : "var(--muted)" }}>
                             {v.reason}
@@ -693,7 +694,7 @@ export function Engines() {
                     <td className="max-w-[260px]">
                       <div className="flex flex-wrap gap-1">
                         {e.flags.map((f) => (
-                          <span key={f} className={`chip ${f.startsWith("AVX-512 build: personal") ? "chip-personal" : "chip-warn"}`} title={f}>
+                          <span key={f} className="chip chip-warn" title={f}>
                             {f.length > 34 ? f.slice(0, 32) + "…" : f}
                           </span>
                         ))}

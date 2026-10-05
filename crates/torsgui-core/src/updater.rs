@@ -123,7 +123,7 @@ pub fn latest_release(token: Option<&str>) -> Result<(String, Vec<UpdateAsset>)>
     // API rate-limited: the tag from the redirect, the usual file names
     let tag = crate::github::latest_tag_via_redirect(owner, repo)?;
     let v = tag.trim_start_matches('v');
-    let names = [format!("TorsGUI_{v}_x64-setup.exe"), format!("TorsGUI_{v}_x64_en-US.msi"), "TorsGUI-portable-windows-x64.zip".to_string(), format!("TorsGUI_{v}_amd64.AppImage"), format!("TorsGUI_{v}_amd64.deb")];
+    let names = [format!("TorsGUI_{v}_x64-setup.exe"), format!("TorsGUI_{v}_x64_en-US.msi"), format!("TorsGUI_{v}_portable-windows-x64.zip"), format!("TorsGUI_{v}_amd64.AppImage"), format!("TorsGUI_{v}_amd64.deb")];
     let assets = names.iter().map(|n| UpdateAsset { name: n.clone(), url: format!("https://github.com/{owner}/{repo}/releases/download/{tag}/{n}"), size: 0, digest: None }).collect();
     Ok((tag, assets))
 }
@@ -166,36 +166,73 @@ pub fn download(asset: &UpdateAsset, dest: &Path, mut progress: impl FnMut(u64, 
     Ok(())
 }
 
-/// Renames every executable (and DLL) under `dir` to `*.old-update`, so that files in use by
-/// running tournaments can be replaced.
-pub fn move_aside(dir: &Path) -> Vec<PathBuf> {
+/// TorsGUI's own files in `dir`: its executables and the bundled engines listed in
+/// `engines/bundled.json`. Only these are replaced by an installer.
+pub fn own_files(dir: &Path) -> Vec<PathBuf> {
+    let mut v: Vec<PathBuf> = ["TorsGUI.exe", "torsgui-runner.exe", "torsgui-demo-engine.exe"].iter().map(PathBuf::from).collect();
+    if let Ok(text) = std::fs::read_to_string(dir.join("engines").join("bundled.json")) {
+        if let Ok(j) = serde_json::from_str::<serde_json::Value>(&text) {
+            let list = j.get("engines").cloned().unwrap_or(j);
+            for e in list.as_array().into_iter().flatten() {
+                if let Some(f) = e.get("file").and_then(|f| f.as_str()) {
+                    v.push(Path::new("engines").join(f));
+                }
+            }
+        }
+    }
+    v
+}
+
+/// The files of a staged package, relative to `staging`.
+pub fn package_files(staging: &Path) -> Vec<PathBuf> {
+    walkdir::WalkDir::new(staging)
+        .into_iter()
+        .flatten()
+        .filter(|e| e.file_type().is_file())
+        .filter_map(|e| e.path().strip_prefix(staging).ok().map(|p| p.to_path_buf()))
+        .collect()
+}
+
+/// Renames to `*.old-update` the executables and DLLs among `files` (relative to `dir`) that
+/// exist, so that files in use by running tournaments can be replaced. Nothing else in `dir`
+/// is touched: engines or other programs kept next to TorsGUI stay where they are.
+pub fn move_aside(dir: &Path, files: &[PathBuf]) -> Vec<PathBuf> {
     let mut moved = Vec::new();
-    for e in walkdir::WalkDir::new(dir).max_depth(3).into_iter().flatten() {
-        let p = e.path();
+    for rel in files {
+        let p = dir.join(rel);
         let name = p.file_name().map(|n| n.to_string_lossy().to_lowercase()).unwrap_or_default();
-        if !e.file_type().is_file() || name.ends_with(OLD_SUFFIX) {
+        if !(name.ends_with(".exe") || name.ends_with(".dll")) || !p.is_file() {
             continue;
         }
-        if name.ends_with(".exe") || name.ends_with(".dll") {
-            let to = PathBuf::from(format!("{}{OLD_SUFFIX}", p.display()));
-            let _ = std::fs::remove_file(&to);
-            if std::fs::rename(p, &to).is_ok() {
-                moved.push(to);
-            }
+        let to = PathBuf::from(format!("{}{OLD_SUFFIX}", p.display()));
+        let _ = std::fs::remove_file(&to);
+        if std::fs::rename(&p, &to).is_ok() {
+            moved.push(to);
         }
     }
     moved
 }
 
-/// Removes the files left by a previous update (those still in use stay until the next time).
-pub fn cleanup_old(dir: &Path) -> usize {
-    walkdir::WalkDir::new(dir)
-        .max_depth(3)
-        .into_iter()
-        .flatten()
-        .filter(|e| e.file_type().is_file() && e.file_name().to_string_lossy().ends_with(OLD_SUFFIX))
-        .filter(|e| std::fs::remove_file(e.path()).is_ok())
-        .count()
+/// After an update: removes `X.old-update` when `X` was replaced; when `X` is missing (renamed
+/// but never replaced, as TorsGUI 0.6.0–0.6.2 did with every executable around it) the file is
+/// put back. Returns (removed, restored).
+pub fn cleanup_old(dir: &Path) -> (usize, usize) {
+    let (mut removed, mut restored) = (0, 0);
+    for e in walkdir::WalkDir::new(dir).max_depth(3).into_iter().flatten() {
+        let name = e.file_name().to_string_lossy().to_string();
+        if !e.file_type().is_file() || !name.ends_with(OLD_SUFFIX) {
+            continue;
+        }
+        let original = e.path().with_file_name(name.trim_end_matches(OLD_SUFFIX));
+        if original.exists() {
+            if std::fs::remove_file(e.path()).is_ok() {
+                removed += 1;
+            }
+        } else if std::fs::rename(e.path(), &original).is_ok() {
+            restored += 1;
+        }
+    }
+    (removed, restored)
 }
 
 /// Copies the portable files from `src` over `dst` (files in use were moved aside first).
@@ -224,13 +261,13 @@ pub fn apply(kind: &InstallKind, file: &Path) -> Result<String> {
     let dir = exe.parent().context("install folder")?.to_path_buf();
     match kind {
         InstallKind::Nsis => {
-            move_aside(&dir);
+            move_aside(&dir, &own_files(&dir));
             // passive install, then TorsGUI starts again
             Command::new(file).args(["/UPDATE", "/P", "/R"]).spawn().with_context(|| format!("starting {}", file.display()))?;
             Ok("The installer is running; TorsGUI starts again when it is done.".into())
         }
         InstallKind::Msi => {
-            move_aside(&dir);
+            move_aside(&dir, &own_files(&dir));
             let script = format!("msiexec /i \"{}\" /passive && start \"\" \"{}\"", file.display(), exe.display());
             let mut c = Command::new("cmd");
             c.args(["/C", &script]);
@@ -239,12 +276,16 @@ pub fn apply(kind: &InstallKind, file: &Path) -> Result<String> {
             Ok("The MSI installer is running; TorsGUI starts again when it is done.".into())
         }
         InstallKind::Portable => {
-            let staging = dir.join(".update");
+            // unpacked outside TorsGUI's folder; only the files of the package are replaced
+            let staging = std::env::temp_dir().join("torsgui-update").join("portable");
             let _ = std::fs::remove_dir_all(&staging);
             std::fs::create_dir_all(&staging)?;
             let f = std::fs::File::open(file)?;
             zip::ZipArchive::new(f)?.extract(&staging).context("unpacking the portable zip")?;
-            move_aside(&dir);
+            if !staging.join("TorsGUI.exe").is_file() {
+                bail!("the portable zip has no TorsGUI.exe");
+            }
+            move_aside(&dir, &package_files(&staging));
             let n = copy_over(&staging, &dir)?;
             let _ = std::fs::remove_dir_all(&staging);
             Command::new(dir.join("TorsGUI.exe")).current_dir(&dir).spawn().context("starting the new TorsGUI")?;
@@ -295,10 +336,12 @@ mod tests {
         assert_eq!(kind_of(Path::new("/usr/bin/torsgui"), None, false), InstallKind::Deb);
         assert_eq!(kind_of(Path::new("/home/u/target/debug/torsgui-server"), None, false), InstallKind::Unknown);
         let a = |n: &str| UpdateAsset { name: n.into(), ..Default::default() };
-        let assets = vec![a("TorsGUI_0.6.0_x64-setup.exe"), a("TorsGUI_0.6.0_x64_en-US.msi"), a("TorsGUI-portable-windows-x64.zip"), a("TorsGUI_0.6.0_amd64.AppImage"), a("TorsGUI_0.6.0_amd64.deb")];
+        let assets = vec![a("TorsGUI_0.6.0_x64-setup.exe"), a("TorsGUI_0.6.0_x64_en-US.msi"), a("TorsGUI_0.6.0_portable-windows-x64.zip"), a("TorsGUI_0.6.0_amd64.AppImage"), a("TorsGUI_0.6.0_amd64.deb")];
         assert_eq!(pick_asset(&InstallKind::Nsis, &assets).unwrap().name, "TorsGUI_0.6.0_x64-setup.exe");
         assert_eq!(pick_asset(&InstallKind::Msi, &assets).unwrap().name, "TorsGUI_0.6.0_x64_en-US.msi");
-        assert_eq!(pick_asset(&InstallKind::Portable, &assets).unwrap().name, "TorsGUI-portable-windows-x64.zip");
+        assert_eq!(pick_asset(&InstallKind::Portable, &assets).unwrap().name, "TorsGUI_0.6.0_portable-windows-x64.zip");
+        // releases before 0.6.3 named it without the version
+        assert!(pick_asset(&InstallKind::Portable, &[a("TorsGUI-portable-windows-x64.zip")]).is_some());
         assert_eq!(pick_asset(&InstallKind::AppImage, &assets).unwrap().name, "TorsGUI_0.6.0_amd64.AppImage");
         assert!(pick_asset(&InstallKind::Unknown, &assets).is_none());
     }
@@ -308,21 +351,36 @@ mod tests {
         let d = tempfile::tempdir().unwrap();
         let root = d.path().join("app");
         std::fs::create_dir_all(root.join("engines")).unwrap();
+        std::fs::create_dir_all(root.join("my engines/Foo")).unwrap();
+        std::fs::write(root.join("TorsGUI.exe"), b"old gui").unwrap();
         std::fs::write(root.join("torsgui-runner.exe"), b"old runner").unwrap();
         std::fs::write(root.join("engines/sf.exe"), b"old sf").unwrap();
+        std::fs::write(root.join("my engines/Foo/foo.exe"), b"user engine").unwrap();
+        std::fs::write(root.join("helper.dll"), b"user dll").unwrap();
         std::fs::write(root.join("settings.txt"), b"keep").unwrap();
-        let moved = move_aside(&root);
-        assert_eq!(moved.len(), 2);
-        assert!(root.join(format!("torsgui-runner.exe{OLD_SUFFIX}")).exists());
         let new = d.path().join("new");
         std::fs::create_dir_all(new.join("engines")).unwrap();
+        std::fs::write(new.join("TorsGUI.exe"), b"new gui").unwrap();
         std::fs::write(new.join("torsgui-runner.exe"), b"new runner").unwrap();
         std::fs::write(new.join("engines/sf.exe"), b"new sf").unwrap();
-        assert_eq!(copy_over(&new, &root).unwrap(), 2);
-        assert_eq!(std::fs::read(root.join("torsgui-runner.exe")).unwrap(), b"new runner");
+        // only the files of the package are set aside: the user's engines and DLLs stay
+        let moved = move_aside(&root, &package_files(&new));
+        assert_eq!(moved.len(), 3);
+        assert!(root.join("my engines/Foo/foo.exe").exists() && root.join("helper.dll").exists());
+        assert_eq!(copy_over(&new, &root).unwrap(), 3);
+        assert_eq!(std::fs::read(root.join("TorsGUI.exe")).unwrap(), b"new gui");
         assert_eq!(std::fs::read(root.join("settings.txt")).unwrap(), b"keep");
-        assert_eq!(cleanup_old(&root), 2);
+        assert_eq!(cleanup_old(&root), (3, 0));
         assert!(!root.join(format!("engines/sf.exe{OLD_SUFFIX}")).exists());
+        // what 0.6.0–0.6.2 left behind: an engine renamed and never replaced comes back
+        std::fs::rename(root.join("my engines/Foo/foo.exe"), root.join(format!("my engines/Foo/foo.exe{OLD_SUFFIX}"))).unwrap();
+        assert_eq!(cleanup_old(&root), (0, 1));
+        assert_eq!(std::fs::read(root.join("my engines/Foo/foo.exe")).unwrap(), b"user engine");
+        // an installer replaces TorsGUI's own files only
+        std::fs::write(root.join("engines/bundled.json"), br#"[{"file":"sf.exe"}]"#).unwrap();
+        let own = own_files(&root);
+        assert!(own.contains(&PathBuf::from("engines/sf.exe")) && own.contains(&PathBuf::from("TorsGUI.exe")));
+        assert!(!own.iter().any(|p| p.to_string_lossy().contains("foo")));
     }
 
     #[test]

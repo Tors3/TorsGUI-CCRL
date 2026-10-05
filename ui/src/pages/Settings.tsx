@@ -173,13 +173,10 @@ export function SettingsPage() {
         <Panel title="Engine builds">
           <div className="flex flex-col gap-2.5 text-[12.5px]">
             <p className="muted">
-              CCRL rule: the <b>AVX2</b> build, never AVX-512/VNNI/x86-64-v4. For your own tests you can allow AVX-512 builds: they are always marked <span className="chip chip-personal">not CCRL</span>, and the wizard warns when a tournament uses them.
+              CCRL tests <b>AVX2 or AVX-512</b> builds. Downloads take the AVX-512 build (VNNI first) when this CPU runs it, else the AVX2 one; an AVX-512 build is never taken on a CPU without AVX-512 (it would crash). In a tournament, engines that are neither AVX2 nor AVX-512 are pointed out.
             </p>
             <label className="flex items-center gap-2">
-              <input type="checkbox" checked={s.allow_avx512} onChange={(e) => setS({ ...s, allow_avx512: e.target.checked, prefer_avx512: e.target.checked && s.prefer_avx512 })} data-testid="allow-avx512" /> Allow AVX-512 builds (personal use)
-            </label>
-            <label className="flex items-center gap-2" style={{ opacity: s.allow_avx512 ? 1 : 0.5 }}>
-              <input type="checkbox" disabled={!s.allow_avx512} checked={s.prefer_avx512} onChange={(e) => set("prefer_avx512", e.target.checked)} /> Prefer them when this CPU supports AVX-512
+              <input type="checkbox" checked={s.avx2_only} onChange={(e) => set("avx2_only", e.target.checked)} data-testid="avx2-only" /> AVX2 only (never the AVX-512 build)
             </label>
             <div className="muted text-[11.5px]">
               This CPU: AVX-512 {topo ? (topo.has_avx512 ? "yes" : "no") : "…"}. Default for new downloads; the <i>Add from GitHub</i> dialog can switch it per engine.
@@ -315,7 +312,7 @@ export function SettingsPage() {
       <PageHeader
         help="new-machine"
         title="Settings"
-        sub={info ? `TorsGUI ${info.version} · workspace ${info.workspace} · ${info.os}` : ""}
+        sub={info ? `TorsGUI ${info.version}${info.install ? ` (${info.install})` : ""}${info.exe ? ` · running from ${info.exe}` : ""} · workspace ${info.workspace} · ${info.os}` : ""}
         actions={
           <button className="btn btn-primary" onClick={save}>
             <Save size={14} /> Save settings

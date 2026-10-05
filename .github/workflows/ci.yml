@@ -177,7 +177,9 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $out = "TorsGUI-portable-windows-x64"
+          # the version in the name: a new download never collides with the previous one
+          $ver = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
+          $out = "TorsGUI_${ver}_portable-windows-x64"
           New-Item -ItemType Directory -Force $out | Out-Null
           Copy-Item target/release/torsgui.exe $out/TorsGUI.exe
           Copy-Item src-tauri/binaries/torsgui-runner-x86_64-pc-windows-msvc.exe $out/torsgui-runner.exe
@@ -185,6 +187,8 @@ jobs:
           Copy-Item -Recurse src-tauri/resources/engines $out/engines
           Copy-Item -Recurse src-tauri/resources/books $out/books
           Copy-Item LICENSE $out/
+          # marks the portable version: its data stays in the "data" folder next to TorsGUI.exe
+          Set-Content -Path "$out/portable.txt" -Value "TorsGUI portable: the data (database, tournaments, settings) is kept in the 'data' folder next to TorsGUI.exe. Delete this file to use the shared workspace in %LOCALAPPDATA%\TorsGUI instead."
           Compress-Archive -Path "$out/*" -DestinationPath "$out.zip"
       - uses: actions/upload-artifact@v4
         with:
@@ -194,7 +198,7 @@ jobs:
             target/release/bundle/msi/*.msi
             target/release/bundle/appimage/*.AppImage
             target/release/bundle/deb/*.deb
-            TorsGUI-portable-windows-x64.zip
+            TorsGUI_*_portable-windows-x64.zip
           if-no-files-found: warn
 
   release:

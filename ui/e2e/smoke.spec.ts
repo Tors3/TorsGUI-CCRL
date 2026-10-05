@@ -677,6 +677,14 @@ test("settings: notifications, update check, more test suites", async ({ page })
   const suites = await (await page.request.post("/api/suites_builtin", { data: {} })).json();
   expect(suites.find((s: any) => s.id === "wac300").positions).toBe(300);
   expect(suites.length).toBeGreaterThanOrEqual(9);
+  // engine builds: AVX2 or AVX-512 (the AVX-512 one when this CPU runs it), or AVX2 only
+  await page.goto("/#/settings?tab=general");
+  await expect(page.getByTestId("avx2-only")).not.toBeChecked();
+  await expect(page.getByText("CCRL tests AVX2 or AVX-512 builds", { exact: false }).first()).toBeVisible();
+  // the header says which copy runs, from where
+  const info = await (await page.request.post("/api/app_info", { data: {} })).json();
+  expect(info.exe).toBeTruthy();
+  expect(info.install).toBeTruthy();
 });
 
 test("CCRL list row: download the engine from GitHub", async ({ page }) => {

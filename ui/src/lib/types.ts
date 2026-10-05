@@ -12,6 +12,9 @@ export type DashboardData = {
 };
 
 export type AppInfo = {
+  /** The running executable and how it was installed (portable folder, Windows installer…). */
+  exe?: string | null;
+  install?: string;
   version: string;
   workspace: string;
   os: string;

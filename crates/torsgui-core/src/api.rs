@@ -199,6 +199,9 @@ impl App {
                 let fc = crate::fastchess::resolve("", &s.fastchess_path, &self.ws.tools_dir(), &s.fastchess_version);
                 ok(json!({
                     "version": env!("CARGO_PKG_VERSION"),
+                    // which copy is running (installed, portable…) and from where
+                    "exe": std::env::current_exe().ok(),
+                    "install": crate::updater::install_kind().label(),
                     "workspace": self.ws.root,
                     "os": crate::platform::os().name(),
                     "fastchess": fc,
@@ -1676,8 +1679,10 @@ impl App {
         if let Ok(store) = self.ws.open() {
             for pp in &cfg.participants {
                 if let Some(e) = pp.engine_id.and_then(|id| store.engine(id).ok().flatten()) {
-                    if e.flags.iter().any(|f| f == NOT_CCRL_FLAG) {
-                        p.warnings.push(format!("{}: AVX-512 build (personal option): the results are not valid for CCRL", pp.name));
+                    if !e.is_demo() {
+                        let (errs, warns) = build_checks(&pp.name, &e.build);
+                        p.errors.extend(errs);
+                        p.warnings.extend(warns);
                     }
                     p.warnings.extend(engines::check_options(&pp.name, &pp.options, &e.options, &pp.dir));
                     if frc && !e.chess960 {
@@ -2124,7 +2129,7 @@ fn local_entry(path: &Path, engine: Option<String>, version: Option<String>, v: 
             ..Default::default()
         };
         if cls.flagged {
-            e.flags.push(if cls.ccrl_ok { cls.reason.clone() } else { NOT_CCRL_FLAG.into() });
+            e.flags.push(cls.reason.clone());
         }
         engines::apply_verify(&mut e, v);
         e
@@ -2172,7 +2177,6 @@ impl App {
         let mut reason = if sel.chosen.as_deref() == Some(chosen.as_str()) { sel.reason.clone() } else { format!("{}: {} (chosen manually)", verdict.name, verdict.reason) };
         let mut build = verdict.build.clone();
         let mut flagged = verdict.flagged;
-        let mut ccrl_ok = verdict.ccrl_ok;
         let exe = if crate::assets::is_archive(&asset.name) {
             let files = crate::github::extract(&file, &dir)?;
             let inner: Vec<String> = files.iter().map(|p| p.file_name().unwrap().to_string_lossy().to_string()).collect();
@@ -2181,7 +2185,6 @@ impl App {
             reason = format!("{}; inside the archive: {}", reason, s2.reason);
             build = s2.build.clone();
             flagged = s2.flagged;
-            ccrl_ok = s2.ccrl_ok && ccrl_ok;
             files.into_iter().find(|p| p.file_name().unwrap().to_string_lossy() == pick).unwrap()
         } else {
             file.clone()
@@ -2218,9 +2221,7 @@ impl App {
             added_at: crate::store::now(),
             ..Default::default()
         };
-        if !ccrl_ok {
-            e.flags.push(NOT_CCRL_FLAG.into());
-        } else if flagged {
+        if flagged {
             e.flags.push(format!("{} build", e.build));
         }
         engines::apply_verify(&mut e, &v);
@@ -2317,15 +2318,33 @@ impl Default for TournamentRecord {
     }
 }
 
-/// Flag stored on engines installed with the personal AVX-512 option.
+/// Flag stored before 0.6.3 on AVX-512 builds (then a personal option): no longer meaningful,
+/// CCRL accepts AVX2 or AVX-512 builds.
 pub const NOT_CCRL_FLAG: &str = "AVX-512 build: personal use, not valid for CCRL";
 
-/// The asset policy of a request: the settings, overridable per call (`allow_avx512`,
-/// `prefer_avx512`) from the *Add from GitHub* dialog.
+/// The asset policy of a request: the settings, overridable per call (`avx2_only`) from the
+/// *Add from GitHub* dialog.
 fn request_policy(s: &crate::store::Settings, a: &Value) -> crate::assets::AssetPolicy {
-    let allow = opt::<bool>(a, "allow_avx512").unwrap_or(s.allow_avx512);
-    let prefer = opt::<bool>(a, "prefer_avx512").unwrap_or(s.prefer_avx512);
-    if allow { crate::assets::AssetPolicy::personal(prefer) } else { crate::assets::AssetPolicy::ccrl() }
+    if opt::<bool>(a, "avx2_only").unwrap_or(s.avx2_only) { crate::assets::AssetPolicy::ccrl() } else { crate::assets::AssetPolicy::for_this_cpu() }
+}
+
+/// The build check of a tournament: CCRL tests AVX2 or AVX-512 builds; an AVX-512 build
+/// must run on this CPU. Returns (errors, warnings).
+pub fn build_checks(name: &str, build: &str) -> (Vec<String>, Vec<String>) {
+    let (mut errors, mut warnings) = (Vec::new(), Vec::new());
+    match crate::assets::build_level(build) {
+        "avx512" => {
+            let (avx512, vnni) = crate::assets::cpu_avx512();
+            let ok = if build.to_lowercase().contains("vnni") { vnni } else { avx512 };
+            if !ok {
+                errors.push(format!("{name}: {build} build, but this CPU has no {}: the engine would crash", if build.contains("vnni") { "AVX-512 VNNI" } else { "AVX-512" }));
+            }
+        }
+        "avx2" => {}
+        "other" => warnings.push(format!("{name}: {build} build — CCRL tests AVX2 or AVX-512 builds")),
+        _ => warnings.push(format!("{name}: build unknown (local file without AVX2 / AVX-512 in its name): check it is an AVX2 or AVX-512 build")),
+    }
+    (errors, warnings)
 }
 
 fn game_row(g: &pgn::Game) -> GameRow {

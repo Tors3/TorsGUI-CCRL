@@ -22,18 +22,72 @@ pub struct Workspace {
     pub root: PathBuf,
 }
 
+/// Next to the executable of the portable version: its data stays in `data` beside it.
+pub const PORTABLE_MARKER: &str = "portable.txt";
+
+/// Copies a folder recursively.
+pub fn copy_tree(from: &Path, to: &Path) -> Result<u64> {
+    let mut n = 0;
+    for e in walkdir::WalkDir::new(from) {
+        let e = e?;
+        let rel = e.path().strip_prefix(from)?;
+        let dst = to.join(rel);
+        if e.file_type().is_dir() {
+            std::fs::create_dir_all(&dst)?;
+        } else if e.file_type().is_file() {
+            std::fs::copy(e.path(), &dst).with_context(|| format!("copying {}", e.path().display()))?;
+            n += 1;
+        }
+    }
+    Ok(n)
+}
+
 impl Workspace {
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Workspace { root: root.into() }
     }
-    /// `TORSGUI_HOME` or the platform data directory.
+    /// `TORSGUI_HOME`; for the portable version (a `portable.txt` next to the executable) the
+    /// `data` folder next to it; else the platform data directory.
     pub fn default_root() -> PathBuf {
         if let Ok(h) = std::env::var("TORSGUI_HOME") {
             if !h.is_empty() {
                 return PathBuf::from(h);
             }
         }
+        let shared = Self::shared_root();
+        match std::env::current_exe().ok().and_then(|e| e.parent().map(|p| p.to_path_buf())).filter(|d| d.join(PORTABLE_MARKER).is_file()) {
+            Some(dir) => Self::portable_root(&dir, &shared),
+            None => shared,
+        }
+    }
+
+    /// The workspace of the installed versions (`%LOCALAPPDATA%\TorsGUI`, `~/.local/share/TorsGUI`).
+    pub fn shared_root() -> PathBuf {
         dirs::data_local_dir().unwrap_or_else(|| PathBuf::from(".")).join("TorsGUI")
+    }
+
+    /// `<dir>/data`. The first time, the workspace used so far (`shared`) is copied there — not
+    /// moved: it stays as it was — unless a tournament is running (its runner keeps writing in
+    /// `shared`): then `shared` is used until a start with no tournament running.
+    pub fn portable_root(dir: &Path, shared: &Path) -> PathBuf {
+        let data = dir.join("data");
+        if data.join("torsgui.db").is_file() || !shared.join("torsgui.db").is_file() || shared == data {
+            return data;
+        }
+        let running = Store::open(&shared.join("torsgui.db")).and_then(|s| s.tournaments()).map(|ts| ts.iter().any(|t| t.state == TState::Running)).unwrap_or(true);
+        if running {
+            return shared.to_path_buf();
+        }
+        match copy_tree(shared, &data) {
+            Ok(_) => {
+                let _ = std::fs::write(data.join("COPIED_FROM.txt"), format!("TorsGUI copied this workspace from {} on {} (the original was left in place).\n", shared.display(), now()));
+                data
+            }
+            Err(_) => {
+                let _ = std::fs::remove_dir_all(&data);
+                shared.to_path_buf()
+            }
+        }
     }
     pub fn db_path(&self) -> PathBuf {
         self.root.join("torsgui.db")
@@ -94,10 +148,12 @@ pub struct Settings {
     pub post_template_announcement: String,
     pub post_template_progress: String,
     pub log_retention_days: u32,
-    /// Personal option: accept AVX-512 / VNNI / x86-64-v4 builds (never for CCRL).
+    /// Before 0.6.3 (AVX-512 as a personal option): kept for old settings files, unused.
     pub allow_avx512: bool,
-    /// Personal option: pick them first when the CPU supports them.
     pub prefer_avx512: bool,
+    /// Downloads take the AVX2 build even when this CPU runs AVX-512 (CCRL accepts both).
+    #[serde(default)]
+    pub avx2_only: bool,
     /// PGN files or folders outside the workspace shown in the game archive.
     pub archive_paths: Vec<String>,
     /// Lichess API token (scopes study:read, study:write) for live broadcasts.
@@ -114,7 +170,7 @@ pub struct Settings {
 
 impl Settings {
     pub fn asset_policy(&self) -> crate::assets::AssetPolicy {
-        if self.allow_avx512 { crate::assets::AssetPolicy::personal(self.prefer_avx512) } else { crate::assets::AssetPolicy::ccrl() }
+        if self.avx2_only { crate::assets::AssetPolicy::ccrl() } else { crate::assets::AssetPolicy::for_this_cpu() }
     }
 }
 
@@ -153,6 +209,7 @@ impl Default for Settings {
             log_retention_days: 30,
             allow_avx512: false,
             prefer_avx512: false,
+            avx2_only: false,
             archive_paths: Vec::new(),
             lichess_token: String::new(),
             lichess_visibility: "public".into(),
@@ -788,5 +845,38 @@ impl TournamentRecord {
             imported: false,
             status: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod portable_tests {
+    use super::*;
+
+    #[test]
+    fn portable_workspace_is_copied_once() {
+        let d = tempfile::tempdir().unwrap();
+        let shared = d.path().join("appdata/TorsGUI");
+        let app = d.path().join("e/sakk/TorsGUI");
+        std::fs::create_dir_all(&app).unwrap();
+        // nothing yet: a fresh data folder
+        assert_eq!(Workspace::portable_root(&app, &shared), app.join("data"));
+        // a workspace used so far is copied (and left in place)
+        let ws = Workspace::new(shared.clone());
+        let st = ws.open().unwrap();
+        let mut s = st.settings().unwrap();
+        s.tester_name = "Gabor".into();
+        st.save_settings(&s).unwrap();
+        drop(st);
+        std::fs::create_dir_all(shared.join("tournaments/t1/pgn")).unwrap();
+        std::fs::write(shared.join("tournaments/t1/pgn/a.pgn"), b"[Event \"x\"]").unwrap();
+        let root = Workspace::portable_root(&app, &shared);
+        assert_eq!(root, app.join("data"));
+        assert_eq!(Workspace::new(root.clone()).open().unwrap().settings().unwrap().tester_name, "Gabor");
+        assert!(root.join("tournaments/t1/pgn/a.pgn").is_file() && root.join("COPIED_FROM.txt").is_file());
+        assert!(shared.join("torsgui.db").is_file());
+        // then it is used as it is
+        std::fs::write(shared.join("later.txt"), b"x").unwrap();
+        assert_eq!(Workspace::portable_root(&app, &shared), app.join("data"));
+        assert!(!root.join("later.txt").exists());
     }
 }

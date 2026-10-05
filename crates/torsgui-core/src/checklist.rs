@@ -125,15 +125,15 @@ pub fn check(i: &Input) -> Checklist {
     if i.imported || lib.is_empty() {
         v.push(item("builds", "CCRL builds", Info, "engines of an imported tournament: builds not checked"));
     } else {
-        let avx512: Vec<&str> = lib.iter().filter(|e| e.flags.iter().any(|f| f.starts_with("AVX-512 build: personal"))).map(|e| e.display_name.as_str()).collect();
-        let flagged: Vec<String> = lib.iter().filter(|e| e.flags.iter().any(|f| f.ends_with(" build") || f.contains("flagged"))).map(|e| format!("{} ({})", e.display_name, e.build)).collect();
+        let other: Vec<String> = lib.iter().filter(|e| !e.is_demo() && crate::assets::build_level(&e.build) != "avx2" && crate::assets::build_level(&e.build) != "avx512").map(|e| format!("{} ({})", e.display_name, if e.build.is_empty() { "unknown" } else { &e.build })).collect();
         let bits32: Vec<&str> = lib.iter().filter(|e| e.flags.iter().any(|f| f == "32-bit")).map(|e| e.display_name.as_str()).collect();
-        v.push(if !avx512.is_empty() || !bits32.is_empty() {
-            item("builds", "CCRL builds (AVX2, 64-bit)", Fail, format!("not valid for CCRL: {}", avx512.iter().chain(bits32.iter()).cloned().collect::<Vec<_>>().join(", ")))
-        } else if !flagged.is_empty() {
-            item("builds", "CCRL builds (AVX2, 64-bit)", Warn, format!("no pure AVX2 build published, flagged: {}", flagged.join(", ")))
+        let avx512 = lib.iter().filter(|e| crate::assets::build_level(&e.build) == "avx512").count();
+        v.push(if !bits32.is_empty() {
+            item("builds", "CCRL builds (AVX2 or AVX-512, 64-bit)", Fail, format!("32-bit builds are not valid for CCRL: {}", bits32.join(", ")))
+        } else if !other.is_empty() {
+            item("builds", "CCRL builds (AVX2 or AVX-512, 64-bit)", Warn, format!("not an AVX2 or AVX-512 build: {}", other.join(", ")))
         } else {
-            item("builds", "CCRL builds (AVX2, 64-bit)", Ok, "AVX2 builds, 64-bit")
+            item("builds", "CCRL builds (AVX2 or AVX-512, 64-bit)", Ok, if avx512 > 0 { format!("AVX2 or AVX-512 builds ({avx512} AVX-512), 64-bit") } else { "AVX2 builds, 64-bit".to_string() })
         });
         let unverified: Vec<&str> = lib.iter().filter(|e| e.verify_status != "ok").map(|e| e.display_name.as_str()).collect();
         v.push(if unverified.is_empty() {
@@ -259,7 +259,7 @@ mod tests {
         st.incomplete_pairs.push(crate::stats::PairIssue { opponent: "Opp 2.0".into(), node: 0, pass: 1, round: 3, games: 1 });
         st.termination_totals.insert("time forfeit".into(), 2);
         let mut avx = engine("Opp 2.0");
-        avx.flags.push("AVX-512 build: personal use, not valid for CCRL".into());
+        avx.flags.push("32-bit".into());
         let mut i = input(&c, &st, vec![Some(engine("Seed 1.0")), Some(avx), None]);
         i.done = 58;
         i.tester = "";
@@ -277,5 +277,22 @@ mod tests {
         // no bench at all
         i.bench = None;
         assert!(check(&i).items.iter().any(|x| x.id == "tc" && x.detail.contains("no valid bench")));
+    }
+
+    #[test]
+    fn avx512_builds_are_ccrl_builds() {
+        let c = crate::scheduler::tests::cfg(TournamentKind::Gauntlet, &["Seed 1.0"], &["Opp 2.0"], 30, 1, 1);
+        let st = standings();
+        let mut seed = engine("Seed 1.0");
+        seed.build = "avx512-vnni".into();
+        let mut opp = engine("Opp 2.0");
+        opp.build = "avx2".into();
+        let r = check(&input(&c, &st, vec![Some(seed), Some(opp)]));
+        let b = r.items.iter().find(|x| x.id == "builds").unwrap();
+        assert_eq!(b.status, CheckStatus::Ok, "{b:?}");
+        let mut other = engine("Opp 2.0");
+        other.build = "bmi2".into();
+        let r = check(&input(&c, &st, vec![Some(engine("Seed 1.0")), Some(other)]));
+        assert_eq!(r.items.iter().find(|x| x.id == "builds").unwrap().status, CheckStatus::Warn);
     }
 }

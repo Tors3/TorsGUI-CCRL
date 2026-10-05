@@ -16,8 +16,8 @@ Python scripts, `.bat` files and scheduled tasks with one elegant, dense tool th
 - **chains** tournaments: B starts only when A has *all* its games and ended cleanly;
 - imports your engines from **Cute Chess** (`engines.json`: folders, arguments, UCI options);
 - manages an **engine library** from official GitHub releases with the CCRL asset rules
-  (AVX2, never AVX-512/VNNI/v4/32-bit — AVX-512 only as a flagged *personal* option; you can
-  always pick another build yourself), UCI verification and a report;
+  (AVX2 or AVX-512: the AVX-512 build when the CPU runs it, never 32-bit; you can always pick
+  another build yourself), UCI verification and a report;
 - imports the **CCRL lists**, matches names, suggests opponents and estimates missing ratings;
 - calibrates the machine with the **Stockfish 10 bench** and turns CCRL time controls into local ones;
 - builds the **CCRL submission** (PGN + zip, byte-compatible with `export_ccrl.py`) and a

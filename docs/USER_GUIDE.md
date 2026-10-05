@@ -62,7 +62,12 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
 
 ## 1. New machine
 
-1. Install TorsGUI (installer, MSI or portable zip; AppImage/deb on Linux).
+1. Install TorsGUI (installer, MSI or portable zip; AppImage/deb on Linux). The **portable**
+   version keeps everything — database, tournaments, settings — in a `data` folder next to
+   `TorsGUI.exe` (the `portable.txt` file beside it says so). The first time, it copies there
+   the workspace used so far (`%LOCALAPPDATA%\TorsGUI`), leaving the original in place; if a
+   tournament is running it waits for a start with none running. Settings shows at the top
+   which copy is running and from where.
 2. Open **Settings**:
    - *Tester name* (used in the export file name, e.g. `Francesco Torsello`) and *Site* (your
      location, the PGN `Site` tag of the export, e.g. `Milan`).
@@ -122,8 +127,10 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
   release URL. TorsGUI lists the releases (the
   latest *stable* is preselected; when the API is rate-limited it falls back to the
   `releases/latest` redirect and the HTML asset listing) and classifies every asset with a
-  reason: Windows **AVX2** (x86-64-v3 counts as AVX2) is chosen; AVX-512, VNNI, `avx512`,
-  `x86-64-v4`, 32-bit, ARM and source archives are rejected; bmi2/pext, popcnt, universal or
+  reason: CCRL tests **AVX2 or AVX-512** builds, so TorsGUI takes the AVX-512 build (VNNI
+  first, then plain AVX-512 / x86-64-v4) when this CPU runs it, else the Windows AVX2 build
+  (x86-64-v3 counts as AVX2). An AVX-512 build is rejected on a CPU without AVX-512 (it would
+  crash); 32-bit, ARM and source archives are always rejected; bmi2/pext, popcnt, universal or
   generic builds are taken only when nothing better exists, and **flagged**. Nothing is ever
   compiled. Networks shipped separately (`.nnue`) are downloaded next to the binary. The
   download is checked against GitHub's sha256 digest when published, extracted (zip / 7z /
@@ -132,11 +139,11 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
 - **Choosing the build yourself**: the dialog proposes a build and shows every asset with its
   reason; click another accepted row to install that one instead (the engine keeps the reason
   "chosen manually").
-- **AVX-512 as a personal option**: *Settings → Engine builds* (or the checkbox in the
-  dialog) accepts AVX-512 / VNNI / x86-64-v4 builds for your own tests, and can prefer them
-  when the CPU supports AVX-512 (VNNI builds only when the CPU has VNNI). They are never
-  chosen for CCRL by default: such engines carry the purple flag *AVX-512 build: personal
-  use, not valid for CCRL*, and the wizard warns when a tournament uses one.
+- **AVX2 only**: *Settings → Engine builds* (or the checkbox in the dialog) makes downloads
+  take the AVX2 build even on an AVX-512 CPU.
+- **In a tournament** the wizard checks the builds: an engine that is neither AVX2 nor AVX-512
+  (bmi2, popcnt, generic, or a local file whose name does not say) is pointed out, and an
+  AVX-512 build on a CPU without AVX-512 blocks the tournament.
 - **Bundled engines**: the installers carry Stockfish 10 and Triumviratus 7.0 (AVX2, the
   CCRL asset of its release); the button copies them to the engines folder (sha256 checked)
   and verifies them. Both are GPL-3: their sources are linked in the engine entry.
@@ -349,7 +356,7 @@ Before sending results, the **Export** page checks the tournament and marks each
 | Ponder off | CCRL plays without pondering | remove `Ponder=true` from the engine's options |
 | Opening book | every game must start from a book position, the same book for all | set the book in the wizard |
 | Tablebases | the EGTB used is part of the file name (`egtb 5-man`) | set the Syzygy path (information only) |
-| CCRL builds (AVX2, 64-bit) | CCRL uses the AVX2 build, never AVX-512, VNNI, x86-64-v4 or 32-bit | reinstall the engine with the proposed build (Engines → Add from GitHub) |
+| CCRL builds (AVX2 or AVX-512, 64-bit) | CCRL tests AVX2 or AVX-512 builds, never 32-bit; bmi2, popcnt or generic builds are pointed out | reinstall the engine with the proposed build (Engines → Add from GitHub) |
 | Engines verified | an engine that fails `uci / isready / go` spoils games | Engines → Verify |
 | CCRL names | the list matches engines by name: `<Engine> <version>`; exported as `… 64-bit NCPU` | tournament → Configuration → Rename an engine; import the current CCRL list |
 | Time control from a bench | the TC must be the CCRL TC scaled by this machine's speed | Bench → run the SF10 bench (again if older than 90 days), then the TC calculator |

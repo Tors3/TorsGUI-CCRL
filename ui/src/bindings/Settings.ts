@@ -27,13 +27,13 @@ auto_resume: boolean, tc_base_formula: string, tc_inc_formula: string, default_f
  */
 default_cpu_gap: number, github_token: string, git_sync_dir: string, post_template_finished: string, post_template_announcement: string, post_template_progress: string, log_retention_days: number, 
 /**
- * Personal option: accept AVX-512 / VNNI / x86-64-v4 builds (never for CCRL).
+ * Before 0.6.3 (AVX-512 as a personal option): kept for old settings files, unused.
  */
-allow_avx512: boolean, 
+allow_avx512: boolean, prefer_avx512: boolean, 
 /**
- * Personal option: pick them first when the CPU supports them.
+ * Downloads take the AVX2 build even when this CPU runs AVX-512 (CCRL accepts both).
  */
-prefer_avx512: boolean, 
+avx2_only: boolean, 
 /**
  * PGN files or folders outside the workspace shown in the game archive.
  */

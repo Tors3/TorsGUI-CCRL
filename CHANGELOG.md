@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.6.3] - 2026-10-05
+
+### Changed
+- **AVX-512 builds are CCRL builds**: CCRL tests AVX2 or AVX-512 binaries. Downloads take the
+  AVX-512 build (VNNI first, then AVX-512 / x86-64-v4) when this CPU runs it, else the AVX2
+  one; an AVX-512 build is never taken on a CPU without AVX-512 (it would crash). *Settings →
+  Engine builds → AVX2 only* (also in the *Add from GitHub* dialog) keeps the AVX2 build. The
+  old "personal, not CCRL" flag is gone.
+- **Tournament build check**: the wizard points out engines that are neither AVX2 nor AVX-512
+  (bmi2, popcnt, generic, or a local file whose name does not say), and refuses an AVX-512
+  build on a CPU without AVX-512. The CCRL checklist checks "AVX2 or AVX-512, 64-bit".
+- **Portable version keeps its data next to `TorsGUI.exe`** (`data` folder, marked by
+  `portable.txt`): the first time it copies there the workspace used so far, leaving the
+  original in place.
+- The portable zip carries the version in its name (`TorsGUI_0.6.3_portable-windows-x64.zip`),
+  so a new download no longer collides with the previous one.
+- Settings shows which copy of TorsGUI is running and from where.
+
+### Fixed
+- **Update now on the portable version** (0.6.0–0.6.2) unpacked the new files inside
+  TorsGUI's folder and then set aside every executable around it, the new ones included: the
+  update failed and could leave the folder without `TorsGUI.exe`, and engines kept inside or
+  below TorsGUI's folder were renamed. Now the package is unpacked elsewhere and only the files
+  it replaces are set aside; at the next start, files set aside but never replaced are put back
+  (this also repairs what the old versions left).
+
 ## [0.6.2] - 2026-10-05
 
 ### Added
