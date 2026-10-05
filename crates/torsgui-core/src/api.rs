@@ -82,6 +82,8 @@ pub struct TournamentDetail {
     pub open_pairs: Vec<pgn::SlotKey>,
     pub lanes: Vec<runner::LaneStatus>,
     pub warnings: Vec<String>,
+    /// Shown on the tournament page when an engine is not an AVX2 or AVX-512 build.
+    pub ccrl_disclaimer: Option<String>,
     pub pairings: Vec<(String, String, u32, u32)>,
     /// Swiss / knockout rounds (None for the other formats).
     pub stages: Option<scheduler::StagesView>,
@@ -1559,8 +1561,9 @@ impl App {
                 .collect();
             (p, None)
         };
+        let ccrl_disclaimer = if t.imported { None } else { ccrl_build_disclaimer(store, &t.config).1 };
         let summary = self.summary(t, true);
-        ok(TournamentDetail { summary, standings: st, open_pairs, lanes, warnings, pairings, stages })
+        ok(TournamentDetail { summary, standings: st, open_pairs, lanes, warnings, ccrl_disclaimer, pairings, stages })
     }
 
     fn dashboard(&self, store: &crate::store::Store) -> Result<Value> {
@@ -1677,13 +1680,14 @@ impl App {
             p.errors.push("Chess960 needs a book of start positions (.epd): generate one (all 960 positions, a random set or double Chess960)".into());
         }
         if let Ok(store) = self.ws.open() {
+            // CCRL builds: AVX2 or AVX-512 only — the disclaimer comes first
+            let (errs, disclaimer) = ccrl_build_disclaimer(&store, cfg);
+            p.errors.extend(errs);
+            if let Some(d) = disclaimer {
+                p.warnings.insert(0, d);
+            }
             for pp in &cfg.participants {
                 if let Some(e) = pp.engine_id.and_then(|id| store.engine(id).ok().flatten()) {
-                    if !e.is_demo() {
-                        let (errs, warns) = build_checks(&pp.name, &e.build);
-                        p.errors.extend(errs);
-                        p.warnings.extend(warns);
-                    }
                     p.warnings.extend(engines::check_options(&pp.name, &pp.options, &e.options, &pp.dir));
                     if frc && !e.chess960 {
                         if e.options.is_empty() {
@@ -2328,23 +2332,45 @@ fn request_policy(s: &crate::store::Settings, a: &Value) -> crate::assets::Asset
     if opt::<bool>(a, "avx2_only").unwrap_or(s.avx2_only) { crate::assets::AssetPolicy::ccrl() } else { crate::assets::AssetPolicy::for_this_cpu() }
 }
 
-/// The build check of a tournament: CCRL tests AVX2 or AVX-512 builds; an AVX-512 build
-/// must run on this CPU. Returns (errors, warnings).
-pub fn build_checks(name: &str, build: &str) -> (Vec<String>, Vec<String>) {
-    let (mut errors, mut warnings) = (Vec::new(), Vec::new());
+/// The build of one engine for CCRL: (error, "not AVX2/AVX-512" entry, "unknown" entry).
+/// CCRL accepts AVX2 or AVX-512 builds; an AVX-512 build must also run on this CPU.
+pub fn build_check(name: &str, build: &str) -> (Option<String>, Option<String>, Option<String>) {
     match crate::assets::build_level(build) {
         "avx512" => {
             let (avx512, vnni) = crate::assets::cpu_avx512();
-            let ok = if build.to_lowercase().contains("vnni") { vnni } else { avx512 };
-            if !ok {
-                errors.push(format!("{name}: {build} build, but this CPU has no {}: the engine would crash", if build.contains("vnni") { "AVX-512 VNNI" } else { "AVX-512" }));
-            }
+            let vnni_build = build.to_lowercase().contains("vnni");
+            let ok = if vnni_build { vnni } else { avx512 };
+            let err = (!ok).then(|| format!("{name}: {build} build, but this CPU has no {}: the engine would crash", if vnni_build { "AVX-512 VNNI" } else { "AVX-512" }));
+            (err, None, None)
         }
-        "avx2" => {}
-        "other" => warnings.push(format!("{name}: {build} build — CCRL tests AVX2 or AVX-512 builds")),
-        _ => warnings.push(format!("{name}: build unknown (local file without AVX2 / AVX-512 in its name): check it is an AVX2 or AVX-512 build")),
+        "avx2" => (None, None, None),
+        "other" => (None, Some(format!("{name} ({build})")), None),
+        _ => (None, None, Some(format!("{name} (build unknown)"))),
     }
-    (errors, warnings)
+}
+
+/// The CCRL validity of a tournament's builds: errors (AVX-512 builds this CPU cannot run) and
+/// the disclaimer to show when an engine is not an AVX2 or AVX-512 build.
+pub fn ccrl_build_disclaimer(store: &crate::store::Store, cfg: &TournamentConfig) -> (Vec<String>, Option<String>) {
+    let (mut errors, mut other, mut unknown) = (Vec::new(), Vec::new(), Vec::new());
+    for p in &cfg.participants {
+        let Some(e) = p.engine_id.and_then(|id| store.engine(id).ok().flatten()) else { continue };
+        if e.is_demo() {
+            continue;
+        }
+        let (err, o, u) = build_check(&p.name, &e.build);
+        errors.extend(err);
+        other.extend(o);
+        unknown.extend(u);
+    }
+    let mut parts = Vec::new();
+    if !other.is_empty() {
+        parts.push(format!("NOT VALID FOR CCRL: a CCRL tournament needs AVX2 or AVX-512 builds only, and these engines are not: {}", other.join(", ")));
+    }
+    if !unknown.is_empty() {
+        parts.push(format!("{}valid for CCRL only if these are AVX2 or AVX-512 builds (TorsGUI cannot tell from the file name): {}", if other.is_empty() { "Check the builds: " } else { "Also check: " }, unknown.join(", ")));
+    }
+    (errors, (!parts.is_empty()).then(|| parts.join(". ")))
 }
 
 fn game_row(g: &pgn::Game) -> GameRow {
@@ -2421,17 +2447,17 @@ fn open_in_browser(url: &str) -> Result<()> {
 
 #[cfg(test)]
 mod build_check_tests {
-    use super::build_checks;
+    use super::build_check;
 
     #[test]
     fn builds_in_a_tournament() {
-        // the same on every machine: a universal binary never needs AVX-512
-        let (e, w) = build_checks("Stockfish 19", "universal (dispatch runtime → **x86-64-avx512** su questa CPU)");
-        assert!(e.is_empty() && w.len() == 1 && w[0].contains("AVX2 or AVX-512"), "{e:?} {w:?}");
-        assert_eq!(build_checks("Caissa 2.0", "avx2"), (vec![], vec![]));
-        assert!(build_checks("X", "").1[0].contains("unknown"));
+        // the same on every machine: a universal binary never needs AVX-512, and is not AVX2/AVX-512
+        let (e, o, u) = build_check("Stockfish 19", "universal (dispatch runtime → **x86-64-avx512** su questa CPU)");
+        assert!(e.is_none() && u.is_none());
+        assert_eq!(o.as_deref(), Some("Stockfish 19 (universal (dispatch runtime → **x86-64-avx512** su questa CPU))"));
+        assert_eq!(build_check("Caissa 2.0", "avx2"), (None, None, None));
+        assert_eq!(build_check("X", "").2.as_deref(), Some("X (build unknown)"));
         // an AVX-512 build: an error only where the CPU lacks AVX-512
-        let (e, _) = build_checks("Y", "avx512");
-        assert_eq!(e.is_empty(), crate::assets::cpu_avx512().0);
+        assert_eq!(build_check("Y", "avx512").0.is_none(), crate::assets::cpu_avx512().0);
     }
 }

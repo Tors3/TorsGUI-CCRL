@@ -767,3 +767,27 @@ test("Gaviota and Nalimov paths in the settings, passed to the engines that have
   expect(Object.keys(opts).some((k) => /gaviota|nalimov/i.test(k))).toBe(false);
   await page.request.post("/api/settings_save", { data: { settings: before } });
 });
+
+test("CCRL disclaimer: a tournament with a build that is neither AVX2 nor AVX-512", async ({ page }) => {
+  // Stockfish 19 is a universal build (report library): not AVX2 / AVX-512
+  await page.goto("/#/tournaments/new");
+  await page.getByLabel(/seed Caissa 2.0/).check();
+  await page.getByLabel(/opponent Stockfish 19/).first().check();
+  await page.getByTestId("wizard-step-conditions").click();
+  // the summary refreshes after a short delay
+  await expect(page.getByText(/NOT VALID FOR CCRL: .*Stockfish 19 \(universal/).first()).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId("games-per-pairing").fill("2");
+  await page.getByTestId("create-draft").click();
+  await expect(page.getByTestId("ccrl-disclaimer")).toContainText("NOT VALID FOR CCRL");
+  const id = decodeURIComponent(page.url().split("/tournaments/")[1]);
+  // the CCRL checklist says it too
+  const cl = await (await page.request.post("/api/export_checklist", { data: { id } })).json();
+  expect(cl.items.find((x: any) => x.id === "builds").status).toBe("fail");
+  await page.request.post("/api/tournament_delete", { data: { id, delete_files: true } });
+  // AVX2 builds only: no disclaimer
+  await page.goto("/#/tournaments/new");
+  await page.getByLabel(/seed Caissa 2.0/).check();
+  await page.getByLabel(/opponent Berserk 14/).first().check();
+  await page.getByTestId("wizard-step-conditions").click();
+  await expect(page.getByText(/NOT VALID FOR CCRL/)).toHaveCount(0);
+});

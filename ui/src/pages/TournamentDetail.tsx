@@ -577,6 +577,11 @@ export function TournamentDetailPage() {
         }
       />
       {r.last_error && <ErrorBox error={r.last_error} />}
+      {d.ccrl_disclaimer && (
+        <Warn>
+          <span data-testid="ccrl-disclaimer">{d.ccrl_disclaimer}</span>
+        </Warn>
+      )}
       <div className="grid gap-3 kpi-grid">
         <Kpi label="Games" value={`${p.done}/${p.expected}`} sub={<ProgressBar value={p.done} max={p.expected} tone={r.state === "running" ? "win" : "accent"} />} />
         <Kpi label="Result" value={<Wdl w={st.total.wins} d={st.total.draws} l={st.total.losses} />} sub={`${st.total.score.toFixed(1)} / ${st.total.games}`} />

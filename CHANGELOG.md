@@ -8,9 +8,11 @@
   one; an AVX-512 build is never taken on a CPU without AVX-512 (it would crash). *Settings →
   Engine builds → AVX2 only* (also in the *Add from GitHub* dialog) keeps the AVX2 build. The
   old "personal, not CCRL" flag is gone.
-- **Tournament build check**: the wizard points out engines that are neither AVX2 nor AVX-512
-  (bmi2, popcnt, generic, or a local file whose name does not say), and refuses an AVX-512
-  build on a CPU without AVX-512. The CCRL checklist checks "AVX2 or AVX-512, 64-bit".
+- **CCRL disclaimer**: a CCRL tournament is valid only when every engine is an AVX2 or AVX-512
+  build. When one is not (bmi2, popcnt, universal, generic), the wizard and the tournament page
+  say *NOT VALID FOR CCRL* and name the engines, and the CCRL checklist fails; a local file whose
+  name does not tell the build is pointed out to check. An AVX-512 build on a CPU without
+  AVX-512 blocks the tournament.
 - **Portable version keeps its data next to `TorsGUI.exe`** (`data` folder, marked by
   `portable.txt`): the first time it copies there the workspace used so far, leaving the
   original in place.

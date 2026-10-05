@@ -5,7 +5,11 @@ import type { StagesView } from "./StagesView";
 import type { Standings } from "./Standings";
 import type { TournamentSummary } from "./TournamentSummary";
 
-export type TournamentDetail = { summary: TournamentSummary, standings: Standings, open_pairs: Array<SlotKey>, lanes: Array<LaneStatus>, warnings: Array<string>, pairings: Array<[string, string, number, number]>, 
+export type TournamentDetail = { summary: TournamentSummary, standings: Standings, open_pairs: Array<SlotKey>, lanes: Array<LaneStatus>, warnings: Array<string>, 
+/**
+ * Shown on the tournament page when an engine is not an AVX2 or AVX-512 build.
+ */
+ccrl_disclaimer: string | null, pairings: Array<[string, string, number, number]>, 
 /**
  * Swiss / knockout rounds (None for the other formats).
  */

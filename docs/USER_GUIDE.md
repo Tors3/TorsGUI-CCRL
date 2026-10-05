@@ -141,9 +141,11 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
   "chosen manually").
 - **AVX2 only**: *Settings → Engine builds* (or the checkbox in the dialog) makes downloads
   take the AVX2 build even on an AVX-512 CPU.
-- **In a tournament** the wizard checks the builds: an engine that is neither AVX2 nor AVX-512
-  (bmi2, popcnt, generic, or a local file whose name does not say) is pointed out, and an
-  AVX-512 build on a CPU without AVX-512 blocks the tournament.
+- **In a tournament**: a CCRL tournament is valid only when every engine is an AVX2 or AVX-512
+  build. When one is not (bmi2, popcnt, universal, generic), the wizard and the tournament page
+  show the disclaimer *NOT VALID FOR CCRL* with the engines' names, and the CCRL checklist
+  fails; a local file whose name does not tell the build is pointed out to check. An AVX-512
+  build on a CPU without AVX-512 blocks the tournament (the engine would crash).
 - **Bundled engines**: the installers carry Stockfish 10 and Triumviratus 7.0 (AVX2, the
   CCRL asset of its release); the button copies them to the engines folder (sha256 checked)
   and verifies them. Both are GPL-3: their sources are linked in the engine entry.

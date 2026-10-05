@@ -125,13 +125,16 @@ pub fn check(i: &Input) -> Checklist {
     if i.imported || lib.is_empty() {
         v.push(item("builds", "CCRL builds", Info, "engines of an imported tournament: builds not checked"));
     } else {
-        let other: Vec<String> = lib.iter().filter(|e| !e.is_demo() && crate::assets::build_level(&e.build) != "avx2" && crate::assets::build_level(&e.build) != "avx512").map(|e| format!("{} ({})", e.display_name, if e.build.is_empty() { "unknown" } else { &e.build })).collect();
+        let other: Vec<String> = lib.iter().filter(|e| !e.is_demo() && crate::assets::build_level(&e.build) == "other").map(|e| format!("{} ({})", e.display_name, e.build)).collect();
+        let unknown: Vec<&str> = lib.iter().filter(|e| !e.is_demo() && crate::assets::build_level(&e.build).is_empty()).map(|e| e.display_name.as_str()).collect();
         let bits32: Vec<&str> = lib.iter().filter(|e| e.flags.iter().any(|f| f == "32-bit")).map(|e| e.display_name.as_str()).collect();
         let avx512 = lib.iter().filter(|e| crate::assets::build_level(&e.build) == "avx512").count();
         v.push(if !bits32.is_empty() {
             item("builds", "CCRL builds (AVX2 or AVX-512, 64-bit)", Fail, format!("32-bit builds are not valid for CCRL: {}", bits32.join(", ")))
         } else if !other.is_empty() {
-            item("builds", "CCRL builds (AVX2 or AVX-512, 64-bit)", Warn, format!("not an AVX2 or AVX-512 build: {}", other.join(", ")))
+            item("builds", "CCRL builds (AVX2 or AVX-512, 64-bit)", Fail, format!("not valid for CCRL — not an AVX2 or AVX-512 build: {}", other.join(", ")))
+        } else if !unknown.is_empty() {
+            item("builds", "CCRL builds (AVX2 or AVX-512, 64-bit)", Warn, format!("valid for CCRL only if these are AVX2 or AVX-512 builds (unknown from the file name): {}", unknown.join(", ")))
         } else {
             item("builds", "CCRL builds (AVX2 or AVX-512, 64-bit)", Ok, if avx512 > 0 { format!("AVX2 or AVX-512 builds ({avx512} AVX-512), 64-bit") } else { "AVX2 builds, 64-bit".to_string() })
         });
@@ -293,6 +296,6 @@ mod tests {
         let mut other = engine("Opp 2.0");
         other.build = "bmi2".into();
         let r = check(&input(&c, &st, vec![Some(engine("Seed 1.0")), Some(other)]));
-        assert_eq!(r.items.iter().find(|x| x.id == "builds").unwrap().status, CheckStatus::Warn);
+        assert_eq!(r.items.iter().find(|x| x.id == "builds").unwrap().status, CheckStatus::Fail);
     }
 }
