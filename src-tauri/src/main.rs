@@ -62,6 +62,19 @@ fn main() {
             let _ = torsgui_core::runner::resume_interrupted(&app.ws, s.use_task_scheduler);
         }
     }
+    // desktop shortcuts made for an older copy (an earlier portable folder) open this one now
+    if cfg!(windows) && torsgui_core::updater::install_kind() != torsgui_core::updater::InstallKind::Unknown {
+        let ws = app.ws.clone();
+        std::thread::spawn(move || {
+            if let Ok(changed) = torsgui_core::shortcut::fix_desktop_shortcuts(None) {
+                if let Ok(s) = ws.open() {
+                    for c in changed {
+                        let _ = s.push_event("info", "shortcut_updated", None, &c);
+                    }
+                }
+            }
+        });
+    }
     let status_app = app.clone();
     let notify_app = app.clone();
     tauri::Builder::default()

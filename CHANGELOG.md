@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.4] - 2026-10-05
+
+### Fixed
+- **Desktop shortcuts opening an older TorsGUI**: a shortcut made for an earlier copy (an
+  earlier portable folder, for instance) kept opening it, and that copy offered the update
+  again. At start, on Windows, TorsGUI now points the "TorsGUI" shortcuts of the desktop to
+  itself when they open an older or missing TorsGUI.exe; shortcuts to other programs or to a
+  newer TorsGUI are left alone. The change is written in the log.
+
+### Added
+- *Settings → General → Create desktop shortcut* (Windows): a "TorsGUI" shortcut that opens
+  this copy.
+
 ## [0.6.3] - 2026-10-05
 
 ### Changed

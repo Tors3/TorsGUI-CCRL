@@ -67,7 +67,11 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
    `TorsGUI.exe` (the `portable.txt` file beside it says so). The first time, it copies there
    the workspace used so far (`%LOCALAPPDATA%\TorsGUI`), leaving the original in place; if a
    tournament is running it waits for a start with none running. Settings shows at the top
-   which copy is running and from where.
+   which copy is running and from where. To update the portable version, use **Update now**
+   (from 0.6.3 on it replaces only TorsGUI's own files in the same folder), or extract the new
+   zip **over the same folder**. *Settings → General → Create desktop shortcut* makes a
+   shortcut to this copy, and at every start TorsGUI points the desktop's TorsGUI shortcuts to
+   itself when they open an older or missing copy.
 2. Open **Settings**:
    - *Tester name* (used in the export file name, e.g. `Francesco Torsello`) and *Site* (your
      location, the PGN `Site` tag of the export, e.g. `Milan`).

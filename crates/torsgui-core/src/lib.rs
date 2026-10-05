@@ -35,6 +35,7 @@ pub mod runner;
 pub mod scheduler;
 pub mod stats;
 pub mod store;
+pub mod shortcut;
 pub mod tc;
 pub mod suite;
 pub mod tournament_file;

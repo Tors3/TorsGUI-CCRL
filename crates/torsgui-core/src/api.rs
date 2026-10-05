@@ -285,6 +285,7 @@ impl App {
                 });
                 ok(true)
             }
+            "desktop_shortcut_create" => ok(json!({"path": crate::shortcut::create_desktop_shortcut()?})),
             "open_url" => {
                 let url: String = arg(&a, "url")?;
                 if !(url.starts_with("https://") || url.starts_with("http://")) {

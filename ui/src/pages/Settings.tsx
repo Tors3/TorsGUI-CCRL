@@ -168,6 +168,24 @@ export function SettingsPage() {
                 Check for updates now
               </button>
             </div>
+            {info?.os === "windows" && (
+              <div className="flex flex-col gap-1">
+                <div>
+                  <button
+                    className="btn btn-sm"
+                    onClick={() =>
+                      call<{ path: string }>("desktop_shortcut_create")
+                        .then((r) => toast.success(`Shortcut created: ${r.path}`))
+                        .catch((e) => toast.error(e.message))
+                    }
+                    data-testid="desktop-shortcut"
+                  >
+                    Create desktop shortcut
+                  </button>
+                </div>
+                <div className="muted text-[11.5px]">A "TorsGUI" shortcut on the desktop that opens this copy. At every start TorsGUI also points the TorsGUI shortcuts of the desktop to itself when they open an older or missing copy (an earlier portable folder).</div>
+              </div>
+            )}
           </div>
         </Panel>
         <Panel title="Engine builds">
