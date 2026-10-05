@@ -174,7 +174,7 @@ function BigView({ l, onClose }: { l: LiveLane | null; onClose: () => void }) {
               {g.moves_san.map((m, i) => (
                 <span key={i}>
                   {i % 2 === 0 && <span className="muted mr-1">{i / 2 + 1}.</span>}
-                  <span className="mr-1.5 px-0.5 rounded" style={i === g.moves_san.length - 1 ? { background: "var(--accent)", color: "#fff" } : undefined}>
+                  <span className="mr-1.5 px-0.5 rounded" style={i === g.moves_san.length - 1 ? { background: "var(--accent)", color: "var(--on-accent, #fff)" } : undefined}>
                     {m}
                   </span>{" "}
                 </span>

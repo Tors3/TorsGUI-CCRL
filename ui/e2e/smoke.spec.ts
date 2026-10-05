@@ -510,6 +510,10 @@ test("sidebar sections, compact sidebar and colour themes", async ({ page }) => 
   await page.getByTestId("app-theme-paper").click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "paper");
   await expect(page.getByTestId("app-theme-paper")).toHaveAttribute("aria-pressed", "true");
+  await page.getByTestId("app-theme-coffee").click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "coffee");
+  // a primary button keeps readable dark text on the caramel accent
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--on-accent").trim())).toBe("#1f150d");
   await page.getByTestId("app-theme-dark").click();
   // icons only
   await page.getByTestId("sidebar-toggle").click();

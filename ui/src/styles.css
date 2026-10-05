@@ -188,6 +188,35 @@
   --shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
   color-scheme: dark;
 }
+/* espresso browns, crema text and a caramel accent */
+:root[data-theme="coffee"] {
+  --bg: #15100c;
+  --bg-2: #1a140f;
+  --panel: #201813;
+  --panel-2: #271e17;
+  --hover: #30251c;
+  --border: #3a2c21;
+  --border-strong: #4d3b2d;
+  --text: #f2e8dc;
+  --text-2: #d2c0ac;
+  --muted: #a08a75;
+  --accent: #c99560;
+  --accent-2: #dcad7a;
+  --accent-bg: rgba(201, 149, 96, 0.15);
+  --on-accent: #1f150d;
+  --win: #8fbf72;
+  --win-bg: rgba(143, 191, 114, 0.13);
+  --draw: #b9a795;
+  --draw-bg: rgba(185, 167, 149, 0.12);
+  --loss: #e4806f;
+  --loss-bg: rgba(228, 128, 111, 0.13);
+  --warn: #e6b24e;
+  --warn-bg: rgba(230, 178, 78, 0.13);
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  --board-light: #e6d3b8;
+  --board-dark: #a07a55;
+  color-scheme: dark;
+}
 /* black and white, strong borders */
 :root[data-theme="contrast"] {
   --bg: #000000;
@@ -313,7 +342,7 @@ body {
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent, #fff);
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--accent-2);

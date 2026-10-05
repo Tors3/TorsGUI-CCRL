@@ -10,6 +10,7 @@ export const THEMES = [
   { id: "nord", label: "Nord", scheme: "dark", about: "Cool arctic blues (Nord palette)" },
   { id: "midnight", label: "Midnight", scheme: "dark", about: "Pure black, for OLED screens and dark rooms" },
   { id: "forest", label: "Forest", scheme: "dark", about: "Dark green, easy on the eyes for long sessions" },
+  { id: "coffee", label: "Coffee", scheme: "dark", about: "Espresso browns, crema text and a caramel accent" },
   { id: "contrast", label: "High contrast", scheme: "dark", about: "Black and white with strong borders" },
 ] as const;
 export type ThemeId = (typeof THEMES)[number]["id"];

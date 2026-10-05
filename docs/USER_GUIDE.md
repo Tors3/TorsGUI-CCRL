@@ -510,7 +510,7 @@ The sidebar groups the screens: **Testing** (tournaments, live games, archive, e
 (settings, logs, help). Click a section title to fold it; *Icons only* narrows the sidebar
 for small screens. **Colour themes**: the list at the bottom of the sidebar or *Settings →
 Appearance* (with previews): **Paper** (the default: sober, warm off-white), System (follows
-the operating system), Dark, Light, the sober **Graphite**, Nord, Midnight (pure black), Forest
+the operating system), Dark, Light, the sober **Graphite**, Nord, Midnight (pure black), Forest, **Coffee** (espresso browns with a caramel accent)
 and High contrast. Settings
 are split into sections (General, Appearance, Paths & fastchess, Opening books, Live broadcast,
 CPU topology, Maintenance). The busier pages have **sub-tabs** at the top of their main area:

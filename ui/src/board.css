@@ -218,7 +218,7 @@
 }
 .movelist button.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent, #fff);
 }
 .movelist button.active .ev {
   color: rgba(255, 255, 255, 0.8);

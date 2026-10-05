@@ -19,6 +19,7 @@
 - The portable zip carries the version in its name (`TorsGUI_0.6.3_portable-windows-x64.zip`),
   so a new download no longer collides with the previous one.
 - Settings shows which copy of TorsGUI is running and from where.
+- New colour theme **Coffee**: espresso browns, crema text and a caramel accent.
 
 ### Fixed
 - **Update now on the portable version** (0.6.0–0.6.2) unpacked the new files inside
