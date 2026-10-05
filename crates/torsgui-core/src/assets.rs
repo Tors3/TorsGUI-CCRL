@@ -80,12 +80,14 @@ impl AssetPolicy {
 /// The ISA level of a recorded build: "avx2", "avx512" or "other" (bmi2, popcnt, generic…);
 /// "" when unknown (a local file without a marker in its name).
 pub fn build_level(build: &str) -> &'static str {
-    let b = build.to_lowercase();
-    if b.is_empty() {
+    // the build name comes first; what follows is a note ("universal (dispatch → avx512 …)")
+    let b = build.trim().to_lowercase();
+    let head = b.split(|c: char| c.is_whitespace() || c == '(').next().unwrap_or("");
+    if head.is_empty() {
         ""
-    } else if b.contains("avx512") || b.contains("x86-64-v4") {
+    } else if head.starts_with("avx512") || head.starts_with("x86-64-v4") {
         "avx512"
-    } else if b.starts_with("avx2") || b.contains("x86-64-v3") {
+    } else if head.starts_with("avx2") || head.starts_with("x86-64-v3") {
         "avx2"
     } else {
         "other"
@@ -94,6 +96,10 @@ pub fn build_level(build: &str) -> &'static str {
 
 /// (AVX-512F+BW, AVX-512 VNNI) support of the running CPU.
 pub fn cpu_avx512() -> (bool, bool) {
+    // tests: behave like a CPU without AVX-512 (the CI machines may have it or not)
+    if std::env::var_os("TORSGUI_NO_AVX512").is_some() {
+        return (false, false);
+    }
     #[cfg(target_arch = "x86_64")]
     {
         let f = std::arch::is_x86_feature_detected!("avx512f") && std::arch::is_x86_feature_detected!("avx512bw");
@@ -431,7 +437,11 @@ mod tests {
         assert!(select_with(&only, TargetOs::Windows, cpu(false, false)).chosen.is_none());
         assert_eq!(classify_with("Obsidian160-vnni512.exe", TargetOs::Windows, cpu(true, true)).build, "avx512-vnni");
         assert_eq!(classify_with("coda-0.9.3-windows-x86-64-v4.exe", TargetOs::Windows, cpu(true, true)).build, "x86-64-v4");
-        for (b, l) in [("avx2", "avx2"), ("avx2-popcnt", "avx2"), ("x86-64-v3", "avx2"), ("avx2 (variant)", "avx2"), ("avx2-bmi2", "avx2"), ("avx512", "avx512"), ("avx512-vnni", "avx512"), ("x86-64-v4", "avx512"), ("bmi2", "other"), ("popcnt", "other"), ("universal", "other"), ("generic x86-64", "other"), ("", "")] {
+        for (b, l) in [("avx2", "avx2"), ("avx2-popcnt", "avx2"), ("x86-64-v3", "avx2"), ("avx2 (variant)", "avx2"), ("avx2-bmi2", "avx2"), ("avx512", "avx512"), ("avx512-vnni", "avx512"), ("x86-64-v4", "avx512"), ("bmi2", "other"), ("popcnt", "other"), ("universal", "other"), ("generic x86-64", "other"), ("", ""),
+            // free-text builds of an engine report: the note after the name does not count
+            ("universal (dispatch runtime → **x86-64-avx512** su questa CPU)", "other"),
+            ("x86-64-v3 (ma inferenza NNUE con dispatch runtime → **AVX-512** su questa CPU)", "avx2"),
+            ("avx2-pext", "avx2")] {
             assert_eq!(build_level(b), l, "{b}");
         }
     }

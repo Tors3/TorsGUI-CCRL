@@ -2418,3 +2418,20 @@ fn open_in_browser(url: &str) -> Result<()> {
     cmd.spawn().with_context(|| format!("cannot open {url}"))?;
     Ok(())
 }
+
+#[cfg(test)]
+mod build_check_tests {
+    use super::build_checks;
+
+    #[test]
+    fn builds_in_a_tournament() {
+        // the same on every machine: a universal binary never needs AVX-512
+        let (e, w) = build_checks("Stockfish 19", "universal (dispatch runtime → **x86-64-avx512** su questa CPU)");
+        assert!(e.is_empty() && w.len() == 1 && w[0].contains("AVX2 or AVX-512"), "{e:?} {w:?}");
+        assert_eq!(build_checks("Caissa 2.0", "avx2"), (vec![], vec![]));
+        assert!(build_checks("X", "").1[0].contains("unknown"));
+        // an AVX-512 build: an error only where the CPU lacks AVX-512
+        let (e, _) = build_checks("Y", "avx512");
+        assert_eq!(e.is_empty(), crate::assets::cpu_avx512().0);
+    }
+}
