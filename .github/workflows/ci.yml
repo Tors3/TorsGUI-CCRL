@@ -11,6 +11,11 @@ on:
         description: "Publish a GitHub release with this tag (e.g. v0.1.0) from the selected branch; empty = tests and bundles only"
         required: false
         default: ""
+      replace:
+        description: "Replace the release (and its tag) when it already exists: rebuilds the same version from this commit"
+        type: boolean
+        required: false
+        default: false
 
 env:
   CARGO_TERM_COLOR: always
@@ -223,5 +228,10 @@ jobs:
           tag="${{ inputs.release }}"
           tag="${tag:-$GITHUB_REF_NAME}"
           notes=$(awk '/^## \[/{n++} n==1' CHANGELOG.md)
+          # replace: an existing release of this tag (and the tag) is removed first, then
+          # recreated on this commit
+          if [ "${{ inputs.replace }}" = "true" ] && gh release view "$tag" >/dev/null 2>&1; then
+            gh release delete "$tag" --cleanup-tag --yes
+          fi
           # creates the tag on this commit when it does not exist yet (manual release)
           gh release create "$tag" --target "$GITHUB_SHA" --title "TorsGUI $tag" --notes "$notes" $(cat files.txt)
