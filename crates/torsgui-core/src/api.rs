@@ -2366,7 +2366,7 @@ pub fn ccrl_build_disclaimer(store: &crate::store::Store, cfg: &TournamentConfig
     }
     let mut parts = Vec::new();
     if !other.is_empty() {
-        parts.push(format!("NOT VALID FOR CCRL: a CCRL tournament needs AVX2 or AVX-512 builds only, and these engines are not: {}", other.join(", ")));
+        parts.push(format!("DISCLAIMER: not all the selected engines are AVX2 or AVX-512 builds: {}. Go on only if you cannot get an AVX2 or AVX-512 build of them", other.join(", ")));
     }
     if !unknown.is_empty() {
         parts.push(format!("{}valid for CCRL only if these are AVX2 or AVX-512 builds (TorsGUI cannot tell from the file name): {}", if other.is_empty() { "Check the builds: " } else { "Also check: " }, unknown.join(", ")));

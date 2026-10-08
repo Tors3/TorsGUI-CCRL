@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.5] - 2026-10-08
+
+### Changed
+- **CCRL build disclaimer is a warning, not a verdict**: some engines exist only as generic,
+  bmi2 or popcnt builds. When the selected engines are not all AVX2 or AVX-512 builds, the
+  wizard and the tournament page now say *DISCLAIMER: not all the selected engines are AVX2 or
+  AVX-512 builds: … Go on only if you cannot get an AVX2 or AVX-512 build of them*, and the
+  CCRL checklist warns instead of failing. 32-bit builds still fail; an AVX-512 build on a CPU
+  without AVX-512 still blocks the tournament.
+
 ## [0.6.4] - 2026-10-05
 
 ### Fixed

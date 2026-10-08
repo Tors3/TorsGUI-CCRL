@@ -132,7 +132,7 @@ pub fn check(i: &Input) -> Checklist {
         v.push(if !bits32.is_empty() {
             item("builds", "CCRL builds (AVX2 or AVX-512, 64-bit)", Fail, format!("32-bit builds are not valid for CCRL: {}", bits32.join(", ")))
         } else if !other.is_empty() {
-            item("builds", "CCRL builds (AVX2 or AVX-512, 64-bit)", Fail, format!("not valid for CCRL — not an AVX2 or AVX-512 build: {}", other.join(", ")))
+            item("builds", "CCRL builds (AVX2 or AVX-512, 64-bit)", Warn, format!("not an AVX2 or AVX-512 build: {} — fine only if no AVX2 or AVX-512 build of them exists", other.join(", ")))
         } else if !unknown.is_empty() {
             item("builds", "CCRL builds (AVX2 or AVX-512, 64-bit)", Warn, format!("valid for CCRL only if these are AVX2 or AVX-512 builds (unknown from the file name): {}", unknown.join(", ")))
         } else {
@@ -296,6 +296,6 @@ mod tests {
         let mut other = engine("Opp 2.0");
         other.build = "bmi2".into();
         let r = check(&input(&c, &st, vec![Some(engine("Seed 1.0")), Some(other)]));
-        assert_eq!(r.items.iter().find(|x| x.id == "builds").unwrap().status, CheckStatus::Fail);
+        assert_eq!(r.items.iter().find(|x| x.id == "builds").unwrap().status, CheckStatus::Warn);
     }
 }
