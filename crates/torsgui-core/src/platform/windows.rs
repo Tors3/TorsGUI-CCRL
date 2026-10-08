@@ -52,6 +52,45 @@ unsafe extern "system" {
     fn NtResumeProcess(h: HANDLE) -> i32;
 }
 
+/// Confines the job (and every process in it) to `s`.
+fn set_group_affinity(job: &JobHandle, s: &CpuSet) -> std::io::Result<()> {
+    let ga = GroupAffinity { mask: s.mask as usize, group: s.group, reserved: [0; 3] };
+    let r = unsafe { SetInformationJobObject(job.0, JOB_OBJECT_GROUP_INFORMATION_EX, &ga as *const _ as *const _, std::mem::size_of::<GroupAffinity>() as u32) };
+    if r == 0 {
+        Err(std::io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
+}
+
+/// The CPU set in force for the job, compared with `expected`.
+fn query_placement(j: &JobHandle, expected: Option<&CpuSet>) -> PlacementCheck {
+    let mut p = PlacementCheck::default();
+    unsafe {
+        let mut ga = [GroupAffinity::default(); 4];
+        let mut ret: u32 = 0;
+        if QueryInformationJobObject(j.0, JOB_OBJECT_GROUP_INFORMATION_EX, ga.as_mut_ptr() as *mut _, std::mem::size_of_val(&ga) as u32, &mut ret) != 0 && ret > 0 {
+            let g = ga[0];
+            p.group = Some(g.group);
+            p.mask = Some(g.mask as u64);
+            p.cpus = bits(g.mask as u64).into_iter().map(|b| g.group as u32 * 64 + b).collect();
+        }
+        let mut acc: JOBOBJECT_BASIC_ACCOUNTING_INFORMATION = std::mem::zeroed();
+        if QueryInformationJobObject(j.0, JobObjectBasicAccountingInformation, &mut acc as *mut _ as *mut _, std::mem::size_of_val(&acc) as u32, &mut ret) != 0 {
+            p.processes = acc.ActiveProcesses;
+        }
+    }
+    p.ok = match expected {
+        Some(s) => p.group == Some(s.group) && p.mask == Some(s.mask),
+        None => true,
+    };
+    p.detail = match (p.group, p.mask) {
+        (Some(g), Some(m)) => format!("job: group {g} mask 0x{m:X}, {} processes", p.processes),
+        _ => format!("job without group limit, {} processes", p.processes),
+    };
+    p
+}
+
 fn bits(mask: u64) -> Vec<u32> {
     (0..64).filter(|b| mask >> b & 1 == 1).collect()
 }
@@ -211,9 +250,8 @@ impl Os for WindowsOs {
                 std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
             );
             if let Some(s) = set {
-                let ga = GroupAffinity { mask: s.mask as usize, group: s.group, reserved: [0; 3] };
-                if SetInformationJobObject(job.0, JOB_OBJECT_GROUP_INFORMATION_EX, &ga as *const _ as *const _, std::mem::size_of::<GroupAffinity>() as u32) == 0 {
-                    log::warn!("JobObjectGroupInformationEx failed: {}", std::io::Error::last_os_error());
+                if let Err(e) = set_group_affinity(&job, s) {
+                    log::warn!("JobObjectGroupInformationEx failed: {e}");
                 }
             }
             if AssignProcessToJobObject(job.0, h) == 0 {
@@ -236,35 +274,24 @@ impl Os for WindowsOs {
     }
 
     fn placement(&self, c: &Confined, expected: Option<&CpuSet>) -> PlacementCheck {
-        let mut p = PlacementCheck::default();
         let Some(j) = &c.job else {
-            p.detail = "no job object".into();
-            p.ok = expected.is_none();
-            return p;
+            return PlacementCheck { detail: "no job object".into(), ok: expected.is_none(), ..Default::default() };
         };
-        unsafe {
-            let mut ga = [GroupAffinity::default(); 4];
-            let mut ret: u32 = 0;
-            if QueryInformationJobObject(j.0, JOB_OBJECT_GROUP_INFORMATION_EX, ga.as_mut_ptr() as *mut _, std::mem::size_of_val(&ga) as u32, &mut ret) != 0 && ret > 0 {
-                let g = ga[0];
-                p.group = Some(g.group);
-                p.mask = Some(g.mask as u64);
-                p.cpus = bits(g.mask as u64).into_iter().map(|b| g.group as u32 * 64 + b).collect();
+        let p = query_placement(j, expected);
+        let Some(s) = expected.filter(|_| !p.ok) else { return p };
+        // the CPU set did not hold (Windows sometimes leaves the job without it): set it again
+        match set_group_affinity(j, s) {
+            Ok(()) => {
+                let mut q = query_placement(j, expected);
+                if q.ok {
+                    log::info!("CPU set re-applied to the game's job ({})", p.detail);
+                } else {
+                    q.detail = format!("{}; set again, still differs", q.detail);
+                }
+                q
             }
-            let mut acc: JOBOBJECT_BASIC_ACCOUNTING_INFORMATION = std::mem::zeroed();
-            if QueryInformationJobObject(j.0, JobObjectBasicAccountingInformation, &mut acc as *mut _ as *mut _, std::mem::size_of_val(&acc) as u32, &mut ret) != 0 {
-                p.processes = acc.ActiveProcesses;
-            }
+            Err(e) => PlacementCheck { detail: format!("{}; setting it again failed: {e}", p.detail), ..p },
         }
-        p.ok = match expected {
-            Some(s) => p.group == Some(s.group) && p.mask == Some(s.mask),
-            None => true,
-        };
-        p.detail = match (p.group, p.mask) {
-            (Some(g), Some(m)) => format!("job: group {g} mask 0x{m:X}, {} processes", p.processes),
-            _ => format!("job without group limit, {} processes", p.processes),
-        };
-        p
     }
 
     fn spawn_detached(&self, program: &Path, args: &[String], log: &Path) -> std::io::Result<u32> {

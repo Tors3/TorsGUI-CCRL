@@ -530,11 +530,11 @@ fn lane_loop(
                 placement_checked = true;
                 let p = platform::os().placement(&child, cpuset.as_ref());
                 let mut s = shared.lock().unwrap();
+                // one warning per lane, about its latest game
+                let tag = format!("lane {li}: placement differs from the plan");
+                s.status.warnings.retain(|w| !w.starts_with(&format!("{tag} (")));
                 if !p.ok {
-                    let w = format!("lane {li}: placement differs from the plan ({})", p.detail);
-                    if !s.status.warnings.contains(&w) {
-                        s.status.warnings.push(w);
-                    }
+                    s.status.warnings.push(format!("{tag} ({})", p.detail));
                 }
                 s.status.lanes[li].placement = Some(p);
             }

@@ -189,13 +189,36 @@ function Standings({ d, order, setOrder }: { d: TournamentDetail; order: RowOrde
   );
 }
 
+const PLACEMENT = /^lane (\d+): placement differs from the plan/;
+
+/** The placement warnings of the lanes, as one line (details on demand). */
+function PlacementWarnings({ warnings }: { warnings: string[] }) {
+  if (!warnings.length) return null;
+  const lanes = warnings.map((w) => Number(PLACEMENT.exec(w)?.[1])).sort((a, b) => a - b);
+  return (
+    <Warn>
+      <details data-testid="placement-warnings">
+        <summary className="cursor-pointer">
+          CPU placement differs from the plan on {lanes.length} lane{lanes.length > 1 ? "s" : ""} ({lanes.join(", ")}): those games are not held to their CPU set and may share cores with other lanes. TorsGUI already tried to set it again.
+        </summary>
+        <ul className="mt-1 list-disc pl-5">
+          {warnings.map((w) => (
+            <li key={w}>{w}</li>
+          ))}
+        </ul>
+      </details>
+    </Warn>
+  );
+}
+
 function Lanes({ d }: { d: TournamentDetail }) {
   if (!d.lanes.length) return <Empty>No runner session yet: lanes appear when the tournament runs.</Empty>;
   return (
     <div className="flex flex-col gap-3">
-      {d.warnings.map((w, i) => (
+      {d.warnings.filter((w) => !PLACEMENT.test(w)).map((w, i) => (
         <Warn key={i}>{w}</Warn>
       ))}
+      <PlacementWarnings warnings={d.warnings.filter((w) => PLACEMENT.test(w))} />
       <Panel noPad>
         <table className="tbl">
           <thead>

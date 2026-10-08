@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.6] - 2026-10-08
+
+### Fixed
+- **"lane N: placement differs from the plan (job: group 0 mask 0x0 …)"**: on Windows a
+  game's job could end up without its CPU set (mask 0x0), so the game was not held to its
+  cores. TorsGUI now sets the CPU set again when the check finds it missing and warns only if
+  that fails too (the reason is in the warning and in the log).
+- These warnings no longer pile up: one per lane, about its latest game, and on the
+  *Lanes & placement* tab they are folded into a single line (click it for the details).
+
 ## [0.6.5] - 2026-10-08
 
 ### Changed
