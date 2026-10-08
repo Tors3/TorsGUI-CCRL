@@ -220,8 +220,7 @@ export function SettingsPage() {
             {path("engines_dir", "Engines folder", "folder", "downloads go to <folder>/<Repo>_<tag>")}
             {path("books_dir", "Books folder", "folder")}
             {path("default_book", "Default opening book", "file")}
-            {path("tablebases_dir", "Tablebases folder", "folder")}
-            {path("syzygy_path", "Syzygy path passed to engines", "folder", "engines with a SyzygyPath option; fastchess adjudicates with it too")}
+            {path("syzygy_path", "Syzygy path passed to engines", "folder", "default of new tournaments: TorsGUI passes it to every engine with a SyzygyPath option (nothing to set per engine); fastchess adjudicates with it too")}
             {path("gaviota_path", "Gaviota path passed to engines", "folder", "engines with a Gaviota path option (GaviotaTbPath…)")}
             {path("nalimov_path", "Nalimov path passed to engines", "folder", "engines with a Nalimov path option (NalimovPath…)")}
             {path("output_dir", "Export output folder", "folder")}

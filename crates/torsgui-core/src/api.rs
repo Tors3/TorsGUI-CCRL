@@ -286,6 +286,22 @@ impl App {
                 ok(true)
             }
             "desktop_shortcut_create" => ok(json!({"path": crate::shortcut::create_desktop_shortcut()?})),
+            "tournament_folders" => {
+                let id: String = arg(&a, "id")?;
+                let t = self.ws.tournament_dir(&id);
+                ok(json!({"folder": t, "pgn": self.ws.pgn_dir(&id), "logs": self.ws.logs_dir(&id), "game_logs": self.ws.logs_dir(&id).join("games")}))
+            }
+            "open_folder" => {
+                // a folder of the workspace (a tournament's PGNs or logs) in the file manager
+                let path = PathBuf::from(arg::<String>(&a, "path")?);
+                let root = self.ws.root.canonicalize()?;
+                let dir = path.canonicalize().with_context(|| format!("{} does not exist yet", path.display()))?;
+                if !dir.starts_with(&root) || !dir.is_dir() {
+                    bail!("only folders of the workspace can be opened");
+                }
+                open_folder(&path)?; // the path as given: explorer does not take \\?\ paths
+                ok(true)
+            }
             "open_url" => {
                 let url: String = arg(&a, "url")?;
                 if !(url.starts_with("https://") || url.starts_with("http://")) {
@@ -1632,7 +1648,7 @@ impl App {
         if cfg.kind.is_dynamic() && p.errors.is_empty() {
             let n = cfg.participants.len() as u32;
             p.pairings = if cfg.kind == TournamentKind::Swiss { scheduler::stage_count(cfg) * (n / 2) } else { n - 1 };
-            p.openings_used = p.total_games / 2;
+            p.openings_used = if cfg.random_openings { p.total_games } else { p.total_games / 2 };
             p.last_opening = scheduler::last_opening_dynamic(cfg);
             let per_round = if cfg.kind == TournamentKind::Swiss { (n / 2) * cfg.games_per_pairing } else { (n.next_power_of_two() / 2) * cfg.games_per_pairing };
             let lanes = cfg.lanes_per_node * cfg.nodes.len().max(1) as u32;
@@ -2306,6 +2322,8 @@ impl Default for TournamentRecord {
             book: String::new(),
             book_format: "pgn".into(),
             book_start: 1,
+            random_openings: false,
+            opening_seed: 0,
             event: String::new(),
             site: String::new(),
             syzygy_path: String::new(),
@@ -2427,6 +2445,13 @@ pub fn load_game_text(text: &str) -> Result<crate::live::ViewerGame> {
 }
 
 /// Opens a web address in the default browser.
+fn open_folder(dir: &std::path::Path) -> Result<()> {
+    let mut cmd = std::process::Command::new(if cfg!(windows) { "explorer" } else if cfg!(target_os = "macos") { "open" } else { "xdg-open" });
+    cmd.arg(dir);
+    cmd.spawn().with_context(|| format!("cannot open {}", dir.display()))?;
+    Ok(())
+}
+
 fn open_in_browser(url: &str) -> Result<()> {
     let mut cmd = if cfg!(windows) {
         let mut c = std::process::Command::new("rundll32");

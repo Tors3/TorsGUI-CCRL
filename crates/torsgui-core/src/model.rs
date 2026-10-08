@@ -199,6 +199,12 @@ pub struct TournamentConfig {
     pub book_format: String,
     #[serde(default = "one")]
     pub book_start: u32,
+    /// One random opening per game (no colour-reversed pairs): fastchess `order=random`
+    /// with `-srand opening_seed`, so a game keeps its opening when the tournament resumes.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub random_openings: bool,
+    #[serde(default)]
+    pub opening_seed: u32,
     pub event: String,
     pub site: String,
     #[serde(default)]

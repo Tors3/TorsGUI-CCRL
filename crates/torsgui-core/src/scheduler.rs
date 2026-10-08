@@ -98,6 +98,16 @@ pub fn opening_index(cfg: &TournamentConfig, node: u32, pass: u32, pairing: usiz
     cfg.book_start + block * rpp_block + round - 1
 }
 
+/// Opening of one game: the round's opening (both colours), or with `random_openings` one
+/// opening per game (the two games of a round take consecutive indices of the shuffled book).
+fn game_opening(cfg: &TournamentConfig, round_opening: u32, reversed: bool) -> u32 {
+    if cfg.random_openings {
+        cfg.book_start + 2 * (round_opening - cfg.book_start) + reversed as u32
+    } else {
+        round_opening
+    }
+}
+
 pub fn rounds_for_node(cfg: &TournamentConfig, node: u32) -> u32 {
     let r = &cfg.rounds_per_pass;
     if r.is_empty() {
@@ -129,7 +139,7 @@ pub fn all_jobs(cfg: &TournamentConfig) -> Vec<Job> {
                             pairing: j,
                             round: r,
                             reversed: rev,
-                            opening,
+                            opening: game_opening(cfg, opening, rev),
                             white: w.name.clone(),
                             black: b.name.clone(),
                         });
@@ -272,7 +282,8 @@ pub fn stage_count(cfg: &TournamentConfig) -> u32 {
 pub fn last_opening_dynamic(cfg: &TournamentConfig) -> u32 {
     let n = cfg.participants.len() as u32;
     let stride = openings_per_match(cfg) + if cfg.kind == TournamentKind::Knockout { KO_TIEBREAKS } else { 0 };
-    cfg.book_start + stage_count(cfg) * n.div_ceil(2) * stride - 1
+    let last = cfg.book_start + stage_count(cfg) * n.div_ceil(2) * stride - 1;
+    game_opening(cfg, last, true)
 }
 
 /// Jobs of one match: openings `rounds`, each with both colours (`a` White first).
@@ -285,7 +296,7 @@ fn match_jobs(cfg: &TournamentConfig, stage: u32, pairing: usize, a: &str, b: &s
         let opening = cfg.book_start + block * stride + r - 1;
         for rev in [false, true] {
             let (w, bl) = if rev { (b, a) } else { (a, b) };
-            v.push(Job { node: 0, pass: stage, pairing, round: r, reversed: rev, opening, white: w.to_string(), black: bl.to_string() });
+            v.push(Job { node: 0, pass: stage, pairing, round: r, reversed: rev, opening: game_opening(cfg, opening, rev), white: w.to_string(), black: bl.to_string() });
         }
     }
     v
@@ -673,6 +684,8 @@ pub(crate) mod tests {
             book: "book.pgn".into(),
             book_format: "pgn".into(),
             book_start: 1,
+            random_openings: false,
+            opening_seed: 0,
             event: "Test".into(),
             site: "Here".into(),
             syzygy_path: String::new(),
@@ -730,6 +743,24 @@ pub(crate) mod tests {
         }
         // RPP_BLOCK = 8 spacing even for node 1 which plays 7
         assert_eq!(opening_index(&c, 1, 1, 0, 1, 3), 1 + 3 * 8);
+    }
+
+    #[test]
+    fn random_openings_one_per_game() {
+        let mut c = cfg(TournamentKind::Gauntlet, &["T"], &["A", "B", "C"], 30, 1, 2);
+        c.random_openings = true;
+        let jobs = all_jobs(&c);
+        assert_eq!(jobs.len(), 90);
+        let openings: HashSet<u32> = jobs.iter().map(|j| j.opening).collect();
+        assert_eq!(openings.len(), 90, "every game its own opening");
+        // the colour-reversed game of a round takes the next index
+        let r1: Vec<&Job> = jobs.iter().filter(|j| j.node == 0 && j.pairing == 0 && j.round == 1).collect();
+        assert_eq!((r1[0].opening, r1[1].opening), (1, 2));
+        let mut k = cfg(TournamentKind::Swiss, &["S1", "S2"], &["A", "B"], 4, 2, 1);
+        k.random_openings = true;
+        let first = all_jobs(&k);
+        assert_eq!(first.iter().map(|j| j.opening).collect::<HashSet<_>>().len(), first.len());
+        assert!(last_opening_dynamic(&k) >= first.iter().map(|j| j.opening).max().unwrap());
     }
 
     #[test]

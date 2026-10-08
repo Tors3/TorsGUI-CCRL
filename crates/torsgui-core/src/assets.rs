@@ -77,7 +77,8 @@ impl AssetPolicy {
     }
 }
 
-/// The ISA level of a recorded build: "avx2", "avx512" or "other" (bmi2, popcnt, generic…);
+/// The ISA level of a recorded build: "avx2" (BMI2/PEXT builds included: BMI2 came with AVX2,
+/// Haswell / Zen, and these builds use both), "avx512" or "other" (popcnt, generic…);
 /// "" when unknown (a local file without a marker in its name).
 pub fn build_level(build: &str) -> &'static str {
     // the build name comes first; what follows is a note ("universal (dispatch → avx512 …)")
@@ -87,7 +88,7 @@ pub fn build_level(build: &str) -> &'static str {
         ""
     } else if head.starts_with("avx512") || head.starts_with("x86-64-v4") {
         "avx512"
-    } else if head.starts_with("avx2") || head.starts_with("x86-64-v3") {
+    } else if head.starts_with("avx2") || head.starts_with("x86-64-v3") || head.starts_with("bmi2") || head.starts_with("pext") {
         "avx2"
     } else {
         "other"
@@ -248,7 +249,7 @@ pub fn classify_with(name: &str, os: TargetOs, policy: AssetPolicy) -> AssetVerd
         v.tier = 4;
         v.build = "bmi2".into();
         v.flagged = true;
-        v.reason = "only a BMI2 build exists: flagged".into();
+        v.reason = "BMI2 build (AVX2 class; no pure AVX2 build published)".into();
     } else if popcnt {
         v.tier = 5;
         v.build = "popcnt".into();
@@ -437,7 +438,7 @@ mod tests {
         assert!(select_with(&only, TargetOs::Windows, cpu(false, false)).chosen.is_none());
         assert_eq!(classify_with("Obsidian160-vnni512.exe", TargetOs::Windows, cpu(true, true)).build, "avx512-vnni");
         assert_eq!(classify_with("coda-0.9.3-windows-x86-64-v4.exe", TargetOs::Windows, cpu(true, true)).build, "x86-64-v4");
-        for (b, l) in [("avx2", "avx2"), ("avx2-popcnt", "avx2"), ("x86-64-v3", "avx2"), ("avx2 (variant)", "avx2"), ("avx2-bmi2", "avx2"), ("avx512", "avx512"), ("avx512-vnni", "avx512"), ("x86-64-v4", "avx512"), ("bmi2", "other"), ("popcnt", "other"), ("universal", "other"), ("generic x86-64", "other"), ("", ""),
+        for (b, l) in [("avx2", "avx2"), ("avx2-popcnt", "avx2"), ("x86-64-v3", "avx2"), ("avx2 (variant)", "avx2"), ("avx2-bmi2", "avx2"), ("avx512", "avx512"), ("avx512-vnni", "avx512"), ("x86-64-v4", "avx512"), ("bmi2", "avx2"), ("pext", "avx2"), ("popcnt", "other"), ("universal", "other"), ("generic x86-64", "other"), ("", ""),
             // free-text builds of an engine report: the note after the name does not count
             ("universal (dispatch runtime → **x86-64-avx512** su questa CPU)", "other"),
             ("x86-64-v3 (ma inferenza NNUE con dispatch runtime → **AVX-512** su questa CPU)", "avx2"),

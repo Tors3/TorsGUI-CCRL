@@ -795,3 +795,28 @@ test("CCRL disclaimer: a tournament with a build that is neither AVX2 nor AVX-51
   await page.getByTestId("wizard-step-conditions").click();
   await expect(page.getByText(/DISCLAIMER: not all the selected engines/)).toHaveCount(0);
 });
+
+test("one random opening per game, and the folders of the PGNs and game logs", async ({ page }) => {
+  await page.goto("/#/tournaments/new");
+  await page.getByLabel(/seed Caissa 2.0/).check();
+  await page.getByLabel(/opponent Berserk 14/).first().check();
+  await page.getByTestId("wizard-step-conditions").click();
+  await page.getByTestId("games-per-pairing").fill("4");
+  await page.getByTestId("random-openings").check();
+  await expect(page.getByText(/every game a different opening/)).toBeVisible();
+  await page.getByTestId("create-draft").click();
+  await expect(page).toHaveURL(/#\/tournaments\/(?!new)[^/]+$/);
+  const id = decodeURIComponent(page.url().split("/tournaments/")[1]);
+  const d = await (await page.request.post("/api/tournament_get", { data: { id } })).json();
+  const cfg = d.summary.record.config;
+  expect(cfg.random_openings).toBe(true);
+  expect(cfg.opening_seed).toBeGreaterThan(0);
+  // the Games tab tells where the files are
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect(page.getByTestId("tournament-files")).toContainText(/pgn/);
+  await expect(page.getByTestId("tournament-files")).toContainText(/games/);
+  // only folders of the workspace can be opened
+  const bad = await page.request.post("/api/open_folder", { data: { path: "/etc" } });
+  expect(bad.ok()).toBe(false);
+  await page.request.post("/api/tournament_delete", { data: { id, delete_files: true } });
+});

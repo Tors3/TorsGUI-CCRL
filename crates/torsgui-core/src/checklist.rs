@@ -294,7 +294,7 @@ mod tests {
         let b = r.items.iter().find(|x| x.id == "builds").unwrap();
         assert_eq!(b.status, CheckStatus::Ok, "{b:?}");
         let mut other = engine("Opp 2.0");
-        other.build = "bmi2".into();
+        other.build = "popcnt".into();
         let r = check(&input(&c, &st, vec![Some(engine("Seed 1.0")), Some(other)]));
         assert_eq!(r.items.iter().find(|x| x.id == "builds").unwrap().status, CheckStatus::Warn);
     }

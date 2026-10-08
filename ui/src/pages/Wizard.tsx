@@ -75,6 +75,8 @@ export function Wizard() {
   const [placement, setPlacement] = useState<Placement>("node");
   const [book, setBook] = useState("");
   const [bookStart, setBookStart] = useState(1);
+  const [randomOpenings, setRandomOpenings] = useState(false);
+  const [openingSeed, setOpeningSeed] = useState(() => 1 + Math.floor(Math.random() * 999_999));
   const [syzygy, setSyzygy] = useState("");
   const [site, setSite] = useState("");
   const [eventName, setEventName] = useState("");
@@ -165,6 +167,8 @@ export function Wizard() {
         setPlacement(c.placement);
         setBook(c.book);
         setBookStart(c.book_start);
+        setRandomOpenings(c.random_openings ?? false);
+        if (c.opening_seed) setOpeningSeed(c.opening_seed);
         setSyzygy(c.syzygy_path);
         setSite(c.site);
         setEventAuto(false);
@@ -247,7 +251,9 @@ export function Wizard() {
   };
   const baseOptions = (e: EngineEntry): Record<string, string> => {
     const was = editing?.config.participants.find((p) => p.engine_id === e.id);
-    return was ? { ...was.options } : { Threads: "${THREADS}", Hash: "${HASH}", ...tablebaseOptions(e), ...e.default_options };
+    // an engine's own tablebase path wins only when set (an empty one, "<empty>" included, takes the settings')
+    const own = Object.fromEntries(Object.entries(e.default_options).filter(([k, v]) => !(k in tablebaseOptions(e)) || (v.trim() !== "" && v.trim() !== "<empty>")));
+    return was ? { ...was.options } : { Threads: "${THREADS}", Hash: "${HASH}", ...tablebaseOptions(e), ...own };
   };
   // Gaviota / Nalimov paths of the settings, for the engines that have such an option
   function tablebaseOptions(e: EngineEntry): Record<string, string> {
@@ -294,6 +300,8 @@ export function Wizard() {
         book,
         book_format: book.toLowerCase().endsWith(".epd") ? "epd" : "pgn",
         book_start: bookStart,
+        random_openings: randomOpenings,
+        opening_seed: openingSeed,
         event: eventName,
         site,
         syzygy_path: syzygy,
@@ -852,7 +860,13 @@ export function Wizard() {
               <Field label="Book start">
                 <input className="input tnum" type="number" min={1} value={bookStart} onChange={(e) => setBookStart(Math.max(1, +e.target.value))} />
               </Field>
-              <Field label="Syzygy path (engines)" className="col-span-2">
+              <Field label="Openings" hint={randomOpenings ? "every game a different opening, picked at random from the book" : "each opening twice, colours reversed (CCRL standard)"}>
+                <label className="flex items-center gap-2 text-[12.5px]">
+                  <input type="checkbox" checked={randomOpenings} onChange={(e) => setRandomOpenings(e.target.checked)} data-testid="random-openings" />
+                  One random opening per game
+                </label>
+              </Field>
+              <Field label="Syzygy path (engines)" className="col-span-2" hint="passed to every engine with a SyzygyPath option: no need to set it engine by engine">
                 <PathInput kind="folder" value={syzygy} onChange={setSyzygy} testid="syzygy" />
               </Field>
               <Field label="Site">

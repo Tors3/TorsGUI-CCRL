@@ -121,6 +121,11 @@ pub struct TournamentFile {
     pub book: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub book_start: Option<u32>,
+    /// One random opening per game instead of each opening twice with colours reversed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub random_openings: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opening_seed: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub syzygy: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -325,7 +330,11 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
                 options.insert("Hash".into(), "${HASH}".into());
                 options.extend(e.default_options.clone());
                 for (k, v) in crate::engines::tablebase_options(&e.options, &s.gaviota_path, &s.nalimov_path) {
-                    options.entry(k).or_insert(v);
+                    // the engine's own path wins only when set ("<empty>" is the UCI default)
+                    let own = options.get(&k).map(|o| o.trim()).filter(|o| !o.is_empty() && *o != "<empty>");
+                    if own.is_none() {
+                        options.insert(k, v);
+                    }
                 }
                 if let Some(o) = f.options.get(input).or_else(|| f.options.get(&e.display_name)) {
                     options.extend(o.clone());
@@ -452,6 +461,8 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
         book_format: if book.to_lowercase().ends_with(".epd") { "epd".into() } else { "pgn".into() },
         book,
         book_start: f.book_start.unwrap_or(1).max(1),
+        random_openings: f.random_openings.unwrap_or(false),
+        opening_seed: f.opening_seed.unwrap_or(0),
         event,
         site: f.site.clone().unwrap_or_else(|| s.site.clone()),
         syzygy_path: f.syzygy.clone().unwrap_or_else(|| s.syzygy_path.clone()),
@@ -493,6 +504,8 @@ pub fn from_config(c: &TournamentConfig) -> TournamentFile {
         placement: Some(c.placement),
         book: if c.book.is_empty() { None } else { Some(c.book.clone()) },
         book_start: Some(c.book_start),
+        random_openings: c.random_openings.then_some(true),
+        opening_seed: c.random_openings.then_some(c.opening_seed),
         syzygy: if c.syzygy_path.is_empty() { None } else { Some(c.syzygy_path.clone()) },
         event: Some(c.event.clone()),
         site: if c.site.is_empty() { None } else { Some(c.site.clone()) },
@@ -550,6 +563,7 @@ games_per_opponent = 30      # even
 # lanes_per_node = 2         # default: physical cores / (2 x threads)
 # book = "avt-book-2026.pgn" # default: {book} (Chess960: all 960 start positions, generated)
 # book_start = 1
+# random_openings = true     # one random opening per game (default: each opening twice, colours reversed)
 # event = "CCRL Blitz gauntlet Engine Under Test 1.0 1CPU"
 # after_import = "queue"     # draft | queue | start
 # notes = "why this tournament"

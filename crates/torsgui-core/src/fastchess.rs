@@ -62,14 +62,25 @@ pub fn engine_args(p: &Participant, cfg: &TournamentConfig) -> Vec<String> {
     if !p.args.is_empty() {
         a.push(format!("args={}", p.args));
     }
+    // an engine's own SyzygyPath counts only when it is set: empty, the tournament's path is used
+    let own_syzygy = p.options.get("SyzygyPath").is_some_and(|v| !is_unset(v));
     for (k, v) in &p.options {
+        if k == "SyzygyPath" && !own_syzygy {
+            continue;
+        }
         let v = v.replace("${THREADS}", &cfg.threads_of(p).to_string()).replace("${HASH}", &cfg.hash_of(p).to_string());
         a.push(format!("option.{k}={v}"));
     }
-    if !cfg.syzygy_path.is_empty() && supports(p, "SyzygyPath") && !p.options.contains_key("SyzygyPath") {
+    if !cfg.syzygy_path.is_empty() && supports(p, "SyzygyPath") && !own_syzygy {
         a.push(format!("option.SyzygyPath={}", cfg.syzygy_path));
     }
     a
+}
+
+/// An option value that means "not set" (UCI's `<empty>` default included).
+fn is_unset(v: &str) -> bool {
+    let v = v.trim();
+    v.is_empty() || v == "<empty>"
 }
 
 /// Full argument list for one game.
@@ -85,13 +96,17 @@ pub fn game_args(cfg: &TournamentConfig, pairing: &(Participant, Participant), j
         "-openings".into(),
         format!("file={}", cfg.book),
         format!("format={}", cfg.book_format),
-        "order=sequential".into(),
+        if cfg.random_openings { "order=random" } else { "order=sequential" }.into(),
         format!("start={}", job.opening),
         "-rounds".into(),
         "1".into(),
         "-games".into(),
         "1".into(),
     ]);
+    if cfg.random_openings {
+        // the same shuffle in every game: `start` picks this game's own opening
+        a.extend(["-srand".into(), cfg.opening_seed.to_string()]);
+    }
     if job.reversed {
         // with -games 1 the first engine is White: -reverse swaps it
         a.push("-reverse".into());
@@ -226,6 +241,23 @@ mod tests {
         assert_eq!(m.cpu_label(), "8CPU vs 1CPU");
         assert!(s.ends_with("-draw movenumber=35 movecount=8 score=10 -resign movecount=4 score=600 twosided=true"));
         assert!(!s.contains("config file="), "never resume from fastchess state");
+        // an empty SyzygyPath of the engine (Cute Chess import, UCI default) takes the tournament's
+        let mut e = c.clone();
+        e.participants[0].options.insert("SyzygyPath".into(), "<empty>".into());
+        let s = game_args(&e, &crate::scheduler::pairings(&e)[0], j, Path::new("p.pgn"), Path::new("l.log"), Path::new("s.json")).join(" ");
+        assert!(s.contains("option.SyzygyPath=C:\\tb\\syzygy\\3-4-5 -engine"), "{s}");
+        assert!(!s.contains("<empty>"), "{s}");
+        e.participants[0].options.insert("SyzygyPath".into(), "D:\\tb".into());
+        let s = game_args(&e, &crate::scheduler::pairings(&e)[0], j, Path::new("p.pgn"), Path::new("l.log"), Path::new("s.json")).join(" ");
+        assert!(s.contains("option.SyzygyPath=D:\\tb ") && s.matches("SyzygyPath").count() == 1, "{s}");
+        // one random opening per game: the same shuffle (seed) in every game
+        let mut r = c.clone();
+        r.random_openings = true;
+        r.opening_seed = 77;
+        let rj = crate::scheduler::all_jobs(&r);
+        let rj = rj.iter().find(|j| j.reversed).unwrap();
+        let s = game_args(&r, &pairs[0], rj, Path::new("p.pgn"), Path::new("l.log"), Path::new("s.json")).join(" ");
+        assert!(s.contains("format=pgn order=random start=2 -rounds 1 -games 1 -srand 77 -reverse"), "{s}");
         assert_eq!(pick_asset(&["fastchess-windows-x86-64.zip".into(), "fastchess-linux-x86-64.tar".into(), "fastchess-macos-arm64.tar".into()]).is_some(), true);
     }
 }

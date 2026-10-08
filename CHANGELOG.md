@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.6.7] - 2026-10-08
+
+### Added
+- **One random opening per game** (wizard → Conditions → Openings, `random_openings = true`
+  in a tournament file): every game gets its own opening, picked at random from the book
+  (fastchess `order=random` with a seed kept in the tournament, so a resumed game keeps its
+  opening). The default stays each opening twice with colours reversed.
+- **Files** on the tournament's *Games* tab: where the PGNs (one file per lane), the game
+  logs (one fastchess log per game, engine output included) and the tournament folder are,
+  with buttons that open them.
+
+### Fixed
+- **BMI2 builds count as AVX2 builds** for CCRL (BMI2 came with AVX2, and these builds use
+  both): no disclaimer for them any more.
+- An engine whose SyzygyPath (or Gaviota / Nalimov path) option is empty, as after a Cute Chess
+  import, now gets the tournament's path instead of the empty one.
+- Settings → Paths: the unused "Tablebases folder" field is gone; the Syzygy field says it is
+  passed to every engine automatically.
+
 ## [0.6.6] - 2026-10-08
 
 ### Fixed

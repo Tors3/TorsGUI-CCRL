@@ -172,6 +172,8 @@ pub fn read(tournament_dir: &Path, results_dir: Option<&Path>) -> Result<LegacyT
         book: get("BOOK", "avt-book-2026.pgn"),
         book_format: "pgn".into(),
         book_start: get("BOOK_START", "1").parse().unwrap_or(1),
+        random_openings: false,
+        opening_seed: 0,
         event,
         site: get("SITE", ""),
         syzygy_path: syz,

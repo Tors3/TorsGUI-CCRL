@@ -36,7 +36,12 @@ concurrency: number, threads: number, hash_mb: number,
 /**
  * fastchess time control, e.g. "103+1", "1690+19", "40/900+10".
  */
-tc: string, book: string, book_format: string, book_start: number, event: string, site: string, syzygy_path: string, adjudication: Adjudication, extra_args: Array<string>, placement: Placement, log_level: string, 
+tc: string, book: string, book_format: string, book_start: number, 
+/**
+ * One random opening per game (no colour-reversed pairs): fastchess `order=random`
+ * with `-srand opening_seed`, so a game keeps its opening when the tournament resumes.
+ */
+random_openings?: boolean, opening_seed: number, event: string, site: string, syzygy_path: string, adjudication: Adjudication, extra_args: Array<string>, placement: Placement, log_level: string, 
 /**
  * CCRL list the tournament is meant for ("Blitz", "40/15").
  */

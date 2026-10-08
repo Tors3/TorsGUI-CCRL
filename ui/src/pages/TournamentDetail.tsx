@@ -1,6 +1,6 @@
 import * as Tabs from "@radix-ui/react-tabs";
-import { ArrowDownUp, Download, MessageSquareText, Pencil, SlidersHorizontal } from "lucide-react";
-import { useState } from "react";
+import { ArrowDownUp, Download, FolderOpen, MessageSquareText, Pencil, SlidersHorizontal } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import type { EngineEntry } from "../bindings/EngineEntry";
@@ -261,7 +261,43 @@ function Lanes({ d }: { d: TournamentDetail }) {
 
 function Games({ id, onOpen }: { id: string; onOpen: (g: GameRef) => void }) {
   const { data, error } = usePoll<GameRow[]>("games_list", { id }, 10000);
-  return <GamesTable rows={data} error={error} onOpen={onOpen} />;
+  return (
+    <div className="flex flex-col gap-3">
+      <TournamentFiles id={id} />
+      <GamesTable rows={data} error={error} onOpen={onOpen} />
+    </div>
+  );
+}
+
+type Folders = { folder: string; pgn: string; logs: string; game_logs: string };
+
+/** Where the tournament's PGNs and logs are, with buttons that open the folders. */
+function TournamentFiles({ id }: { id: string }) {
+  const [f, setF] = useState<Folders>();
+  useEffect(() => {
+    call<Folders>("tournament_folders", { id }).then(setF).catch(() => {});
+  }, [id]);
+  if (!f) return null;
+  const open = (path: string) => call("open_folder", { path }).catch((e) => toast.error((e as Error).message));
+  const rows: [string, string, string][] = [
+    ["PGN files", f.pgn, "one file per lane (node0_lane3.pgn…); every finished game is appended"],
+    ["Game logs", f.game_logs, "one fastchess log per game, engine output included: why a game was abandoned"],
+    ["Tournament folder", f.folder, "config, runner log, console output of the lanes"],
+  ];
+  return (
+    <Panel title="Files">
+      <div className="flex flex-col gap-1.5" data-testid="tournament-files">
+        {rows.map(([label, path, hint]) => (
+          <div key={label} className="flex items-center gap-2 text-[12.5px]">
+            <button className="btn btn-sm" onClick={() => open(path)} title={hint}>
+              <FolderOpen size={13} /> {label}
+            </button>
+            <span className="mono muted break-all text-[11.5px]">{path}</span>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
 }
 
 function Decisive({ d, onOpen }: { d: TournamentDetail; onOpen: (g: GameRef) => void }) {
