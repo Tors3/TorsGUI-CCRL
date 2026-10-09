@@ -12,7 +12,29 @@ const MANAGED = new Set(["Threads", "Hash", "UCI_Chess960"]);
  * an empty value means "the engine's default". Options the engine does not declare are added
  * as name + value rows. With `engineId` the values are checked (names, ranges, files).
  */
-export function UciOptionsEditor({ options, values, onChange, engineId, dir }: { options: UciOption[]; values: Record<string, string>; onChange: (v: Record<string, string>) => void; engineId?: number | null; dir?: string }) {
+/** The tablebase path TorsGUI sends by itself for an option (Syzygy, Gaviota, Nalimov, Scorpio EGBB). */
+function tablebaseFor(name: string, kind: string, paths: TablebasePaths): string | undefined {
+  const n = name.toLowerCase();
+  if (name === "SyzygyPath") return paths.syzygy || undefined;
+  if (kind !== "string" || !(n.includes("path") || n.includes("dir"))) return undefined;
+  if (n.includes("gaviota")) return paths.gaviota || undefined;
+  if (n.includes("nalimov")) return paths.nalimov || undefined;
+  if (n.includes("egbb")) return paths.egbb || undefined;
+  return undefined;
+}
+
+export type TablebasePaths = { syzygy?: string; gaviota?: string; nalimov?: string; egbb?: string };
+
+export function UciOptionsEditor({ options, values, onChange, engineId, dir, syzygyPath, tournament }: { options: UciOption[]; values: Record<string, string>; onChange: (v: Record<string, string>) => void; engineId?: number | null; dir?: string; syzygyPath?: string; tournament?: boolean }) {
+  // the tablebase paths of the settings (the tournament's Syzygy path when given)
+  const [tb, setTb] = useState<TablebasePaths>({});
+  useEffect(() => {
+    call<{ syzygy_path: string; gaviota_path: string; nalimov_path: string; egbb_path: string }>("settings_get", {})
+      // in a created tournament only the Syzygy path is added at each game; the others were
+      // copied into the options when it was created
+      .then((s) => setTb(tournament ? { syzygy: syzygyPath ?? s.syzygy_path } : { syzygy: syzygyPath ?? s.syzygy_path, gaviota: s.gaviota_path, nalimov: s.nalimov_path, egbb: s.egbb_path }))
+      .catch(() => {});
+  }, [syzygyPath, tournament]);
   const declared = useMemo(() => options.filter((o) => o.kind !== "button" && !MANAGED.has(o.name)), [options]);
   const names = useMemo(() => new Set(options.map((o) => o.name)), [options]);
   // options the engine does not declare (or all of them when its options are unknown)
@@ -71,6 +93,7 @@ export function UciOptionsEditor({ options, values, onChange, engineId, dir }: {
               <tbody>
                 {shown.map((o) => {
                   const v = values[o.name] ?? "";
+                  const auto = v === "" || v === "<empty>" ? tablebaseFor(o.name, o.kind, tb) : undefined;
                   return (
                     <tr key={o.name} style={v !== "" ? { background: "var(--accent-bg)" } : undefined}>
                       <td className="font-medium whitespace-nowrap">
@@ -78,6 +101,11 @@ export function UciOptionsEditor({ options, values, onChange, engineId, dir }: {
                       </td>
                       <td style={{ minWidth: 220 }}>
                         <OptionInput o={o} v={v} set={(x) => set(o.name, x)} />
+                        {auto && (
+                          <div className="muted text-[11px] mt-0.5" data-testid={`uci-auto-${o.name}`}>
+                            empty: TorsGUI sends <span className="mono">{auto}</span> ({o.name === "SyzygyPath" && syzygyPath != null ? "the tournament's Syzygy path" : "Settings → Paths"})
+                          </div>
+                        )}
                       </td>
                       <td className="mono muted text-[11.5px]">
                         {o.default ?? ""}

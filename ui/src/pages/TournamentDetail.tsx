@@ -623,7 +623,7 @@ function EngineOptions({ d, refresh }: { d: TournamentDetail; refresh: () => voi
         <p className="muted text-[12px]">
           {r.imported ? "Imported tournaments are read-only." : running ? "Pause the tournament to change the options; they are used from the next game." : r.done_games > 0 ? `${r.done_games} games were already played with the old options: the new ones are used from the next game. For CCRL every game of a tournament must use the same settings.` : "Used from the first game."}
         </p>
-        <UciOptionsEditor key={`${name}-${rev}`} options={eng?.options ?? []} values={values} onChange={setVals} engineId={p.engine_id} dir={p.dir} />
+        <UciOptionsEditor key={`${name}-${rev}`} options={eng?.options ?? []} values={values} onChange={setVals} engineId={p.engine_id} dir={p.dir} syzygyPath={r.config.syzygy_path} tournament />
         {warn.length > 0 && <Warn>{warn.join(" · ")}</Warn>}
       </div>
     </Panel>

@@ -2005,23 +2005,37 @@ impl App {
             expected_finish: summary.progress.eta_at.clone(),
             engines: t.config.opponents().iter().map(|p| p.name.clone()).collect(),
             random_openings: t.config.random_openings,
+            all_play: false,
         };
+        let mut c = c;
+        if matches!(t.config.kind, TournamentKind::RoundRobin | TournamentKind::Swiss) {
+            // everyone plays everyone: no seed, every engine ranked
+            let engines: Vec<String> = t.config.participants.iter().filter(|p| !p.withdrawn).map(|p| p.name.clone()).collect();
+            let cpu = if t.config.threads > 1 { format!(" {}CPU", t.config.threads) } else { String::new() };
+            c.all_play = true;
+            c.seed_export = format!("{} engines{cpu}", engines.len());
+            c.total_games = st.general.iter().map(|r| r.games).sum::<u32>() / 2;
+            c.opponents = engines.len().saturating_sub(1) as u32;
+            c.games_per_opponent = t.config.games_per_pairing;
+            c.engines = engines;
+        }
         let template = tpl.map(|x| x.to_string()).unwrap_or_else(|| match kind {
             PostKind::Finished => s.post_template_finished.clone(),
             PostKind::Announcement => s.post_template_announcement.clone(),
             PostKind::Progress => s.post_template_progress.clone(),
         });
-        let mut c = c;
         if let Some(o) = form {
             // what the export form says wins over the tournament's configuration
             let ccrl = |n: &str| o.ccrl_names.get(n).filter(|x| !x.trim().is_empty()).cloned().unwrap_or_else(|| n.to_string());
-            c.seed_export = crate::names::ccrl_name(&ccrl(&seed), o.threads_of.get(&seed).copied().unwrap_or(o.threads));
+            if !c.all_play {
+                c.seed_export = crate::names::ccrl_name(&ccrl(&seed), o.threads_of.get(&seed).copied().unwrap_or(o.threads));
+            }
             c.threads = o.threads;
             c.hash_mb = o.hash_mb;
             c.book = o.book.clone();
             c.egtb = o.egtb;
             c.engines = c.engines.iter().map(|n| ccrl(n)).collect();
-            for r in st.rows.iter_mut() {
+            for r in st.rows.iter_mut().chain(st.general.iter_mut()) {
                 r.name = ccrl(&r.name);
             }
         }

@@ -864,3 +864,15 @@ test("withdraw an engine: its games are dropped and left out of the export", asy
   await expect.poll(async () => (await get()).expected_games).toBe(8);
   await page.request.post("/api/tournament_delete", { data: { id, delete_files: true } });
 });
+
+test("an engine's empty SyzygyPath shows the path TorsGUI sends", async ({ page }) => {
+  const before = await (await page.request.post("/api/settings_get", { data: {} })).json();
+  await page.request.post("/api/settings_save", { data: { settings: { ...before, syzygy_path: "/tb/syzygy" } } });
+  await page.goto("/#/engines");
+  const row = page.getByTestId("engines-table").locator("tbody tr").filter({ hasText: "Mock Bravo" }).first();
+  await row.getByLabel("Edit").click();
+  await expect(page.getByTestId("uci-auto-SyzygyPath")).toContainText("/tb/syzygy");
+  // the "Used" flag is gone
+  await expect(page.getByText("Used in tournaments")).toHaveCount(0);
+  await page.request.post("/api/settings_save", { data: { settings: before } });
+});

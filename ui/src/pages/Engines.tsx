@@ -299,9 +299,6 @@ function EditDialog({ e, setE, onDone }: { e: EngineEntry | null; setE: (e: Engi
           <div className="kpi-label">UCI options sent in new tournaments (network file, contempt, …)</div>
           <UciOptionsEditor key={draft.id ?? 0} options={draft.options} values={opts} onChange={setOpts} engineId={draft.id} dir={draft.dir} />
         </div>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={draft.used} onChange={(x) => set("used", x.target.checked)} /> Used in tournaments
-        </label>
         <div className="col-span-2 muted text-[12px]">
           Export name: <span className="mono">{/\b64-bit$/i.test(draft.display_name.trim()) ? draft.display_name.trim() : `${draft.display_name.trim()} 64-bit`}</span> (+ <span className="mono">NCPU</span> when threads &gt; 1)
         </div>
@@ -643,7 +640,6 @@ export function Engines() {
                   <th>Verified</th>
                   <th>Flags</th>
                   <th>SHA256</th>
-                  <th>Used</th>
                   <th />
                 </tr>
               </thead>
@@ -703,7 +699,6 @@ export function Engines() {
                     <td className="mono muted" title={e.sha256}>
                       {e.sha256 ? e.sha256.slice(0, 12) + "…" : "—"}
                     </td>
-                    <td>{e.used ? "yes" : <span className="muted">no</span>}</td>
                     <td className="r">
                       <div className="flex justify-end gap-1">
                         <button className="btn btn-sm" onClick={() => verify(e)} disabled={!e.path || busy === e.id} title="uci → isready → go depth 12">
@@ -741,7 +736,7 @@ export function Engines() {
         </Field>
       </Modal>
       <Modal open={imp} onOpenChange={setImp} title="Rebuild the library from REPORT.md" footer={<button className="btn btn-primary" onClick={importReport} disabled={!impPath}>Import</button>}>
-        <Field label="engines folder containing REPORT.md and uci_options/" hint="Metadata only (release, asset, build, sha256, id name, UCI options, used or not): point each entry to its binary afterwards, or reinstall it from GitHub.">
+        <Field label="engines folder containing REPORT.md and uci_options/" hint="Metadata only (release, asset, build, sha256, id name, UCI options, notes): point each entry to its binary afterwards, or reinstall it from GitHub.">
           <PathInput kind="folder" value={impPath} onChange={setImpPath} placeholder="…/CCRL_ScirptsTests/engines" />
         </Field>
       </Modal>

@@ -1133,7 +1133,7 @@ export function Wizard() {
           </>
         }
       >
-        {optsFor && <UciOptionsEditor key={`${optsFor.id}-${optsRev}`} options={optsFor.options} values={optsDraft} onChange={setOptsDraft} engineId={optsFor.id} dir={optsFor.dir} />}
+        {optsFor && <UciOptionsEditor key={`${optsFor.id}-${optsRev}`} options={optsFor.options} values={optsDraft} onChange={setOptsDraft} engineId={optsFor.id} dir={optsFor.dir} syzygyPath={syzygy} />}
       </Modal>
     </div>
   );

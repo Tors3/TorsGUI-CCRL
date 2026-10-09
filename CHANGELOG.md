@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.7.2] - 2026-10-09
+
+### Fixed
+- **Forum post of a round robin (and Swiss)**: it was written as a gauntlet of the first
+  engine (its 11 opponents, its score). It now ranks every engine (games, W/D/L, score, %),
+  gives the winner as the result, and the conditions read "N games (E engines, G games per
+  pairing)"; the title is "E engines 8CPU – round robin finished".
+
+### Changed
+- **Syzygy and the other tablebase paths in the UCI options**: an engine's empty SyzygyPath
+  (Gaviota, Nalimov, egbb) shows the path TorsGUI sends by itself, so nothing has to be filled
+  in by hand.
+- The "Used" flag of the engines is gone: it came from the engine reports of the old CCRL
+  scripts and did nothing (every engine can be selected).
+
 ## [0.7.1] - 2026-10-09
 
 ### Changed

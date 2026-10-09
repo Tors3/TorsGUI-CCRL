@@ -16,4 +16,9 @@ next: string | null, expected_finish: string | null, engines: Array<string>,
 /**
  * One random opening per game instead of each opening twice with colours reversed.
  */
-random_openings: boolean, };
+random_openings: boolean, 
+/**
+ * Round robin / Swiss: everyone plays everyone, no seed. The post ranks every engine
+ * (`{table}`, `{result}` = the winner) instead of the seed against its opponents.
+ */
+all_play: boolean, };
