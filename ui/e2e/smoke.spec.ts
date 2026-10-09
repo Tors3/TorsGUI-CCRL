@@ -277,6 +277,15 @@ test("CCRL export and forum post", async ({ page }) => {
   await page.getByTestId("export-run").click();
   await expect(page.getByTestId("export-result")).toContainText("870");
   await expect(page.getByTestId("export-result")).toContainText("Triumviratus 7.0 64-bit 8CPU - Sep 27");
+  await expect(page.getByTestId("export-open-folder")).toBeVisible();
+  // the post follows the export form (hash, tablebases, CCRL names), not only the tournament
+  const ex = await (await page.request.post("/api/export_defaults", { data: { id: t.record.id } })).json();
+  const post = async (options: any) => (await (await page.request.post("/api/forum_post", { data: { id: t.record.id, kind: "finished", options } })).json()).text;
+  const edited = await post({ ...ex, hash_mb: 256, egtb: 5, ccrl_names: { ...ex.ccrl_names, "Stockfish 19": "Stockfish 19 renamed" } });
+  expect(edited).toContain("hash 256 MB");
+  expect(edited).toContain("5-man Syzygy");
+  expect(edited).toContain("Stockfish 19 renamed");
+  expect(await post(undefined)).not.toContain("hash 256 MB");
 });
 
 test("command palette and keyboard navigation", async ({ page }) => {

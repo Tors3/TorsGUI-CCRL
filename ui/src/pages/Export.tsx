@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Copy, FileArchive, Info, RotateCcw, Save, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, FileArchive, FolderOpen, Info, RotateCcw, Save, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -93,12 +93,14 @@ export function ExportPage() {
   useEffect(() => {
     if (!id || !tpl) return;
     const t = setTimeout(() => {
-      call<{ text: string }>("forum_post", { id, kind, template: tpl })
+      call<{ text: string }>("forum_post", { id, kind, template: tpl, options: opts })
         .then((r) => setPost(r.text))
         .catch((e) => setPost(`(${e.message})`));
     }, 200);
     return () => clearTimeout(t);
-  }, [id, kind, tpl]);
+    // the post follows the export form on the left
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, kind, tpl, JSON.stringify(opts)]);
 
   const run = async () => {
     if (!opts) return;
@@ -251,6 +253,11 @@ export function ExportPage() {
                   <div className="mono text-[11.5px] break-all">{res.pgn_path}</div>
                   {res.zip_path && <div className="mono text-[11.5px] break-all">{res.zip_path}</div>}
                   <div className="muted">Players: {res.players.join(", ")}</div>
+                  <div>
+                    <button className="btn btn-sm" data-testid="export-open-folder" onClick={() => call("open_folder", { path: res.zip_path ?? res.pgn_path }).catch((e) => toast.error((e as Error).message))}>
+                      <FolderOpen size={13} /> Open folder
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -271,7 +278,7 @@ export function ExportPage() {
           }
         >
           <div className="flex flex-col gap-2">
-            <Field label="Template" hint="{seed} {kind} {conditions} {result} {table} {closing} {games} {done} {opponents} {per_opp} {threads} {hash} {tc} {list} {book} {egtb} {engines} {eta}">
+            <Field label="Template" hint="{seed} {kind} {conditions} {result} {table} {closing} {games} {done} {opponents} {per_opp} {threads} {hash} {tc} {list} {book} {egtb} {engines} {eta} {openings}">
               <textarea className="textarea" rows={6} value={tpl} onChange={(e) => setTpl(e.target.value)} />
             </Field>
             <div className="flex gap-2 justify-end">

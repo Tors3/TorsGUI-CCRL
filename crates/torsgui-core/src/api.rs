@@ -292,14 +292,16 @@ impl App {
                 ok(json!({"folder": t, "pgn": self.ws.pgn_dir(&id), "logs": self.ws.logs_dir(&id), "game_logs": self.ws.logs_dir(&id).join("games")}))
             }
             "open_folder" => {
-                // a folder of the workspace (a tournament's PGNs or logs) in the file manager
+                // a folder of the workspace (a tournament's PGNs or logs) or of the export output
+                // folder in the file manager; a file: its folder, with the file selected
                 let path = PathBuf::from(arg::<String>(&a, "path")?);
-                let root = self.ws.root.canonicalize()?;
-                let dir = path.canonicalize().with_context(|| format!("{} does not exist yet", path.display()))?;
-                if !dir.starts_with(&root) || !dir.is_dir() {
-                    bail!("only folders of the workspace can be opened");
+                let real = path.canonicalize().with_context(|| format!("{} does not exist yet", path.display()))?;
+                let output = store.settings().ok().map(|s| PathBuf::from(s.output_dir)).filter(|p| !p.as_os_str().is_empty());
+                let roots: Vec<PathBuf> = std::iter::once(self.ws.root.clone()).chain(output).filter_map(|r| r.canonicalize().ok()).collect();
+                if !roots.iter().any(|r| real.starts_with(r)) {
+                    bail!("only folders of the workspace or of the export output can be opened");
                 }
-                open_folder(&path)?; // the path as given: explorer does not take \\?\ paths
+                open_folder(&path, real.is_file())?; // the path as given: explorer does not take \\?\ paths
                 ok(true)
             }
             "open_url" => {
@@ -868,7 +870,9 @@ impl App {
                 let id: String = arg(&a, "id")?;
                 let kind: PostKind = opt(&a, "kind").unwrap_or(PostKind::Finished);
                 let tpl: Option<String> = opt(&a, "template");
-                ok(self.forum_post(&store, &id, kind, tpl.as_deref())?)
+                // the export form as it is now: the post follows its edits
+                let form: Option<crate::export::ExportOptions> = opt(&a, "options");
+                ok(self.forum_post(&store, &id, kind, tpl.as_deref(), form.as_ref())?)
             }
 
             // ---------------------------------------------------------- engines
@@ -1935,10 +1939,10 @@ impl App {
         Ok((names, sources))
     }
 
-    fn forum_post(&self, store: &crate::store::Store, id: &str, kind: PostKind, tpl: Option<&str>) -> Result<Value> {
+    fn forum_post(&self, store: &crate::store::Store, id: &str, kind: PostKind, tpl: Option<&str>, form: Option<&crate::export::ExportOptions>) -> Result<Value> {
         let t = store.tournament(id)?.context("not found")?;
         let loaded = self.loaded(store, id)?;
-        let st = analysis::tournament_standings(&t.config, &loaded, None, RowOrder::Rating);
+        let mut st = analysis::tournament_standings(&t.config, &loaded, None, RowOrder::Rating);
         let s = store.settings()?;
         let seed = st.seed.clone();
         let next = store.queue()?.into_iter().find(|q| q.id != id).map(|q| {
@@ -1964,12 +1968,27 @@ impl App {
             next,
             expected_finish: summary.progress.eta_at.clone(),
             engines: t.config.opponents().iter().map(|p| p.name.clone()).collect(),
+            random_openings: t.config.random_openings,
         };
         let template = tpl.map(|x| x.to_string()).unwrap_or_else(|| match kind {
             PostKind::Finished => s.post_template_finished.clone(),
             PostKind::Announcement => s.post_template_announcement.clone(),
             PostKind::Progress => s.post_template_progress.clone(),
         });
+        let mut c = c;
+        if let Some(o) = form {
+            // what the export form says wins over the tournament's configuration
+            let ccrl = |n: &str| o.ccrl_names.get(n).filter(|x| !x.trim().is_empty()).cloned().unwrap_or_else(|| n.to_string());
+            c.seed_export = crate::names::ccrl_name(&ccrl(&seed), o.threads_of.get(&seed).copied().unwrap_or(o.threads));
+            c.threads = o.threads;
+            c.hash_mb = o.hash_mb;
+            c.book = o.book.clone();
+            c.egtb = o.egtb;
+            c.engines = c.engines.iter().map(|n| ccrl(n)).collect();
+            for r in st.rows.iter_mut() {
+                r.name = ccrl(&r.name);
+            }
+        }
         let text = forum::post(kind, Some(&template), &st, &c);
         ok(json!({"text": text, "template": template, "variables": forum::variables(&st, &c)}))
     }
@@ -2445,9 +2464,24 @@ pub fn load_game_text(text: &str) -> Result<crate::live::ViewerGame> {
 }
 
 /// Opens a web address in the default browser.
-fn open_folder(dir: &std::path::Path) -> Result<()> {
+fn open_folder(path: &std::path::Path, select_file: bool) -> Result<()> {
+    let dir = if select_file { path.parent().unwrap_or(path) } else { path };
     let mut cmd = std::process::Command::new(if cfg!(windows) { "explorer" } else if cfg!(target_os = "macos") { "open" } else { "xdg-open" });
-    cmd.arg(dir);
+    #[cfg(windows)]
+    let selected = select_file && {
+        // explorer opens the folder with the file selected; it wants /select,"path" as is
+        use std::os::windows::process::CommandExt;
+        cmd.raw_arg(format!("/select,\"{}\"", path.display()));
+        true
+    };
+    #[cfg(not(windows))]
+    let selected = false;
+    if selected {
+    } else if select_file && cfg!(target_os = "macos") {
+        cmd.args(["-R".as_ref(), path.as_os_str()]);
+    } else {
+        cmd.arg(dir);
+    }
     cmd.spawn().with_context(|| format!("cannot open {}", dir.display()))?;
     Ok(())
 }

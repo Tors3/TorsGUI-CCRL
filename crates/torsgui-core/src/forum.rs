@@ -35,10 +35,13 @@ pub struct PostContext {
     pub next: Option<String>,
     pub expected_finish: Option<String>,
     pub engines: Vec<String>,
+    /// One random opening per game instead of each opening twice with colours reversed.
+    #[serde(default)]
+    pub random_openings: bool,
 }
 
 pub const TEMPLATE_FINISHED: &str = "[b]{seed} – {kind} finished[/b]\n\n{conditions}\n\nResult: [b]{result}[/b]\n\n[code]\n{table}\n[/code]\n\n{closing}\n";
-pub const TEMPLATE_ANNOUNCEMENT: &str = "[b]{seed} – {kind} started[/b]\n\n{games} games ({opponents} opponents × {per_opp}), all engines {threads} threads, hash {hash} MB, TC {tc} (CCRL {list} equivalent for this machine), book {book}, {egtb}-man Syzygy, each opening played with colors reversed.\n\nOpponents: {engines}.\n\nExpected finish: {eta}.\n";
+pub const TEMPLATE_ANNOUNCEMENT: &str = "[b]{seed} – {kind} started[/b]\n\n{games} games ({opponents} opponents × {per_opp}), all engines {threads} threads, hash {hash} MB, TC {tc} (CCRL {list} equivalent for this machine), book {book}, {egtb}-man Syzygy, {openings}.\n\nOpponents: {engines}.\n\nExpected finish: {eta}.\n";
 pub const TEMPLATE_PROGRESS: &str = "[b]{seed} – {kind} progress: {done}/{games} games[/b]\n\nCurrent result: [b]{result}[/b]\n\n[code]\n{table}\n[/code]\n\nExpected finish: {eta}.\n";
 
 pub fn default_template(kind: PostKind) -> &'static str {
@@ -69,9 +72,17 @@ pub fn table(st: &Standings) -> String {
 
 pub fn conditions(c: &PostContext) -> String {
     format!(
-        "{} games ({} opponents × {}), all engines {} threads, hash {} MB, TC {} (CCRL {} equivalent for this machine), book {}, {}-man Syzygy, each opening played with colors reversed.",
-        c.total_games, c.opponents, c.games_per_opponent, c.threads, c.hash_mb, c.tc, c.ccrl_list, c.book, c.egtb
+        "{} games ({} opponents × {}), all engines {} threads, hash {} MB, TC {} (CCRL {} equivalent for this machine), book {}, {}-man Syzygy, {}.",
+        c.total_games, c.opponents, c.games_per_opponent, c.threads, c.hash_mb, c.tc, c.ccrl_list, c.book, c.egtb, openings(c)
     )
+}
+
+pub fn openings(c: &PostContext) -> &'static str {
+    if c.random_openings {
+        "one random opening per game"
+    } else {
+        "each opening played with colors reversed"
+    }
 }
 
 pub fn closing(c: &PostContext) -> String {
@@ -108,6 +119,7 @@ pub fn variables(st: &Standings, c: &PostContext) -> BTreeMap<String, String> {
     m.insert("book".into(), c.book.clone());
     m.insert("egtb".into(), c.egtb.to_string());
     m.insert("engines".into(), c.engines.join(", "));
+    m.insert("openings".into(), openings(c).to_string());
     m.insert("eta".into(), c.expected_finish.clone().unwrap_or_else(|| "unknown".into()));
     m
 }

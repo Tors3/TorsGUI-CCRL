@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.9] - 2026-10-09
+
+### Added
+- **Open folder** after *Build export*: opens the export folder with the zip (or PGN) selected.
+
+### Fixed
+- The forum post next to the export form follows the form: hash, threads, book, EGTB pieces
+  and the CCRL names typed there (it used the tournament's settings only).
+- Posts of a tournament with one random opening per game say so instead of "each opening
+  played with colors reversed" (`{openings}` in the templates).
+
 ## [0.6.8] - 2026-10-09
 
 ### Added

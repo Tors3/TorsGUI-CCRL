@@ -12,4 +12,8 @@ kind_label: string, total_games: number, expected_games: number, opponents: numb
 /**
  * Display name of the next tournament in the queue ("Stockfish 19 8CPU gauntlet").
  */
-next: string | null, expected_finish: string | null, engines: Array<string>, };
+next: string | null, expected_finish: string | null, engines: Array<string>, 
+/**
+ * One random opening per game instead of each opening twice with colours reversed.
+ */
+random_openings: boolean, };
