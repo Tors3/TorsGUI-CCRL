@@ -1030,7 +1030,7 @@ cg-board {
   }
 }
 .analysis-grid {
-  grid-template-columns: minmax(300px, 540px) minmax(320px, 1fr);
+  grid-template-columns: var(--board-col, minmax(300px, 540px)) minmax(320px, 1fr);
   align-items: start;
 }
 @media (max-width: 1100px) {
@@ -1045,7 +1045,7 @@ cg-board {
   grid-template-columns: 260px minmax(0, 1fr);
 }
 .live-board-grid {
-  grid-template-columns: minmax(320px, 480px) minmax(0, 1fr);
+  grid-template-columns: var(--board-col, minmax(320px, 480px)) minmax(0, 1fr);
 }
 @media (max-width: 1250px) {
 }

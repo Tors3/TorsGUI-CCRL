@@ -3,13 +3,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { EngineLive } from "../bindings/EngineLive";
 import type { LiveLane } from "../bindings/LiveLane";
 import { Board, EvalBar } from "../components/Board";
+import { BoardColumn } from "../components/BoardColumn";
 import { BoardSettingsButton } from "../components/BoardSettings";
 import { LineChart } from "../components/Chart";
 import { Material } from "../components/GameViewer";
 import { Empty, ErrorBox, Modal, PageHeader, Panel } from "../components/ui";
 import { usePoll } from "../lib/api";
-import { playMove, useBoardPrefs } from "../lib/boardPrefs";
-import { isCapture, isCheck } from "../lib/chess";
+import { playMoveSound, useBoardPrefs } from "../lib/boardPrefs";
+import { isCheck } from "../lib/chess";
 import { clock, duration, evalText, nps } from "../lib/format";
 
 /**
@@ -114,7 +115,7 @@ function BigView({ l, onClose }: { l: LiveLane | null; onClose: () => void }) {
   const lastLen = useRef<number | null>(null);
   useEffect(() => {
     const len = g?.moves_san.length ?? null;
-    if (prefs.sound && len != null && lastLen.current != null && len === lastLen.current + 1) playMove(isCapture(g?.moves_san[len - 1]));
+    if (prefs.sound && len != null && lastLen.current != null && len === lastLen.current + 1) playMoveSound(g?.moves_san[len - 1]);
     lastLen.current = len;
   }, [g?.moves_san.length, prefs.sound, g?.moves_san]);
   const white = g?.engines.find((e) => e.name === g.white);
@@ -138,7 +139,7 @@ function BigView({ l, onClose }: { l: LiveLane | null; onClose: () => void }) {
     <Modal open={!!l} onOpenChange={(o) => !o && onClose()} width={1200} title={g ? `${g.white} – ${g.black}` : ""}>
       {g && (
         <div className="grid gap-5 live-board-grid">
-          <div className="flex flex-col gap-2">
+          <BoardColumn id="live" className="flex flex-col gap-2">
             <PlayerRow name={g.black} ms={g.btime} active={g.side_to_move === "black"} e={black} fen={g.fen} side="b" />
             <div className="flex gap-2 items-stretch">
               <EvalBar cp={ev.cp} mate={ev.mate} />
@@ -158,7 +159,7 @@ function BigView({ l, onClose }: { l: LiveLane | null; onClose: () => void }) {
               <span>green arrow: best move of the engine to move · blue: the reply it expects</span>
               <BoardSettingsButton />
             </div>
-          </div>
+          </BoardColumn>
           <div className="flex flex-col gap-3 min-w-0">
             <EnginePanel e={white} color="var(--text)" />
             <EnginePanel e={black} color="#e3b341" />

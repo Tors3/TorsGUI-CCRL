@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { UserPieceSet } from "../bindings/UserPieceSet";
 import { BUNDLED_PIECE_SETS } from "./pieceSets";
+import { playEvent, playSan, preloadSounds, SOUND_SETS, type SoundEvent, type SoundSet } from "./sound";
 
 /** Board appearance: a per-viewer preference kept in localStorage. */
 export type BoardPrefs = {
@@ -9,8 +10,11 @@ export type BoardPrefs = {
   /** Piece animation in ms (0 = off). */
   animation: number;
   coordinates: boolean;
-  /** Move sound in the viewer and the large live board. */
+  /** Move and game sounds (viewer, live board, play vs engine). */
   sound: boolean;
+  soundSet: SoundSet;
+  /** 0..1 */
+  soundVolume: number;
   /** Best-move arrows from the engines' PV. */
   arrows: boolean;
   /** Square colours of the "custom" theme. */
@@ -78,6 +82,8 @@ export const DEFAULT_PREFS: BoardPrefs = {
   animation: 220,
   coordinates: true,
   sound: false,
+  soundSet: "wood",
+  soundVolume: 0.8,
   arrows: true,
   customLight: "#e8e8e8",
   customDark: "#9e9e9e",
@@ -99,6 +105,8 @@ function load(): BoardPrefs {
       const p = { ...DEFAULT_PREFS, ...JSON.parse(raw) } as BoardPrefs;
       if (!BOARD_THEMES.includes(p.theme)) p.theme = DEFAULT_PREFS.theme;
       if (!PIECE_SETS.includes(p.pieces) && !p.pieces.startsWith("user:")) p.pieces = DEFAULT_PREFS.pieces;
+      if (!SOUND_SETS.includes(p.soundSet)) p.soundSet = DEFAULT_PREFS.soundSet;
+      if (!(p.soundVolume >= 0 && p.soundVolume <= 1)) p.soundVolume = DEFAULT_PREFS.soundVolume;
       return p;
     }
   } catch {
@@ -139,29 +147,17 @@ export function pieceUrl(set: PieceSet, color: "w" | "b", role: "P" | "N" | "B" 
 
 // ------------------------------------------------------------------ sound
 
-let ctx: AudioContext | null = null;
+/** The sound of a SAN move with the current preferences (nothing when sound is off). */
+export function playMoveSound(san: string | null | undefined) {
+  if (current.sound) playSan(san, current.soundSet, current.soundVolume);
+}
 
-/** A short wooden "tock" synthesised with WebAudio (no audio files). Captures are lower. */
-export function playMove(capture = false) {
-  try {
-    ctx ??= new AudioContext();
-    const t = ctx.currentTime;
-    const len = 0.09;
-    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * len), ctx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 5);
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    const bp = ctx.createBiquadFilter();
-    bp.type = "bandpass";
-    bp.frequency.value = capture ? 900 : 1500;
-    bp.Q.value = 3.5;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(capture ? 0.9 : 0.6, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + len);
-    src.connect(bp).connect(g).connect(ctx.destination);
-    src.start(t);
-  } catch {
-    /* audio unavailable */
-  }
+/** A game sound (game end, low time) with the current preferences. */
+export function playGameSound(ev: SoundEvent) {
+  if (current.sound) playEvent(ev, current.soundSet, current.soundVolume);
+}
+
+/** Loads the files of the chosen set once sound is on. */
+export function preloadBoardSounds() {
+  if (current.sound) preloadSounds(current.soundSet);
 }

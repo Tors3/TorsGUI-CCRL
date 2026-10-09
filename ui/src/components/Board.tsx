@@ -2,8 +2,10 @@ import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
 import type { DrawShape } from "chessground/draw";
 import type { Key } from "chessground/types";
+import { Maximize, Minimize, MoveDiagonal2 } from "lucide-react";
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { piecesClass, themeStyle, useBoardPrefs } from "../lib/boardPrefs";
+import { useBoardResize } from "./BoardColumn";
 
 export type Arrow = { uci: string; brush?: "green" | "blue" | "yellow" | "red" | "paleBlue" | "paleGreen" | "paleGrey" };
 
@@ -27,6 +29,7 @@ export function Board(props: {
   onMove?: (orig: Key, dest: Key) => void;
 }) {
   const prefs = useBoardPrefs();
+  const resize = useBoardResize();
   const el = useRef<HTMLDivElement>(null);
   const api = useRef<Api | null>(null);
   const lm = props.lastMove && props.lastMove.length >= 4 ? ([props.lastMove.slice(0, 2), props.lastMove.slice(2, 4)] as Key[]) : undefined;
@@ -75,6 +78,31 @@ export function Board(props: {
   return (
     <div className={`board-box board-theme-${prefs.theme} ${piecesClass(prefs.pieces)} ${props.mini ? "board-mini" : ""} ${props.className ?? ""}`} style={themeStyle(prefs) as CSSProperties}>
       <div ref={el} className="w-full h-full" data-testid="board" />
+      {resize && !props.mini && (
+        <>
+          <button
+            className="board-corner-btn board-fullscreen"
+            onClick={resize.toggleFullscreen}
+            aria-label={resize.fullscreen ? "Exit full screen" : "Full screen"}
+            title={resize.fullscreen ? "Exit full screen (Esc)" : "Full screen"}
+            data-testid="board-fullscreen"
+          >
+            {resize.fullscreen ? <Minimize size={13} /> : <Maximize size={13} />}
+          </button>
+          {!resize.fullscreen && (
+            <button
+              className="board-corner-btn board-grip"
+              onPointerDown={resize.onGripDown}
+              onDoubleClick={resize.reset}
+              aria-label="Resize the board"
+              title="Drag to resize the board · double-click: default size"
+              data-testid="board-grip"
+            >
+              <MoveDiagonal2 size={13} />
+            </button>
+          )}
+        </>
+      )}
     </div>
   );
 }

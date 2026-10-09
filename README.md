@@ -180,6 +180,8 @@ the bench test a 64-bit Stockfish 10 (`SF10`). Missing inputs skip those tests w
   [sharechess](https://github.com/sharechess/sharechess) for the piece-set collection; every
   piece set's author and licence is listed in
   [ui/public/pieces/README.md](ui/public/pieces/README.md).
+- **Kenney** ([kenney.nl](https://kenney.nl)) for the Impact Sounds and Interface Sounds packs
+  (CC0) behind the move, capture and game sounds.
 - The fonts bundled for the Retro font and the board initials, all under the SIL Open Font
   License: [DotGothic16](https://fonts.google.com/specimen/DotGothic16) (Fontworks),
   [IBM Plex Mono](https://github.com/IBM/plex) (IBM) and

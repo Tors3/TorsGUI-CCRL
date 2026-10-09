@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.4] - 2026-10-09
+
+### Added
+- **New sounds**: recorded wooden moves and captures (a different take each time), and sounds
+  for castling, check, promotion, game end and your clock under 10 s in a game against an
+  engine, each set in one material. Choose the set (Wood, the default; Soft; or the old Classic
+  click) and the volume in the board settings, with a button to try each sound. Fast moves
+  (live games, quick replay) no longer pile up. Sounds by Kenney (CC0).
+- **Resizable board**: drag the grip in the bottom-right corner of the board to make it larger
+  or smaller (double-click: default size); the size is remembered per page (game viewer,
+  analysis, play vs engine, live). The button in the top-right corner shows the board full
+  screen.
+
+### Fixed
+- Play vs engine: on a wide screen the move list no longer stretches across the whole page.
+
 ## [0.7.3] - 2026-10-09
 
 ### Added

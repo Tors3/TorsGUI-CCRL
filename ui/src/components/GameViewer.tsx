@@ -4,10 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ViewerGame } from "../bindings/ViewerGame";
 import type { ViewerPly } from "../bindings/ViewerPly";
 import { call } from "../lib/api";
-import { pieceUrl, playMove, useBoardPrefs } from "../lib/boardPrefs";
-import { isCapture, isCheck, material, type Role } from "../lib/chess";
+import { pieceUrl, playGameSound, playMoveSound, useBoardPrefs } from "../lib/boardPrefs";
+import { isCheck, material, type Role } from "../lib/chess";
 import { evalText, nps, num } from "../lib/format";
 import { Board, EvalBar } from "./Board";
+import { BoardColumn } from "./BoardColumn";
 import { BoardSettingsButton } from "./BoardSettings";
 import { LineChart } from "./Chart";
 import { ErrorBox, Modal, Result, Spinner } from "./ui";
@@ -124,7 +125,11 @@ export function GameViewer({ game, onClose }: { game: GameRef | null; onClose: (
   }, [playing, ply, n, speed]);
   // sound and move list scroll
   useEffect(() => {
-    if (prefs.sound && ply === prevPly.current + 1 && ply > 0) playMove(isCapture(plies[ply - 1]?.san));
+    if (prefs.sound && ply === prevPly.current + 1 && ply > 0) {
+      playMoveSound(plies[ply - 1]?.san);
+      // the last move of a finished game
+      if (ply === n && data && data.result !== "*") setTimeout(() => playGameSound("end"), 160);
+    }
     prevPly.current = ply;
     const el = listRef.current?.querySelector<HTMLElement>(`[data-ply="${ply}"]`);
     el?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
@@ -193,8 +198,8 @@ export function GameViewer({ game, onClose }: { game: GameRef | null; onClose: (
         </div>
       )}
       {data && (
-        <div className="grid gap-5" style={{ gridTemplateColumns: `${boardCol} 1fr` }}>
-          <div className="flex flex-col gap-2">
+        <div className="grid gap-5" style={{ gridTemplateColumns: `var(--board-col, ${boardCol}) minmax(0, 1fr)` }}>
+          <BoardColumn id={theater ? "viewer-theater" : "viewer"} className="flex flex-col gap-2">
             <PlayerBar {...player(topSide)} fen={fen} side={topSide} />
             <div className="flex gap-2 items-stretch">
               <EvalBar cp={ev.cp} mate={ev.mate} orientation={orientation} />
@@ -281,7 +286,7 @@ export function GameViewer({ game, onClose }: { game: GameRef | null; onClose: (
               </div>
             </div>
             {cur?.info.note && <div className="muted text-[12px]">{cur.info.note}</div>}
-          </div>
+          </BoardColumn>
           <div className="flex flex-col gap-3 min-w-0">
             <div className="grid grid-cols-4 gap-2 text-[12px]">
               {["Event", "Date", "TimeControl", "Termination", "Opening", "ECO", "GameDuration", "PlyCount"].map((k) => (

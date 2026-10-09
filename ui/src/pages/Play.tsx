@@ -6,12 +6,12 @@ import { toast } from "sonner";
 import type { EngineEntry } from "../bindings/EngineEntry";
 import type { PlayState } from "../bindings/PlayState";
 import { Board, EvalBar } from "../components/Board";
+import { BoardColumn } from "../components/BoardColumn";
 import { BoardSettingsButton } from "../components/BoardSettings";
 import { Material } from "../components/GameViewer";
 import { Empty, Field, Modal, PageHeader, Panel, Seg } from "../components/ui";
 import { call, usePoll } from "../lib/api";
-import { playMove, useBoardPrefs } from "../lib/boardPrefs";
-import { isCapture } from "../lib/chess";
+import { playGameSound, playMoveSound, useBoardPrefs } from "../lib/boardPrefs";
 import { evalText } from "../lib/format";
 
 type Tc = { id: string; label: string; base: number; inc: number; movetime: number };
@@ -84,11 +84,31 @@ export function PlayPage() {
   }, [st?.active]);
   useEffect(() => {
     const n = st?.moves.length ?? 0;
-    if (prefs.sound && n === prevMoves.current + 1) playMove(isCapture(st?.sans[n - 1]));
+    if (prefs.sound && n === prevMoves.current + 1) playMoveSound(st?.sans[n - 1]);
     prevMoves.current = n;
     listRef.current?.querySelector<HTMLElement>(`[data-ply="${n}"]`)?.scrollIntoView?.({ block: "nearest" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [st?.moves.length]);
+
+  // game end, and the person's clock under 10 s (once per game)
+  const prevResult = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (prevResult.current === "*" && st?.result && st.result !== "*") setTimeout(() => playGameSound("end"), 160);
+    prevResult.current = st?.result;
+  }, [st?.result]);
+  const lowWarned = useRef(false);
+  const humanMs = st ? (st.human_white ? st.white_ms : st.black_ms) : null;
+  useEffect(() => {
+    if (!st?.active || humanMs == null || st.base_ms <= 0) {
+      lowWarned.current = false;
+      return;
+    }
+    if (humanMs > 10_000) lowWarned.current = false;
+    else if (!lowWarned.current && st.base_ms > 10_000) {
+      lowWarned.current = true;
+      playGameSound("lowtime");
+    }
+  }, [humanMs, st?.active, st?.base_ms]);
 
   const start = async () => {
     if (engineId == null) return;
@@ -179,7 +199,7 @@ export function PlayPage() {
     <div className="flex flex-col gap-3 fade-in">
       <PageHeader title="Play against an engine" sub="A game against any engine of the library, with a clock, take-backs and an engine strength you choose" />
       <div className="grid gap-4 analysis-grid">
-        <div className="flex flex-col gap-2 min-w-0">
+        <BoardColumn id="play" className="flex flex-col gap-2 min-w-0">
           {bar(flip)}
           <div className="flex gap-2 items-stretch">
             {showEval && <EvalBar cp={info?.score.cp} mate={info?.score.mate} orientation={orientation} />}
@@ -211,7 +231,7 @@ export function PlayPage() {
               <input type="checkbox" checked={showEval} onChange={(e) => setShowEval(e.target.checked)} data-testid="play-show-eval" /> Show the engine's evaluation
             </label>
           </div>
-        </div>
+        </BoardColumn>
         <div className="flex flex-col gap-3 min-w-0">
           {st && st.result !== "*" && (
             <div className="panel p-3 flex flex-wrap items-center gap-3" style={{ borderColor: "var(--accent)" }} data-testid="play-result">
@@ -274,7 +294,7 @@ export function PlayPage() {
                   <span className="mono text-[12px] truncate">{info.pv_san.slice(0, 10).join(" ")}</span>
                 </div>
               )}
-              <div ref={listRef} className="panel overflow-auto mono text-[12.5px]" style={{ maxHeight: 360 }} data-testid="play-moves">
+              <div ref={listRef} className="panel overflow-auto mono text-[12.5px]" style={{ maxHeight: 360, maxWidth: 360 }} data-testid="play-moves">
                 {rows.length === 0 ? (
                   <div className="p-2 muted">{st?.human_to_move ? "Your move." : "The engine is thinking…"}</div>
                 ) : (

@@ -10,6 +10,7 @@ import type { Score } from "../bindings/Score";
 import type { Settings } from "../bindings/Settings";
 import type { ViewerGame } from "../bindings/ViewerGame";
 import { Board, EvalBar, type Arrow } from "../components/Board";
+import { BoardColumn } from "../components/BoardColumn";
 import { LineChart } from "../components/Chart";
 import { Empty, ErrorBox, Field, PageHeader, Panel, ProgressBar, Result, Spinner } from "../components/ui";
 import { call, usePoll } from "../lib/api";
@@ -291,7 +292,7 @@ export function AnalysisPage() {
         </Panel>
       ) : (
         <div className="grid gap-4 analysis-grid">
-          <div className="flex flex-col gap-2 min-w-0">
+          <BoardColumn id="analysis" className="flex flex-col gap-2 min-w-0">
             {(h.White || h.Black) && (
               <div className="flex items-center gap-2 text-[13px] flex-wrap">
                 <b>{h.White ?? "?"}</b> <span className="muted">vs</span> <b>{h.Black ?? "?"}</b> <Result r={game.result} />
@@ -337,7 +338,7 @@ export function AnalysisPage() {
                 </span>
               </div>
             )}
-          </div>
+          </BoardColumn>
           <div className="flex flex-col gap-3 min-w-0">
             {live && (
               <div className="panel p-2 flex flex-col gap-1 text-[12.5px]" data-testid="analysis-lines">

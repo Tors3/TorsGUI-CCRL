@@ -885,3 +885,50 @@ test("an engine's empty SyzygyPath shows the path TorsGUI sends", async ({ page 
   await expect(page.getByText("Used in tournaments")).toHaveCount(0);
   await page.request.post("/api/settings_save", { data: { settings: before } });
 });
+
+test("board: resize grip and full screen, remembered per page", async ({ page }) => {
+  await page.setViewportSize({ width: 1500, height: 950 });
+  await page.goto("/#/play");
+  const col = page.getByTestId("board-column-play");
+  const w0 = (await col.boundingBox())!.width;
+  await page.getByTestId("board").first().hover();
+  const grip = page.getByTestId("board-grip");
+  const g = (await grip.boundingBox())!;
+  await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(g.x - 150, g.y - 150, { steps: 5 });
+  await page.mouse.up();
+  const w1 = (await col.boundingBox())!.width;
+  expect(w1).toBeLessThan(w0 - 100);
+  expect(Number(await page.evaluate(() => localStorage.getItem("torsgui.boardWidth.play")))).toBeCloseTo(w1, -1);
+  await page.reload();
+  expect(Math.abs((await col.boundingBox())!.width - w1)).toBeLessThan(3);
+  // double-click: the default size again
+  await page.getByTestId("board").first().hover();
+  await grip.dblclick();
+  expect(Math.abs((await col.boundingBox())!.width - w0)).toBeLessThan(3);
+  // full screen and back
+  await page.getByTestId("board-fullscreen").click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute("data-testid") ?? null)).toBe("board-column-play");
+  await page.getByTestId("board-fullscreen").click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
+});
+
+test("sounds: sets and volume in the board settings, every file decodes", async ({ page }) => {
+  await page.goto("/#/settings?tab=appearance");
+  await expect(page.getByTestId("sound-settings")).toHaveCount(0);
+  await page.getByTestId("sound-toggle").check();
+  await page.getByTestId("sound-set").selectOption("soft");
+  await page.getByTestId("sound-volume").fill("40");
+  const prefs = await page.evaluate(() => JSON.parse(localStorage.getItem("torsgui.board") ?? "{}"));
+  expect(prefs).toMatchObject({ sound: true, soundSet: "soft", soundVolume: 0.4 });
+  const names = [0, 1, 2, 3, 4].flatMap((i) => [`wood/move${i}`, `wood/capture${i}`]).concat(["soft/move0", "soft/move1", "soft/capture0"], ["wood", "soft"].flatMap((s) => ["check", "promote", "end", "lowtime"].map((e) => `${s}/${e}`)));
+  const decoded = await page.evaluate(async (names) => {
+    const ctx = new OfflineAudioContext(1, 44100, 44100);
+    const out: number[] = [];
+    for (const n of names) out.push((await ctx.decodeAudioData(await (await fetch(`/sound/${n}.wav`)).arrayBuffer())).duration);
+    return out;
+  }, names);
+  expect(decoded.every((d) => d > 0.01 && d <= 0.6)).toBe(true);
+  await page.getByTestId("sound-toggle").uncheck();
+});

@@ -23,6 +23,8 @@ fn mime(p: &Path) -> &'static str {
         "css" => "text/css; charset=utf-8",
         "svg" => "image/svg+xml",
         "png" => "image/png",
+        "webp" => "image/webp",
+        "wav" => "audio/wav",
         "ico" => "image/x-icon",
         "json" => "application/json",
         "woff2" => "font/woff2",

@@ -1,4 +1,4 @@
-import { FolderInput, Palette, Trash2 } from "lucide-react";
+import { FolderInput, Palette, Trash2, Volume2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { UserPieceSet } from "../bindings/UserPieceSet";
@@ -8,6 +8,7 @@ import { BUNDLED_PIECE_SETS } from "../lib/pieceSets";
 import type { CSSProperties } from "react";
 import type React from "react";
 import { BOARD_THEMES, THEME_LABEL, pieceUrl, setBoardPrefs, themeStyle, useBoardPrefs } from "../lib/boardPrefs";
+import { playEvent, preloadSounds, SOUND_SET_LABEL, SOUND_SETS, type SoundSet } from "../lib/sound";
 import { Board } from "./Board";
 import { Modal } from "./ui";
 
@@ -62,10 +63,73 @@ export function BoardAppearance() {
               <input type="checkbox" checked={p.arrows} onChange={(e) => setBoardPrefs({ arrows: e.target.checked })} /> Engine arrows (PV)
             </label>
             <label className="flex items-center gap-2">
-              <input type="checkbox" checked={p.sound} onChange={(e) => setBoardPrefs({ sound: e.target.checked })} /> Move sound
+              <input
+                type="checkbox"
+                checked={p.sound}
+                onChange={(e) => {
+                  setBoardPrefs({ sound: e.target.checked });
+                  if (e.target.checked) preloadSounds(p.soundSet);
+                }}
+                data-testid="sound-toggle"
+              />{" "}
+              Sounds
             </label>
           </div>
         </div>
+        {p.sound && (
+          <div className="flex flex-wrap items-end gap-3 text-[12.5px]" data-testid="sound-settings">
+            <label className="flex flex-col gap-1">
+              <span className="kpi-label">Sound set</span>
+              <select
+                className="select"
+                value={p.soundSet}
+                onChange={(e) => {
+                  const set = e.target.value as SoundSet;
+                  setBoardPrefs({ soundSet: set });
+                  preloadSounds(set);
+                  playEvent("move", set, p.soundVolume);
+                }}
+                data-testid="sound-set"
+              >
+                {SOUND_SETS.map((s) => (
+                  <option key={s} value={s}>
+                    {SOUND_SET_LABEL[s]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 flex-1 min-w-[140px]">
+              <span className="kpi-label">Volume {Math.round(p.soundVolume * 100)}%</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={Math.round(p.soundVolume * 100)}
+                onChange={(e) => setBoardPrefs({ soundVolume: Number(e.target.value) / 100 })}
+                aria-label="Sound volume"
+                data-testid="sound-volume"
+              />
+            </label>
+            <div className="flex flex-wrap gap-1" aria-label="Test the sounds">
+              {(
+                [
+                  ["move", "Move"],
+                  ["capture", "Capture"],
+                  ["castle", "Castling"],
+                  ["check", "Check"],
+                  ["promote", "Promotion"],
+                  ["end", "Game end"],
+                  ["lowtime", "Low time"],
+                ] as const
+              ).map(([ev, label]) => (
+                <button key={ev} className="btn btn-sm" onClick={() => playEvent(ev, p.soundSet, p.soundVolume)} title={`Play the ${label.toLowerCase()} sound`}>
+                  <Volume2 size={12} /> {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       <Board fen={PREVIEW_FEN} lastMove="f1c4" arrows={[{ uci: "e1g1", brush: "green" }, { uci: "f6g4", brush: "yellow" }]} />
     </div>
