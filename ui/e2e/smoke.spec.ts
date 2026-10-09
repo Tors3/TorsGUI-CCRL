@@ -119,7 +119,8 @@ test("CCRL checklist on the export page", async ({ page }) => {
   const c = page.getByTestId("checklist");
   await expect(c).toContainText("All games played");
   await expect(c.locator('[data-status="ok"]').filter({ hasText: "All games played" })).toHaveCount(1);
-  await expect(c.locator('[data-status="ok"]').filter({ hasText: "Hash 512 MB per thread" })).toHaveCount(1);
+  // a Blitz tournament: the CCRL rule is 256 MB per thread (this one was played with 4096 MB at 8CPU)
+  await expect(c.locator('[data-status="fail"]').filter({ hasText: "Hash 256 MB per thread (Blitz)" })).toHaveCount(1);
   await expect(c.locator('[data-status="ok"]').filter({ hasText: "Every opening with both colours" })).toHaveCount(1);
   await expect(page.getByTestId("checklist-status")).toBeVisible();
 });
@@ -751,7 +752,7 @@ test("an 8CPU seed against 1CPU opponents: preset, names, lanes and export", asy
   const c = d.summary.record.config;
   expect(c.threads).toBe(1);
   expect(c.participants.find((p: any) => p.role === "seed").threads).toBe(2);
-  expect(c.participants.find((p: any) => p.role === "seed").hash_mb).toBe(2 * 512);
+  expect(c.participants.find((p: any) => p.role === "seed").hash_mb).toBe(2 * 256); // CCRL Blitz
   expect(c.participants.find((p: any) => p.role === "opponent").threads ?? null).toBeNull();
   // the busy threads count the heaviest engine of a lane; the export writes 2CPU / no suffix (2 threads fit even a 2-core CI machine)
   const pv = await (await page.request.post("/api/wizard_preview", { data: { config: c } })).json();

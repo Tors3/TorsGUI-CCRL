@@ -72,7 +72,7 @@ pub fn engine_args(p: &Participant, cfg: &TournamentConfig) -> Vec<String> {
         a.push(format!("option.{k}={v}"));
     }
     if !cfg.syzygy_path.is_empty() && supports(p, "SyzygyPath") && !own_syzygy {
-        a.push(format!("option.SyzygyPath={}", cfg.syzygy_path));
+        a.push(format!("option.SyzygyPath={}", cfg.syzygy_effective()));
     }
     a
 }
@@ -143,7 +143,7 @@ pub fn game_args(cfg: &TournamentConfig, pairing: &(Participant, Participant), j
         "-startup-ms".into(),
         cfg.startup_ms.to_string(),
     ]);
-    a.extend(cfg.adjudication.args(&cfg.syzygy_path));
+    a.extend(cfg.adjudication.args(&cfg.syzygy_effective()));
     a.extend(cfg.extra_args.iter().cloned());
     a
 }

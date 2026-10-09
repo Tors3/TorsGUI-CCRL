@@ -318,7 +318,7 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
                     }
                 }
                 let own_threads = f.threads_of.get(input).or_else(|| f.threads_of.get(&e.display_name)).copied().map(|t| t.max(1)).filter(|t| *t != threads);
-                let own_hash = f.hash_of.get(input).or_else(|| f.hash_of.get(&e.display_name)).copied().or_else(|| own_threads.map(|t| s.hash_per_thread_mb * t));
+                let own_hash = f.hash_of.get(input).or_else(|| f.hash_of.get(&e.display_name)).copied().or_else(|| own_threads.map(|t| s.default_hash(&list, t)));
                 let my_threads = own_threads.unwrap_or(threads);
                 if let Some(tm) = e.threads_max {
                     if (my_threads as i64) > tm {
@@ -456,7 +456,7 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
         lanes_per_node: lanes,
         concurrency: 1,
         threads,
-        hash_mb: f.hash_mb.unwrap_or(s.hash_per_thread_mb * threads),
+        hash_mb: f.hash_mb.unwrap_or(s.default_hash(&list, threads)),
         tc,
         book_format: if book.to_lowercase().ends_with(".epd") { "epd".into() } else { "pgn".into() },
         book,
@@ -630,7 +630,8 @@ mod tests {
         assert_eq!(c.participants[1].rating, Some(3650.0));
         // wizard defaults
         assert_eq!(c.tc, "103+1");
-        assert_eq!(c.hash_mb, 512 * 8);
+        // CCRL Blitz: 256 MB per thread
+        assert_eq!(c.hash_mb, 256 * 8);
         assert_eq!(c.nodes, vec![0, 1]);
         assert_eq!(c.rounds_per_pass, vec![8, 7]);
         assert_eq!(c.lanes_per_node, 1);

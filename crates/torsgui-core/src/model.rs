@@ -341,12 +341,26 @@ impl TournamentConfig {
     pub fn effective_play_passes(&self) -> u32 {
         self.play_passes.unwrap_or(self.passes).clamp(1, self.passes.max(1))
     }
+    /// Pieces of the largest Syzygy table found (KQvKR.rtbw = 5): read from the files, else
+    /// guessed from the folder name ("3-4-5" = 5) when the folder cannot be read.
     pub fn syzygy_pieces(&self) -> u32 {
+        let (_, found) = syzygy_resolve(&self.syzygy_path);
+        if found > 0 {
+            return found;
+        }
         let base = std::path::Path::new(&self.syzygy_path.replace('\\', "/"))
             .file_name()
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_default();
         base.chars().filter_map(|c| c.to_digit(10)).max().unwrap_or(0)
+    }
+    /// CCRL hash for `threads` threads on the tournament's list (see `ccrl_hash_mb`).
+    pub fn ccrl_hash(&self, threads: u32) -> u32 {
+        ccrl_hash_mb(&self.ccrl_list, threads, 256, 512)
+    }
+    /// The Syzygy path given to the engines and fastchess (see `syzygy_resolve`).
+    pub fn syzygy_effective(&self) -> String {
+        syzygy_resolve(&self.syzygy_path).0
     }
     pub fn book_name(&self) -> String {
         let p = self.book.replace('\\', "/");
@@ -355,6 +369,126 @@ impl TournamentConfig {
             Some((stem, _)) => stem.to_string(),
             None => base,
         }
+    }
+}
+
+/// Is this the CCRL Blitz list (the default when none is set)?
+pub fn is_blitz(list: &str) -> bool {
+    list.trim().is_empty() || list.trim().eq_ignore_ascii_case("blitz")
+}
+
+/// CCRL hash in MB: Blitz `blitz_per` x threads (256 at 1CPU, 2048 at 8CPU); the longer lists
+/// `other_per` x threads, at least twice `other_per` (1024 at 1CPU, 4096 at 8CPU).
+pub fn ccrl_hash_mb(list: &str, threads: u32, blitz_per: u32, other_per: u32) -> u32 {
+    let t = threads.max(1);
+    if is_blitz(list) {
+        blitz_per * t
+    } else {
+        (other_per * t).max(other_per * 2)
+    }
+}
+
+/// Separator of a Syzygy path list (as engines and Fathom read it).
+pub const SYZYGY_SEP: char = if cfg!(windows) { ';' } else { ':' };
+
+/// The folders of a Syzygy path that hold tables, and the pieces of the largest table. A
+/// folder without tables but with sub-folders that have them (`syzygy` → `3-4-5`, `6-wdl`,
+/// `6-dtz`) is replaced by those sub-folders (two levels down): engines do not look inside
+/// sub-folders. A path that cannot be read is kept as it is.
+pub fn syzygy_resolve(path: &str) -> (String, u32) {
+    use std::path::{Path, PathBuf};
+    fn pieces(dir: &Path) -> u32 {
+        let Ok(rd) = std::fs::read_dir(dir) else { return 0 };
+        rd.filter_map(|e| e.ok())
+            .filter_map(|e| {
+                let n = e.file_name().to_string_lossy().to_string();
+                let (stem, ext) = n.rsplit_once('.')?;
+                let ext = ext.to_ascii_lowercase();
+                (ext == "rtbw" || ext == "rtbz").then(|| stem.chars().filter(|c| c.is_ascii_alphabetic() && *c != 'v').count() as u32)
+            })
+            .max()
+            .unwrap_or(0)
+    }
+    fn subdirs(dir: &Path) -> Vec<PathBuf> {
+        let mut v: Vec<PathBuf> = std::fs::read_dir(dir).map(|rd| rd.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.is_dir()).collect()).unwrap_or_default();
+        v.sort();
+        v
+    }
+    let mut out: Vec<String> = Vec::new();
+    let mut max = 0;
+    for part in path.split(SYZYGY_SEP).map(str::trim).filter(|p| !p.is_empty()) {
+        let dir = Path::new(part);
+        let n = pieces(dir);
+        if n > 0 || !dir.is_dir() {
+            max = max.max(n);
+            out.push(part.to_string());
+            continue;
+        }
+        let mut found = Vec::new();
+        for sub in subdirs(dir) {
+            let n = pieces(&sub);
+            if n > 0 {
+                max = max.max(n);
+                found.push(sub.to_string_lossy().to_string());
+            } else {
+                for sub2 in subdirs(&sub) {
+                    let n = pieces(&sub2);
+                    if n > 0 {
+                        max = max.max(n);
+                        found.push(sub2.to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
+        if found.is_empty() {
+            out.push(part.to_string());
+        } else {
+            out.extend(found);
+        }
+    }
+    (out.join(&SYZYGY_SEP.to_string()), max)
+}
+
+#[cfg(test)]
+mod hash_tests {
+    #[test]
+    fn ccrl_hash_rules() {
+        let h = |l: &str, t| super::ccrl_hash_mb(l, t, 256, 512);
+        assert_eq!((h("Blitz", 1), h("Blitz", 8), h("", 4)), (256, 2048, 1024));
+        assert_eq!((h("40/15", 1), h("40/15", 2), h("40/15", 4), h("40/15", 8)), (1024, 1024, 2048, 4096));
+    }
+}
+
+#[cfg(test)]
+mod syzygy_tests {
+    use super::*;
+
+    #[test]
+    fn tables_found_in_sub_folders() {
+        let d = tempfile::tempdir().unwrap();
+        let root = d.path().join("syzygy");
+        for (sub, files) in [("3-4-5", &["KQvK.rtbw", "KQRvKR.rtbw", "KQRvKR.rtbz"][..]), ("6-wdl", &["KQRvKQR.rtbw"][..]), ("empty", &[][..])] {
+            std::fs::create_dir_all(root.join(sub)).unwrap();
+            for f in files {
+                std::fs::write(root.join(sub).join(f), b"").unwrap();
+            }
+        }
+        // the parent folder: its sub-folders with tables, 6 pieces
+        let (p, n) = syzygy_resolve(&root.to_string_lossy());
+        assert_eq!(n, 6);
+        let parts: Vec<&str> = p.split(SYZYGY_SEP).collect();
+        assert_eq!(parts.len(), 2, "{p}");
+        assert!(parts[0].ends_with("3-4-5") && parts[1].ends_with("6-wdl"), "{p}");
+        // a folder with tables is kept as it is
+        let five = root.join("3-4-5").to_string_lossy().to_string();
+        assert_eq!(syzygy_resolve(&five), (five.clone(), 5));
+        // the export label of a tournament reads the files, not the folder name
+        let mut c = crate::scheduler::tests::cfg(TournamentKind::Gauntlet, &["A"], &["B"], 2, 1, 1);
+        c.syzygy_path = root.to_string_lossy().to_string();
+        assert_eq!(c.syzygy_pieces(), 6);
+        // a path that cannot be read: kept, pieces from the name
+        c.syzygy_path = "Z:/nowhere/3-4-5".into();
+        assert_eq!((c.syzygy_effective(), c.syzygy_pieces()), ("Z:/nowhere/3-4-5".to_string(), 5));
     }
 }
 

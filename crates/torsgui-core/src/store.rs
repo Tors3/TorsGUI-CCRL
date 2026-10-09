@@ -134,6 +134,9 @@ pub struct Settings {
     /// Empty = the managed download in `<workspace>/tools/fastchess`.
     pub fastchess_path: String,
     pub hash_per_thread_mb: u32,
+    /// Hash per thread of the Blitz list (CCRL: 256 MB at 1CPU, 2048 MB at 8CPU).
+    #[serde(default = "blitz_hash")]
+    pub hash_per_thread_blitz_mb: u32,
     pub adjudication: crate::model::Adjudication,
     pub theme: String,
     /// Windows: launch runners through a Task Scheduler task.
@@ -175,6 +178,14 @@ impl Settings {
     pub fn asset_policy(&self) -> crate::assets::AssetPolicy {
         if self.avx2_only { crate::assets::AssetPolicy::ccrl() } else { crate::assets::AssetPolicy::for_this_cpu() }
     }
+    /// Default hash of `threads` threads on a CCRL list (`model::ccrl_hash_mb` with these settings).
+    pub fn default_hash(&self, list: &str, threads: u32) -> u32 {
+        crate::model::ccrl_hash_mb(list, threads, self.hash_per_thread_blitz_mb, self.hash_per_thread_mb)
+    }
+}
+
+fn blitz_hash() -> u32 {
+    256
 }
 
 impl Default for Settings {
@@ -197,6 +208,7 @@ impl Default for Settings {
             fastchess_version: crate::fastchess::PINNED_VERSION.into(),
             fastchess_path: String::new(),
             hash_per_thread_mb: 512,
+            hash_per_thread_blitz_mb: 256,
             adjudication: Default::default(),
             theme: "dark".into(),
             use_task_scheduler: false,

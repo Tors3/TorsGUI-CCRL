@@ -123,7 +123,10 @@ export function SettingsPage() {
           <div className="grid grid-cols-2 gap-3">
             {txt("tester_name", "Tester name", "used in the export file name", false)}
             {txt("site", "Site", "your location (PGN Site tag)", false)}
-            <Field label="Hash per thread (MB)" hint="CCRL rule: 512">
+            <Field label="Hash per thread, Blitz (MB)" hint="CCRL Blitz: 256 (2048 at 8CPU)">
+              <input className="input tnum" type="number" value={s.hash_per_thread_blitz_mb} onChange={(e) => set("hash_per_thread_blitz_mb", +e.target.value)} data-testid="hash-blitz" />
+            </Field>
+            <Field label="Hash per thread, other lists (MB)" hint="40/15 and the others: 512 (at least 2 × this: 1024 at 1CPU, 4096 at 8CPU)">
               <input className="input tnum" type="number" value={s.hash_per_thread_mb} onChange={(e) => set("hash_per_thread_mb", +e.target.value)} />
             </Field>
             <Field label="Default machine factor">

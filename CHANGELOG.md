@@ -8,6 +8,15 @@
 ### Fixed
 - The forum post next to the export form follows the form: hash, threads, book, EGTB pieces
   and the CCRL names typed there (it used the tournament's settings only).
+- **Syzygy path**: the export label (`egtb N-man`) and the post said 0 when the folder name had
+  no digits (`F:\Sakk\syzygy`). TorsGUI now reads the tables (KQRvKR.rtbw = 5 pieces). A
+  folder that holds only sub-folders of tables (`syzygy\3-4-5`, `syzygy\6-wdl`…) is passed to
+  engines and fastchess as the list of those sub-folders: engines do not look inside
+  sub-folders, so either folder can be given.
+- **CCRL hash defaults**: Blitz 256 MB per thread (256 at 1CPU, 2048 at 8CPU); 40/15 and the
+  other lists 512 MB per thread, at least 1024 (1024 at 1CPU, 4096 at 8CPU). The wizard,
+  tournament files, the preflight and the CCRL checklist follow the tournament's list;
+  *Settings* has a Blitz value and one for the other lists.
 - Posts of a tournament with one random opening per game say so instead of "each opening
   played with colors reversed" (`{openings}` in the templates).
 

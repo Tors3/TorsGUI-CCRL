@@ -1684,8 +1684,9 @@ impl App {
             p.errors.push(format!("estimated RAM {} MB exceeds 85 % of the {} MB installed (fastchess keeps both engines alive)", p.ram_needed_mb, p.ram_total_mb));
         }
         for x in &cfg.participants {
-            if cfg.hash_of(x) != 512 * cfg.threads_of(x) {
-                p.warnings.push(format!("{}: hash {} MB differs from the CCRL rule 512 MB x {} threads = {} MB", x.name, cfg.hash_of(x), cfg.threads_of(x), 512 * cfg.threads_of(x)));
+            let rule = cfg.ccrl_hash(cfg.threads_of(x));
+            if cfg.hash_of(x) != rule {
+                p.warnings.push(format!("{}: hash {} MB differs from the CCRL rule for {} threads on the {} list: {} MB", x.name, cfg.hash_of(x), cfg.threads_of(x), if cfg.ccrl_list.is_empty() { "Blitz" } else { &cfg.ccrl_list }, rule));
             }
         }
         if cfg.book.is_empty() || !Path::new(&cfg.book).exists() {

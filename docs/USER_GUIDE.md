@@ -229,7 +229,7 @@ is remembered for the next time.
    an **Elo range** (*from*–*to*; the engines already chosen stay visible), sort by name or
    rating (column headers), or **Closest to seed** to list the opponents by distance from the
    seed's rating.
-3. *Conditions*: threads, hash (512 MB × threads by default), games per pairing (even, a
+3. *Conditions*: threads, hash (CCRL rule by default: Blitz 256 MB × threads, 2048 at 8CPU; 40/15 1024 MB at 1CPU, 4096 at 8CPU), games per pairing (even, a
    multiple of passes × 2), passes, time control (or compute it from the nominal TC and the
    factor), book, book start, Syzygy path, site, adjudication (defaults `-draw movenumber=35
    movecount=8 score=10`, `-resign movecount=4 score=600 twosided=true`) and extra fastchess

@@ -118,9 +118,13 @@ export function Wizard() {
     if (!topo || editId) return;
     setNodes(topo.nodes.map((n) => n.id));
   }, [topo, editId]);
+  // CCRL hash: Blitz 256 MB per thread (2048 at 8CPU); longer lists 512 per thread, at least 1024
+  const isBlitz = (l: string) => !l || l.toLowerCase() === "blitz";
+  const ccrlHash = (l: string, t: number) => (isBlitz(l) ? (settings?.hash_per_thread_blitz_mb ?? 256) * t : Math.max((settings?.hash_per_thread_mb ?? 512) * t, (settings?.hash_per_thread_mb ?? 512) * 2));
   useEffect(() => {
-    if (hashAuto) setHash((settings?.hash_per_thread_mb ?? 512) * threads);
-  }, [threads, hashAuto, settings]);
+    if (hashAuto) setHash(ccrlHash(list, threads));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threads, hashAuto, list, settings]);
   useEffect(() => {
     if (!topo) return;
     if (keepLanes.current) {
@@ -157,7 +161,7 @@ export function Wizard() {
         const own = c.participants.filter((p) => p.engine_id != null && ids.has(p.engine_id) && p.threads != null);
         setPartThreads(Object.fromEntries(own.map((p) => [p.engine_id!, p.threads!])));
         setCustomThreads(own.length > 0);
-        setHashAuto(c.hash_mb === (settings.hash_per_thread_mb ?? 512) * c.threads);
+        setHashAuto(c.hash_mb === ccrlHash(c.ccrl_list, c.threads));
         setHash(c.hash_mb);
         setTc(c.tc);
         setGames(c.games_per_pairing);
@@ -282,7 +286,7 @@ export function Wizard() {
     const r = ratings[e.display_name];
     const own = partThreads[e.id!];
     const ownThreads = own != null && own !== threads ? own : null;
-    return { name: e.display_name, cmd: e.path, dir: e.dir, args: was?.args ?? e.args ?? "", options: opts, role, engine_id: e.id, has_syzygy: e.has_syzygy, uci_id: e.uci_id, rating: r?.rating ?? null, rating_estimated: r?.estimated ?? false, threads: ownThreads, hash_mb: ownThreads != null ? (settings?.hash_per_thread_mb ?? 512) * ownThreads : null };
+    return { name: e.display_name, cmd: e.path, dir: e.dir, args: was?.args ?? e.args ?? "", options: opts, role, engine_id: e.id, has_syzygy: e.has_syzygy, uci_id: e.uci_id, rating: r?.rating ?? null, rating_estimated: r?.estimated ?? false, threads: ownThreads, hash_mb: ownThreads != null ? ccrlHash(list, ownThreads) : null };
   };
   const config: TournamentConfig | null = adj
     ? {
@@ -780,7 +784,7 @@ export function Wizard() {
               )}
             </div>
             <div className="grid gap-3 cond-grid">
-              <Field label="Hash (MB)" hint={hashAuto ? `${settings?.hash_per_thread_mb ?? 512} MB × threads` : <button className="underline" onClick={() => setHashAuto(true)}>automatic</button>}>
+              <Field label="Hash (MB)" hint={hashAuto ? (isBlitz(list) ? "CCRL Blitz: 256 MB × threads" : `CCRL ${list}: 512 MB × threads, at least 1024`) : <button className="underline" onClick={() => setHashAuto(true)}>automatic</button>}>
                 <input className="input tnum" type="number" value={hash} onChange={(e) => { setHashAuto(false); setHash(+e.target.value); }} />
               </Field>
               <Field

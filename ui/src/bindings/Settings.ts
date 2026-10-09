@@ -17,7 +17,11 @@ egbb_path: string, fastchess_version: string,
 /**
  * Empty = the managed download in `<workspace>/tools/fastchess`.
  */
-fastchess_path: string, hash_per_thread_mb: number, adjudication: Adjudication, theme: string, 
+fastchess_path: string, hash_per_thread_mb: number, 
+/**
+ * Hash per thread of the Blitz list (CCRL: 256 MB at 1CPU, 2048 MB at 8CPU).
+ */
+hash_per_thread_blitz_mb: number, adjudication: Adjudication, theme: string, 
 /**
  * Windows: launch runners through a Task Scheduler task.
  */

@@ -92,11 +92,12 @@ pub fn check(i: &Input) -> Checklist {
     });
 
     // CCRL conditions
-    let rule = 512 * c.threads;
+    let rule = c.ccrl_hash(c.threads);
+    let title = if crate::model::is_blitz(&c.ccrl_list) { "Hash 256 MB per thread (Blitz)".to_string() } else { "Hash 1024 MB at 1CPU, 512 MB per thread from 2 threads".to_string() };
     v.push(if c.hash_mb == rule {
-        item("hash", "Hash 512 MB per thread", Ok, format!("{} MB for {} thread(s)", c.hash_mb, c.threads))
+        item("hash", &title, Ok, format!("{} MB for {} thread(s)", c.hash_mb, c.threads))
     } else {
-        item("hash", "Hash 512 MB per thread", Fail, format!("{} MB, the CCRL rule gives {} MB for {} thread(s)", c.hash_mb, rule, c.threads))
+        item("hash", &title, Fail, format!("{} MB, the CCRL rule gives {} MB for {} thread(s)", c.hash_mb, rule, c.threads))
     });
     let ponder: Vec<&str> = c.participants.iter().filter(|p| p.options.iter().any(|(k, v)| k.eq_ignore_ascii_case("Ponder") && v.eq_ignore_ascii_case("true"))).map(|p| p.name.as_str()).collect();
     v.push(if ponder.is_empty() {
@@ -201,7 +202,7 @@ mod tests {
     fn cfg() -> TournamentConfig {
         let mut c = crate::scheduler::tests::cfg(TournamentKind::Gauntlet, &["Seed 1.0"], &["Opp 2.0", "Opp 3.1"], 30, 1, 2);
         c.threads = 8;
-        c.hash_mb = 4096;
+        c.hash_mb = 2048; // CCRL Blitz: 256 MB per thread
         c.tc = "103+1".into();
         c.book = "/books/avt-book-2026.pgn".into();
         c.syzygy_path = "C:/tb/syzygy5".into();
@@ -253,7 +254,7 @@ mod tests {
     #[test]
     fn problems_are_explained() {
         let mut c = cfg();
-        c.hash_mb = 2048;
+        c.hash_mb = 4096;
         c.participants[1].options = BTreeMap::from([("Ponder".into(), "true".into())]);
         c.participants[2].name = "Opp".into();
         c.variant = Variant::Chess960;
