@@ -303,7 +303,7 @@ function EditDialog({ e, setE, onDone }: { e: EngineEntry | null; setE: (e: Engi
           <input type="checkbox" checked={draft.used} onChange={(x) => set("used", x.target.checked)} /> Used in tournaments
         </label>
         <div className="col-span-2 muted text-[12px]">
-          Export name: <span className="mono">{draft.display_name} 64-bit</span> (+ <span className="mono">NCPU</span> when threads &gt; 1)
+          Export name: <span className="mono">{/\b64-bit$/i.test(draft.display_name.trim()) ? draft.display_name.trim() : `${draft.display_name.trim()} 64-bit`}</span> (+ <span className="mono">NCPU</span> when threads &gt; 1)
         </div>
       </div>
     </Modal>

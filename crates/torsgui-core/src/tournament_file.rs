@@ -329,7 +329,7 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
                 options.insert("Threads".into(), "${THREADS}".into());
                 options.insert("Hash".into(), "${HASH}".into());
                 options.extend(e.default_options.clone());
-                for (k, v) in crate::engines::tablebase_options(&e.options, &s.gaviota_path, &s.nalimov_path) {
+                for (k, v) in crate::engines::tablebase_options(&e.options, &s.gaviota_path, &s.nalimov_path, &s.egbb_path) {
                     // the engine's own path wins only when set ("<empty>" is the UCI default)
                     let own = options.get(&k).map(|o| o.trim()).filter(|o| !o.is_empty() && *o != "<empty>");
                     if own.is_none() {

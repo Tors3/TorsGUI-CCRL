@@ -127,6 +127,9 @@ pub struct Settings {
     /// Nalimov tablebases, passed to engines that have a Nalimov path option.
     #[serde(default)]
     pub nalimov_path: String,
+    /// Scorpio bitbases (egbbdll and the egbb files), passed to engines with an egbb path option.
+    #[serde(default)]
+    pub egbb_path: String,
     pub fastchess_version: String,
     /// Empty = the managed download in `<workspace>/tools/fastchess`.
     pub fastchess_path: String,
@@ -190,6 +193,7 @@ impl Default for Settings {
             syzygy_path: String::new(),
             gaviota_path: String::new(),
             nalimov_path: String::new(),
+            egbb_path: String::new(),
             fastchess_version: crate::fastchess::PINNED_VERSION.into(),
             fastchess_path: String::new(),
             hash_per_thread_mb: 512,

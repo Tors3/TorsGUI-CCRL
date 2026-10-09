@@ -263,6 +263,11 @@ export function Wizard() {
       if (o.kind !== "string" || !(n.includes("path") || n.includes("dir"))) continue;
       if (n.includes("gaviota") && settings?.gaviota_path?.trim()) out[o.name] = settings.gaviota_path.trim();
       else if (n.includes("nalimov") && settings?.nalimov_path?.trim()) out[o.name] = settings.nalimov_path.trim();
+      else if (n.includes("egbb") && settings?.egbb_path?.trim()) {
+        // Scorpio appends the file names to the path: it ends with a separator
+        const p = settings.egbb_path.trim();
+        out[o.name] = /[\\/]$/.test(p) ? p : p + (p.includes("\\") ? "\\" : "/");
+      }
     }
     return out;
   }

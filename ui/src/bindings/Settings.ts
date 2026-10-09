@@ -9,7 +9,11 @@ gaviota_path: string,
 /**
  * Nalimov tablebases, passed to engines that have a Nalimov path option.
  */
-nalimov_path: string, fastchess_version: string, 
+nalimov_path: string, 
+/**
+ * Scorpio bitbases (egbbdll and the egbb files), passed to engines with an egbb path option.
+ */
+egbb_path: string, fastchess_version: string, 
 /**
  * Empty = the managed download in `<workspace>/tools/fastchess`.
  */

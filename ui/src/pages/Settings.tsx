@@ -223,6 +223,7 @@ export function SettingsPage() {
             {path("syzygy_path", "Syzygy path passed to engines", "folder", "default of new tournaments: TorsGUI passes it to every engine with a SyzygyPath option (nothing to set per engine); fastchess adjudicates with it too")}
             {path("gaviota_path", "Gaviota path passed to engines", "folder", "engines with a Gaviota path option (GaviotaTbPath…)")}
             {path("nalimov_path", "Nalimov path passed to engines", "folder", "engines with a Nalimov path option (NalimovPath…)")}
+            {path("egbb_path", "Scorpio bitbases (egbb) passed to engines", "folder", "engines with an egbb path option (Scorpio: egbb_path, egbb_files_path)")}
             {path("output_dir", "Export output folder", "folder")}
           </div>
         </Panel>

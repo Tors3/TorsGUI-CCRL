@@ -6,7 +6,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 static CPU_SUFFIX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+\d+CPU$").unwrap());
-static BIT64: Lazy<Regex> = Lazy::new(|| Regex::new(r"\b64-bit$").unwrap());
+static BIT64: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b64-bit$").unwrap());
 
 /// `'Stockfish 19' -> 'Stockfish 19 64-bit 4CPU'`; does not double suffixes
 /// (same rules as export_ccrl.py `ccrl_name`).
@@ -168,6 +168,7 @@ mod tests {
         assert_eq!(ccrl_name("Triumviratus 7.0 64-bit", 4), "Triumviratus 7.0 64-bit 4CPU");
         assert_eq!(ccrl_name("Caissa 2.0 64-bit 4CPU", 8), "Caissa 2.0 64-bit 8CPU");
         assert_eq!(ccrl_name("Motor 0.9.0", 1), "Motor 0.9.0 64-bit");
+        assert_eq!(ccrl_name("XY 64-Bit", 1), "XY 64-Bit");
         assert_eq!(display_name("Stockfish_19", ""), "Stockfish 19");
     }
     #[test]

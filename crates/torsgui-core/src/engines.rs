@@ -74,7 +74,7 @@ pub struct EngineEntry {
 
 /// The engine's own Gaviota / Nalimov path options (names vary: `GaviotaTbPath`,
 /// `GaviotaTBPath`, `NalimovPath`, `Nalimov Path`…) filled with the paths of the settings.
-pub fn tablebase_options(opts: &[UciOption], gaviota: &str, nalimov: &str) -> Vec<(String, String)> {
+pub fn tablebase_options(opts: &[UciOption], gaviota: &str, nalimov: &str, egbb: &str) -> Vec<(String, String)> {
     let mut out = Vec::new();
     for o in opts.iter().filter(|o| o.kind == "string") {
         let n = o.name.to_lowercase();
@@ -85,6 +85,13 @@ pub fn tablebase_options(opts: &[UciOption], gaviota: &str, nalimov: &str) -> Ve
             out.push((o.name.clone(), gaviota.trim().to_string()));
         } else if n.contains("nalimov") && !nalimov.trim().is_empty() {
             out.push((o.name.clone(), nalimov.trim().to_string()));
+        } else if n.contains("egbb") && !egbb.trim().is_empty() {
+            // Scorpio: egbb_path (egbbdll) and egbb_files_path (the bitbases), usually one folder;
+            // it appends the file names to the path, so the path ends with a separator
+            let e = egbb.trim();
+            let sep = if e.contains('\\') { '\\' } else { '/' };
+            let e = if e.ends_with(['/', '\\']) { e.to_string() } else { format!("{e}{sep}") };
+            out.push((o.name.clone(), e));
         }
     }
     out
@@ -733,8 +740,12 @@ mod tablebase_tests {
     fn gaviota_and_nalimov_options() {
         let o = |n: &str, k: &str| UciOption { name: n.into(), kind: k.into(), default: None, min: None, max: None, vars: vec![] };
         let opts = vec![o("GaviotaTbPath", "string"), o("GaviotaTbCache", "spin"), o("Nalimov Path", "string"), o("SyzygyPath", "string"), o("Hash", "spin")];
-        assert_eq!(tablebase_options(&opts, "D:/tb/gaviota", "D:/tb/nalimov"), vec![("GaviotaTbPath".to_string(), "D:/tb/gaviota".to_string()), ("Nalimov Path".to_string(), "D:/tb/nalimov".to_string())]);
-        assert_eq!(tablebase_options(&opts, "", "D:/tb/nalimov").len(), 1);
-        assert!(tablebase_options(&opts, "", "").is_empty());
+        assert_eq!(tablebase_options(&opts, "D:/tb/gaviota", "D:/tb/nalimov", ""), vec![("GaviotaTbPath".to_string(), "D:/tb/gaviota".to_string()), ("Nalimov Path".to_string(), "D:/tb/nalimov".to_string())]);
+        assert_eq!(tablebase_options(&opts, "", "D:/tb/nalimov", "").len(), 1);
+        assert!(tablebase_options(&opts, "", "", "").is_empty());
+        let scorpio = vec![o("egbb_path", "string"), o("egbb_files_path", "string"), o("egbb_cache_size", "spin"), o("nn_path", "string")];
+        let s = tablebase_options(&scorpio, "", "", "E:\\sakk\\egbb");
+        assert_eq!(s, vec![("egbb_path".to_string(), "E:\\sakk\\egbb\\".to_string()), ("egbb_files_path".to_string(), "E:\\sakk\\egbb\\".to_string())]);
+        assert_eq!(tablebase_options(&scorpio, "", "", "/tb/egbb/")[0].1, "/tb/egbb/");
     }
 }

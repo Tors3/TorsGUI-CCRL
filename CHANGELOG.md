@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.8] - 2026-10-09
+
+### Added
+- **Scorpio bitbases (EGBB)**: *Settings → Paths → Scorpio bitbases* is passed to every engine
+  with an egbb path option (Scorpio's `egbb_path` and `egbb_files_path`), with the trailing
+  separator Scorpio needs.
+
+### Fixed
+- The engine dialog showed "XY 64-bit 64-bit" as export name for an engine already called
+  "XY 64-bit" (the export itself was right); "64-Bit" in any case is recognised.
+
 ## [0.6.7] - 2026-10-08
 
 ### Added
