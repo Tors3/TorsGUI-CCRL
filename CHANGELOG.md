@@ -7,8 +7,7 @@
   everything useful or missing. Thank you, Gabor!
   - **Szőts colour theme**: warm cream and amber in the style of Arena, with the evaluation in
     bold red.
-  - **Szőts wood board**: ash and walnut squares in a carved wooden frame, with Gabor's
-    initials "G.Sz." in script on h1 (under the rook).
+  - **Szőts wood board**: ash and walnut squares in a carved wooden frame.
   - **Szőts pieces**: ivory and ebony shading on the cburnett pieces.
 - A "cburnett gloss" piece set (cburnett with a light glossy shading).
 - **Retro font** (Settings → Appearance → Font): DotGothic16 for text, IBM Plex Mono for
