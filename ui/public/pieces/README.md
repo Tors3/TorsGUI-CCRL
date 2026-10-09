@@ -10,6 +10,7 @@ Non-commercial or "freeware" sets are not bundled: import them for personal use 
 | Set | Author | Licence |
 |---|---|---|
 | cburnett | Colin M.L. Burnett | GPLv2+ |
+| cburnett_gloss | Colin M.L. Burnett; glossy shading added for TorsGUI | GPLv2+ |
 | mpchess | Maxime Chupin | GPLv3+ |
 | merida | Armando Hernandez Marroquin | GPLv2+ |
 | symmetric | the lichobile authors | GNU GPL v3 |

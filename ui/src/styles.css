@@ -217,6 +217,89 @@
   --board-dark: #a07a55;
   color-scheme: dark;
 }
+/* Szőts (made for Gabor Szőts): warm sand and cream panels, amber frames and dark-brown ink (a classic chess GUI look) */
+:root[data-theme="szots"] {
+  --bg: #e2d6c6;
+  --bg-2: #dbcdbb;
+  --panel: #f2eadf;
+  --panel-2: #e9dfd1;
+  --hover: #e3d5c3;
+  --border: #d3c2ac;
+  --border-strong: #b88a66;
+  --text: #2c1f13;
+  --text-2: #4a3522;
+  --muted: #7f6a56;
+  --accent: #a65d32;
+  --accent-2: #bf7849;
+  --accent-bg: rgba(166, 93, 50, 0.13);
+  --on-accent: #fff8ec;
+  --win: #3d7a2b;
+  --win-bg: rgba(61, 122, 43, 0.12);
+  --draw: #7b6a55;
+  --draw-bg: rgba(123, 106, 85, 0.12);
+  --loss: #b33a25;
+  --loss-bg: rgba(179, 58, 37, 0.11);
+  --warn: #965e08;
+  --warn-bg: rgba(200, 135, 40, 0.15);
+  --shadow: 0 6px 24px rgba(100, 62, 25, 0.18);
+  --board-light: #fcd7a2;
+  --board-dark: #ab6826;
+  color-scheme: light;
+}
+/* Szőts: a few touches of Arena's cream-yellow (panel headers, table headers, the selected page) */
+:root[data-theme="szots"] .panel-head,
+:root[data-theme="szots"] .tbl th {
+  background: #f5dfb3;
+}
+:root[data-theme="szots"] .nav-item.active {
+  background: #f1d79f;
+}
+/* Szőts: around the chessboard (game viewer, live games, play) the cream of Arena itself */
+:root[data-theme="szots"] .dialog:has(cg-board),
+:root[data-theme="szots"] .panel:has(cg-board) {
+  --panel: #fbe8c7;
+  --panel-2: #f7deb2;
+  --hover: #f4d49d;
+  --border: #e6c28c;
+  --accent-bg: rgba(212, 145, 90, 0.2);
+  background: #fbe8c7;
+}
+:root[data-theme="szots"] .dialog:has(cg-board) > .panel-head,
+:root[data-theme="szots"] .panel:has(cg-board) > .panel-head {
+  background: #f5dbab !important;
+  border-bottom-color: #d4915a;
+}
+/* charts and the move list on a lighter cream, the eval in bold red (as in Arena) */
+:root[data-theme="szots"] .dialog:has(cg-board) [data-testid="chart"],
+:root[data-theme="szots"] .panel:has(cg-board) [data-testid="chart"],
+:root[data-theme="szots"] .dialog:has(cg-board) [data-testid="move-list"],
+:root[data-theme="szots"] .panel:has(cg-board) [data-testid="move-list"],
+:root[data-theme="szots"] .dialog:has(cg-board) .panel:not(:has(cg-board)),
+:root[data-theme="szots"] .panel:has(cg-board) .panel:not(:has(cg-board)) {
+  background: #fdf1da;
+  border: 1px solid #e6c28c;
+  border-radius: 4px;
+}
+:root[data-theme="szots"] .eval-value {
+  color: #c8160c;
+  font-weight: 700;
+}
+/* Retro fonts (Settings → Appearance), bundled with TorsGUI (OFL-1.1): DotGothic16 (Fontworks),
+   a dot-matrix face like the screens of the classic chess GUIs, for text; IBM Plex Mono for
+   numbers, moves and tables */
+:root[data-font="retro"] {
+  --font-sans: "DotGothic16", Tahoma, Verdana, sans-serif;
+  --font-mono: "IBM Plex Mono", "Courier New", monospace;
+}
+/* the numeric areas (table figures, KPI values, clocks, evals, moves) in IBM Plex Mono, whole
+   cells only: never two fonts inside one word. DotGothic16 has no bold: no synthetic bold either */
+:root[data-font="retro"] .tnum,
+:root[data-font="retro"] .kpi-value {
+  font-family: var(--font-mono);
+}
+:root[data-font="retro"] body {
+  font-synthesis-weight: none;
+}
 /* black and white, strong borders */
 :root[data-theme="contrast"] {
   --bg: #000000;

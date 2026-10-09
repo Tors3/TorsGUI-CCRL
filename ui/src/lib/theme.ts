@@ -11,6 +11,7 @@ export const THEMES = [
   { id: "midnight", label: "Midnight", scheme: "dark", about: "Pure black, for OLED screens and dark rooms" },
   { id: "forest", label: "Forest", scheme: "dark", about: "Dark green, easy on the eyes for long sessions" },
   { id: "coffee", label: "Coffee", scheme: "dark", about: "Espresso browns, crema text and a caramel accent" },
+  { id: "szots", label: "Szőts", scheme: "light", about: "Made for Gabor Szőts, who tested TorsGUI release after release and reported everything useful or missing. Thank you, Gabor! Warm cream and amber like his favourite Arena look; pairs with the Szőts wood board" },
   { id: "contrast", label: "High contrast", scheme: "dark", about: "Black and white with strong borders" },
 ] as const;
 export type ThemeId = (typeof THEMES)[number]["id"];

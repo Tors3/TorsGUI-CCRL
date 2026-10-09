@@ -12,6 +12,7 @@ import { ErrorBox, Field, PageHeader, PageTabs, Panel, Spinner, useTabParam } fr
 import { call, usePoll } from "../lib/api";
 import { bytes } from "../lib/format";
 import type { AppInfo } from "../lib/types";
+import { FONTS, useFont } from "../lib/font";
 import { THEMES, useTheme } from "../lib/theme";
 
 const SETTINGS_TABS = [
@@ -211,6 +212,9 @@ export function SettingsPage() {
         <Panel title="Colour theme" actions={<span className="muted text-[11.5px]">saved on this computer, applied immediately · shortcut t</span>}>
           <ThemePicker />
         </Panel>
+        <Panel title="Font" actions={<span className="muted text-[11.5px]">saved on this computer, applied immediately</span>}>
+          <FontPicker />
+        </Panel>
         <Panel title="Board appearance" actions={<span className="muted text-[11.5px]">saved on this computer, applied immediately</span>}>
           <BoardAppearance />
         </Panel>
@@ -348,6 +352,27 @@ export function SettingsPage() {
 }
 
 /** The app's colour themes, with a preview of each palette. */
+function FontPicker() {
+  const { font, setFont } = useFont();
+  return (
+    <div className="flex flex-wrap gap-2" data-testid="font-picker">
+      {FONTS.map((f) => (
+        <button
+          key={f.id}
+          className={`btn ${font === f.id ? "btn-primary" : ""}`}
+          style={{ fontFamily: f.id === "retro" ? '"DotGothic16", Tahoma, sans-serif' : undefined }}
+          onClick={() => setFont(f.id)}
+          title={f.about}
+          data-testid={`font-${f.id}`}
+        >
+          {f.label}
+        </button>
+      ))}
+      <span className="muted text-[12px] self-center">{FONTS.find((f) => f.id === font)?.about}</span>
+    </div>
+  );
+}
+
 function ThemePicker() {
   const { theme, setTheme } = useTheme();
   return (

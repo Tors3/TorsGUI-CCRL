@@ -144,7 +144,8 @@ the bench test a 64-bit Stockfish 10 (`SF10`). Missing inputs skip those tests w
 
 - The testers who use TorsGUI every day and keep making it better (and starred it on GitHub):
   **Gabor**, who tests every release and reports everything useful or missing, from tablebase
-  paths and BMI2 builds to random openings, abandoned games and withdrawing engines;
+  paths and BMI2 builds to random openings, abandoned games and withdrawing engines (the Szőts theme, board and
+  pieces are dedicated to him);
   **Bastiii** (Bastiball21, see below), who tests it and runs tournaments with it; and
   **Mark Tang**, who uses it, also to test the pre-releases of Triumviratus 8.
 - [Rust Chess GUI](https://github.com/Bastiball21/Rust-Chess-GUI) by **Bastiball21** (Bastiii), the
@@ -179,6 +180,11 @@ the bench test a 64-bit Stockfish 10 (`SF10`). Missing inputs skip those tests w
   [sharechess](https://github.com/sharechess/sharechess) for the piece-set collection; every
   piece set's author and licence is listed in
   [ui/public/pieces/README.md](ui/public/pieces/README.md).
+- The fonts bundled for the Retro font and the board initials, all under the SIL Open Font
+  License: [DotGothic16](https://fonts.google.com/specimen/DotGothic16) (Fontworks),
+  [IBM Plex Mono](https://github.com/IBM/plex) (IBM) and
+  [Pinyon Script](https://fonts.google.com/specimen/Pinyon+Script) (Nicole Fally), via
+  [Fontsource](https://fontsource.org).
 - [Tauri](https://tauri.app), [cozy-chess](https://github.com/analog-hors/cozy-chess),
   [uPlot](https://github.com/leeoniya/uPlot) and the other open-source libraries TorsGUI uses.
 

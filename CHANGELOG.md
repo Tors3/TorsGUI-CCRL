@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.3] - 2026-10-09
+
+### Added
+- **The Szőts set, for Gabor Szőts**, who tested TorsGUI release after release and reported
+  everything useful or missing. Thank you, Gabor!
+  - **Szőts colour theme**: warm cream and amber in the style of Arena, with the evaluation in
+    bold red.
+  - **Szőts wood board**: ash and walnut squares in a carved wooden frame, with Gabor's
+    initials "G.Sz." in script on h1 (under the rook).
+  - **Szőts pieces**: ivory and ebony shading on the cburnett pieces.
+- A "cburnett gloss" piece set (cburnett with a light glossy shading).
+- **Retro font** (Settings → Appearance → Font): DotGothic16 for text, IBM Plex Mono for
+  numbers. Both are bundled, so they work offline.
+
+### Fixed
+- The file letters (a–h) on the board now sit in the corner of their own square.
+
 ## [0.7.2] - 2026-10-09
 
 ### Fixed

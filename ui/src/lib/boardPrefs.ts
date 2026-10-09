@@ -18,13 +18,14 @@ export type BoardPrefs = {
   customDark: string;
 };
 
-export const BOARD_THEMES = ["minimal", "slate", "ocean", "tournament", "classic", "walnut", "maple", "marble", "custom"] as const;
+export const BOARD_THEMES = ["minimal", "slate", "ocean", "tournament", "classic", "walnut", "maple", "szots", "marble", "custom"] as const;
 export type BoardTheme = (typeof BOARD_THEMES)[number];
 export const THEME_LABEL: Record<BoardTheme, string> = {
   minimal: "Minimal",
   custom: "Custom",
   walnut: "Walnut",
   maple: "Maple",
+  szots: "Szőts wood (for Gabor)",
   marble: "Marble",
   tournament: "Tournament green",
   ocean: "Ocean",

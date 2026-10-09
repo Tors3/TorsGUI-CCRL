@@ -41,6 +41,61 @@
   background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Cfilter id='f' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.16' numOctaves='4' seed='11'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  1.4 0 0 0 -0.35'/%3E%3C/filter%3E%3Crect width='512' height='512' filter='url%28%23f%29'/%3E%3C/svg%3E") 0 0 / 100% 100%, repeating-conic-gradient(#c79a64 0 25%, #f3dfb8 0 50%) 0 0 / 25% 25%;
   background-blend-mode: soft-light, normal;
 }
+/* Szőts wood (made for Gabor Szőts): warm light and dark wood with fine grain, amber frame (pairs with the Szőts theme) */
+/* Szőts wood (made for Gabor Szőts): peach light squares and reddish-brown dark squares with a soft grain, orange-brown
+   frame (the wooden board of Arena; pairs with the Tokaj theme) */
+.board-theme-szots {
+  --sq-light: #fcd7a2;
+  --sq-dark: #ab6826;
+  --sq-last: rgba(255, 226, 92, 0.45);
+}
+.board-theme-szots cg-board {
+  /* the wooden board drawn for TorsGUI (public/board/make_board.py, GPL-3.0-or-later), under a
+     lamp at the top left: warm light, a soft vignette, sunk into its frame */
+  background:
+    radial-gradient(ellipse 120% 120% at 18% 12%, rgba(255, 240, 210, 0.22) 0%, rgba(255, 240, 210, 0) 55%),
+    radial-gradient(ellipse 95% 95% at 50% 50%, rgba(0, 0, 0, 0) 62%, rgba(35, 16, 3, 0.22) 100%),
+    linear-gradient(135deg, rgba(255, 244, 220, 0.1) 0%, rgba(40, 20, 5, 0.14) 100%),
+    url("/board/szots.webp") 0 0 / 100% 100%;
+  box-shadow: inset 0 0 0 1px rgba(60, 30, 8, 0.6), inset 3px 4px 9px rgba(35, 16, 3, 0.45);
+}
+/* Gabor Szőts' initials in dark ink on h1 (bottom right for White, top left when flipped):
+   under the pieces, seen when the rook leaves the square */
+.board-theme-szots cg-board {
+  container-type: size;
+}
+.board-theme-szots cg-board::before {
+  content: "G.Sz.";
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12.5%;
+  height: 12.5%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Pinyon Script", "Edwardian Script ITC", cursive;
+  font-size: 2.8cqw;
+  line-height: 1;
+  color: rgba(52, 26, 8, 0.88);
+  text-shadow: 0 1px 0 rgba(255, 240, 210, 0.5);
+  pointer-events: none;
+}
+.board-theme-szots .orientation-black cg-board::before {
+  bottom: auto;
+  right: auto;
+  top: 0;
+  left: 0;
+}
+/* real pieces on wood: a tight contact shadow at the base and a soft one cast by the lamp */
+.board-theme-szots.board-box .cg-wrap piece {
+  filter: drop-shadow(0.6px 1px 0.5px rgba(25, 12, 2, 0.55)) drop-shadow(3px 5px 4px rgba(40, 20, 5, 0.32));
+}
+.board-theme-szots.board-box {
+  border: 20px solid transparent;
+  border-image: url("/board/szots-frame.webp") 48 / 20px stretch;
+  box-shadow: 0 6px 18px rgba(90, 50, 10, 0.28);
+}
 .board-theme-marble {
   --sq-light: #e9e7e1;
   --sq-dark: #9aa6a0;
@@ -110,6 +165,18 @@
   font-size: clamp(9px, 1.9cqw, 13px);
   font-weight: 700;
   opacity: 1;
+}
+/* file letters in the bottom-right corner of their own square (chessground shifts them 24px) */
+.board-box .cg-wrap coords.files {
+  left: 0;
+  bottom: 1px;
+  width: 100%;
+  height: auto;
+}
+.board-box .cg-wrap coords.files coord {
+  flex: 1 1 0;
+  text-align: right;
+  padding-right: 0.3em;
 }
 .board-box {
   container-type: inline-size;

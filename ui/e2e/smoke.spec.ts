@@ -524,6 +524,15 @@ test("sidebar sections, compact sidebar and colour themes", async ({ page }) => 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "coffee");
   // a primary button keeps readable dark text on the caramel accent
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--on-accent").trim())).toBe("#1f150d");
+  await page.getByTestId("app-theme-szots").click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "szots");
+  await expect(page.getByTestId("app-theme-szots")).toContainText("Gabor");
+  await page.getByTestId("font-retro").click();
+  await expect(page.locator("html")).toHaveAttribute("data-font", "retro");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-font", "retro");
+  await page.getByTestId("font-modern").click();
+  await expect(page.locator("html")).toHaveAttribute("data-font", "modern");
   await page.getByTestId("app-theme-dark").click();
   // icons only
   await page.getByTestId("sidebar-toggle").click();

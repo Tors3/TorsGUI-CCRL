@@ -257,7 +257,7 @@ export function GameViewer({ game, onClose }: { game: GameRef | null; onClose: (
             <div className="panel p-2 grid grid-cols-3 gap-2 text-[12px] tnum">
               <div>
                 <div className="kpi-label">Eval</div>
-                {cur?.info.book ? "book" : evalText(cur?.eval_cp)}
+                <span className="eval-value">{cur?.info.book ? "book" : evalText(cur?.eval_cp)}</span>
               </div>
               <div>
                 <div className="kpi-label">Depth</div>

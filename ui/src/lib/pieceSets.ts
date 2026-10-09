@@ -25,6 +25,20 @@ export const BUNDLED_PIECE_SETS: PieceSetInfo[] = [
     "license": "GPLv2+"
   },
   {
+    "id": "szots",
+    "label": "Szőts (for Gabor)",
+    "family": "szots",
+    "author": "Colin M.L. Burnett (ivory and ebony shading: TorsGUI)",
+    "license": "GPLv2+"
+  },
+  {
+    "id": "cburnett_gloss",
+    "label": "Cburnett (gloss)",
+    "family": "cburnett",
+    "author": "Colin M.L. Burnett (shading: TorsGUI)",
+    "license": "GPLv2+"
+  },
+  {
     "id": "mpchess",
     "label": "MPChess",
     "family": "mpchess",

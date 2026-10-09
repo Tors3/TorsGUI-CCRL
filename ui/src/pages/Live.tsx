@@ -93,7 +93,7 @@ function EnginePanel({ e, color }: { e?: EngineLive; color: string }) {
         <span className="flex items-center gap-1.5">
           <span className="dot" style={{ color }} /> {e.name}
         </span>
-        <span className="tnum">{evalText(e.score_cp, e.mate)}</span>
+        <span className="tnum eval-value">{evalText(e.score_cp, e.mate)}</span>
       </div>
       <div className="grid grid-cols-4 gap-1 tnum muted mt-1">
         <span>d {e.depth ?? "—"}/{e.seldepth ?? "—"}</span>
