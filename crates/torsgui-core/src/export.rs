@@ -40,6 +40,12 @@ pub struct ExportOptions {
     /// Where each CCRL spelling comes from (shown next to it).
     #[serde(default)]
     pub name_sources: BTreeMap<String, String>,
+    /// Leave out the games fastchess ended as abandoned (an engine crashed or stopped answering).
+    #[serde(default)]
+    pub skip_abandoned: bool,
+    /// Players (as in the PGNs) whose games are left out (withdrawn engines by default).
+    #[serde(default)]
+    pub exclude_players: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
@@ -52,6 +58,9 @@ pub struct ExportResult {
     pub event: String,
     pub base_name: String,
     pub players: Vec<String>,
+    /// Games left out: abandoned, or of an excluded player.
+    #[serde(default)]
+    pub left_out: usize,
 }
 
 static EVENT_LINE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(?m)^\[Event ".*"\]$"#).unwrap());
@@ -150,16 +159,26 @@ pub fn zip_name(base: &str) -> String {
     format!("{}.zip", s.trim_matches('_'))
 }
 
-/// Builds the export text (without writing files).
-pub fn build(files: &[PathBuf], o: &ExportOptions) -> Result<(String, String, usize, usize, Vec<String>)> {
-    let sel = select_unique(files)?;
+/// Is this game left out of the export (abandoned, or of an excluded player)?
+pub fn left_out(h: &Headers, o: &ExportOptions) -> bool {
+    (o.skip_abandoned && h.get_or("Termination", "").trim().eq_ignore_ascii_case("abandoned"))
+        || o.exclude_players.iter().any(|p| p == h.get_or("White", "") || p == h.get_or("Black", ""))
+}
+
+/// Builds the export text (without writing files): (text, event, games, duplicates, players,
+/// games left out).
+pub fn build(files: &[PathBuf], o: &ExportOptions) -> Result<(String, String, usize, usize, Vec<String>, usize)> {
+    let mut sel = select_unique(files)?;
+    let before = sel.blocks.len();
+    sel.blocks.retain(|(_, h)| !left_out(h, o));
+    let left = before - sel.blocks.len();
     if sel.blocks.is_empty() {
-        bail!("no finished game");
+        bail!("no finished game{}", if left > 0 { format!(" ({left} left out)") } else { String::new() });
     }
     let export_name = |n: &str| ccrl_name(o.ccrl_names.get(n).map(|s| s.trim()).filter(|s| !s.is_empty()).unwrap_or(n), o.threads_of.get(n).copied().unwrap_or(o.threads));
     let seed = export_name(&o.seed);
     let event = event_name(&seed, &sel.blocks)?;
-    let names: HashMap<String, String> = o.players.iter().map(|n| (n.clone(), export_name(n))).collect();
+    let names: HashMap<String, String> = o.players.iter().filter(|n| !o.exclude_players.contains(n)).map(|n| (n.clone(), export_name(n))).collect();
     let mut out = Vec::with_capacity(sel.blocks.len());
     for (i, (b, _)) in sel.blocks.iter().enumerate() {
         let b = EVENT_LINE.replace_all(b, |_: &regex::Captures| format!("[Event \"{event}\"]"));
@@ -175,12 +194,12 @@ pub fn build(files: &[PathBuf], o: &ExportOptions) -> Result<(String, String, us
     players.sort();
     players.dedup();
     let text = out.join("\n\n") + "\n\n";
-    Ok((text, event, out.len(), sel.duplicates, players))
+    Ok((text, event, out.len(), sel.duplicates, players, left))
 }
 
 /// Writes `<base>.pgn` (and the zip) into `out_dir`.
 pub fn export(files: &[PathBuf], o: &ExportOptions, out_dir: &Path) -> Result<ExportResult> {
-    let (text, event, n, dups, players) = build(files, o)?;
+    let (text, event, n, dups, players, left) = build(files, o)?;
     let base = base_name(o, &event);
     std::fs::create_dir_all(out_dir)?;
     let pgn_path = out_dir.join(format!("{base}.pgn"));
@@ -205,6 +224,7 @@ pub fn export(files: &[PathBuf], o: &ExportOptions, out_dir: &Path) -> Result<Ex
         event,
         base_name: base,
         players,
+        left_out: left,
     })
 }
 
@@ -264,13 +284,29 @@ mod tests {
             make_zip: false,
             ccrl_names: BTreeMap::from([("Pawnocchio 2.1".to_string(), "pawnocchio 2.1".to_string()), ("Integral v8".to_string(), "Integral 8".to_string())]),
             name_sources: BTreeMap::new(),
+            skip_abandoned: true,
+            exclude_players: vec![],
         };
-        let (text, event, n, _, players) = build(&[pgn], &o).unwrap();
+        let (text, event, n, _, players, _) = build(&[pgn.clone()], &o).unwrap();
         assert_eq!(n, 2);
         assert_eq!(event, "pawnocchio 2.1 64-bit 4CPU - Sep 27");
         assert!(text.contains("[White \"pawnocchio 2.1 64-bit 4CPU\"]") && text.contains("[Black \"Integral 8 64-bit\"]"));
         assert!(!text.contains("Integral v8"));
         assert_eq!(players, vec!["Integral 8 64-bit", "pawnocchio 2.1 64-bit 4CPU"]);
+        // abandoned games and the games of a withdrawn engine are left out
+        let abandoned = game("Pawnocchio 2.1", "Coda 0.9.4", "2026-09-27T12:00:00").replace("[GameEndTime", "[Termination \"abandoned\"]\n[GameEndTime");
+        let withdrawn = game("Lux 5.0", "Pawnocchio 2.1", "2026-09-27T13:00:00");
+        std::fs::write(&pgn, game("Pawnocchio 2.1", "Integral v8", "2026-09-27T10:00:00") + &abandoned + &withdrawn).unwrap();
+        let mut o2 = o.clone();
+        o2.players.push("Lux 5.0".into());
+        o2.exclude_players = vec!["Lux 5.0".into()];
+        let (text, _, n, _, players, left) = build(&[pgn.clone()], &o2).unwrap();
+        assert_eq!((n, left), (1, 2));
+        assert!(!text.contains("Coda") && !text.contains("Lux"));
+        assert!(!players.iter().any(|p| p.contains("Lux")));
+        o2.skip_abandoned = false;
+        o2.exclude_players.clear();
+        assert_eq!(build(&[pgn], &o2).unwrap().5, 0);
         std::fs::remove_dir_all(&dir).ok();
     }
 }

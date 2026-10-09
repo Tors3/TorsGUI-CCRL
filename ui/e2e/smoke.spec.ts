@@ -830,3 +830,34 @@ test("one random opening per game, and the folders of the PGNs and game logs", a
   expect(bad.ok()).toBe(false);
   await page.request.post("/api/tournament_delete", { data: { id, delete_files: true } });
 });
+
+test("withdraw an engine: its games are dropped and left out of the export", async ({ page }) => {
+  await page.goto("/#/tournaments/new");
+  await page.getByLabel(/seed Caissa 2.0/).check();
+  await page.getByLabel(/opponent Berserk 14/).first().check();
+  await page.getByLabel(/opponent Stockfish 19/).first().check();
+  await page.getByTestId("wizard-step-conditions").click();
+  await page.getByTestId("games-per-pairing").fill("4");
+  await page.getByTestId("create-draft").click();
+  await expect(page).toHaveURL(/#\/tournaments\/(?!new)[^/]+$/);
+  const id = decodeURIComponent(page.url().split("/tournaments/")[1]);
+  const get = async () => (await (await page.request.post("/api/tournament_get", { data: { id } })).json()).summary.record;
+  expect((await get()).expected_games).toBe(8);
+  const w = await (await page.request.post("/api/tournament_withdraw", { data: { id, name: "Stockfish 19", withdrawn: true } })).json();
+  expect(w.expected_games).toBe(4);
+  const rec = await get();
+  expect(rec.config.participants.find((p: any) => p.name === "Stockfish 19").withdrawn).toBe(true);
+  // the export leaves its games out by default, and abandoned games too
+  const ex = await (await page.request.post("/api/export_defaults", { data: { id } })).json();
+  expect(ex.exclude_players).toEqual(["Stockfish 19"]);
+  expect(ex.skip_abandoned).toBe(true);
+  // the seed cannot be withdrawn
+  expect((await page.request.post("/api/tournament_withdraw", { data: { id, name: "Caissa 2.0", withdrawn: true } })).ok()).toBe(false);
+  // the Configuration tab shows it, with the button to bring it back
+  await page.getByRole("tab", { name: "Configuration" }).click();
+  await expect(page.getByTestId("withdraw-panel")).toContainText("withdrawn");
+  await expect(page.getByTestId("withdraw-Stockfish 19")).toHaveText("Bring back");
+  await page.getByTestId("withdraw-Stockfish 19").click();
+  await expect.poll(async () => (await get()).expected_games).toBe(8);
+  await page.request.post("/api/tournament_delete", { data: { id, delete_files: true } });
+});

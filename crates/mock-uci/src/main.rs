@@ -28,12 +28,14 @@ struct Cfg {
     syzygy: bool,
     /// Declares `UCI_Chess960` (default true).
     frc: bool,
+    /// Declares `UCI_AnalyseMode` (`--analyse`).
+    analyse: bool,
 }
 
 fn parse_args() -> Cfg {
     // the copy bundled with TorsGUI for the demo tournament introduces itself as such
     let bundled = std::env::current_exe().ok().and_then(|p| p.file_stem().map(|s| s.to_string_lossy().starts_with("torsgui-demo-engine"))).unwrap_or(false);
-    let mut c = Cfg { name: if bundled { "TorsGUI Demo Engine".into() } else { "MockUCI".into() }, strength: 50, movetime: 5, seed: 1, crash_after: None, hang_after: None, slow_start: 0, illegal_after: None, syzygy: true, frc: true };
+    let mut c = Cfg { name: if bundled { "TorsGUI Demo Engine".into() } else { "MockUCI".into() }, strength: 50, movetime: 5, seed: 1, crash_after: None, hang_after: None, slow_start: 0, illegal_after: None, syzygy: true, frc: true, analyse: false };
     let a: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
     while i < a.len() {
@@ -49,6 +51,11 @@ fn parse_args() -> Cfg {
             "--illegal-after" => c.illegal_after = v.parse().ok(),
             "--no-960" => {
                 c.frc = false;
+            }
+            "--analyse" => {
+                c.analyse = true;
+                i += 1;
+                continue;
             }
             "--no-syzygy" => {
                 c.syzygy = false;
@@ -165,6 +172,9 @@ fn main() {
                 }
                 if cfg.frc {
                     let _ = writeln!(out, "option name UCI_Chess960 type check default false");
+                }
+                if cfg.analyse {
+                    let _ = writeln!(out, "option name UCI_AnalyseMode type check default false");
                 }
                 let _ = writeln!(out, "option name Strength type spin default {} min 0 max 100", cfg.strength);
                 let _ = writeln!(out, "option name MoveTime type spin default {} min 1 max 5000", cfg.movetime);

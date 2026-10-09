@@ -352,6 +352,7 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
                     uci_id: if e.uci_id.is_empty() { None } else { Some(e.uci_id.clone()) },
                     threads: own_threads,
                     hash_mb: own_hash,
+                    withdrawn: false,
                     rating,
                     rating_estimated: est,
                 });

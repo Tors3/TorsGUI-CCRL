@@ -286,7 +286,7 @@ export function Wizard() {
     const r = ratings[e.display_name];
     const own = partThreads[e.id!];
     const ownThreads = own != null && own !== threads ? own : null;
-    return { name: e.display_name, cmd: e.path, dir: e.dir, args: was?.args ?? e.args ?? "", options: opts, role, engine_id: e.id, has_syzygy: e.has_syzygy, uci_id: e.uci_id, rating: r?.rating ?? null, rating_estimated: r?.estimated ?? false, threads: ownThreads, hash_mb: ownThreads != null ? ccrlHash(list, ownThreads) : null };
+    return { name: e.display_name, cmd: e.path, dir: e.dir, args: was?.args ?? e.args ?? "", options: opts, role, engine_id: e.id, has_syzygy: e.has_syzygy, uci_id: e.uci_id, rating: r?.rating ?? null, rating_estimated: r?.estimated ?? false, threads: ownThreads, hash_mb: ownThreads != null ? ccrlHash(list, ownThreads) : null, withdrawn: was?.withdrawn ?? false };
   };
   const config: TournamentConfig | null = adj
     ? {

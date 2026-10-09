@@ -554,3 +554,14 @@ every way to add engines.
 `r` = Getting started, `h` = Help, `y` = Game analysis, `p` = Test suites, `v` = Play) ·
 `n` new tournament · `t` next colour theme · in the game viewer `←` `→` `Home` `End`, `Space` play/pause,
 `f` flip, `t` theater mode.
+
+## Withdrawing an engine, leaving games out of the export
+
+- An engine that keeps crashing can be **withdrawn**: pause or stop the tournament, open
+  *Configuration → Engines* and click *Withdraw*. Its games still to play are dropped (the
+  other pairings keep their openings) and the expected games are updated; *Bring back* undoes
+  it. Swiss and knockout tournaments cannot withdraw engines (the next rounds depend on them).
+- The CCRL export leaves out **abandoned games** (an engine crashed or stopped answering) by
+  default, and the games of withdrawn engines (*Leave out* column). Untick to keep them.
+- **Test suites and analysis** run the engines in UCI analysis mode (`UCI_AnalyseMode true`)
+  when they declare it; tournament games never do.

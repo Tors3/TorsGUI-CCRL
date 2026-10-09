@@ -24,4 +24,12 @@ ccrl_names: { [key in string]: string },
 /**
  * Where each CCRL spelling comes from (shown next to it).
  */
-name_sources: { [key in string]: string }, };
+name_sources: { [key in string]: string }, 
+/**
+ * Leave out the games fastchess ended as abandoned (an engine crashed or stopped answering).
+ */
+skip_abandoned: boolean, 
+/**
+ * Players (as in the PGNs) whose games are left out (withdrawn engines by default).
+ */
+exclude_players: Array<string>, };

@@ -30,4 +30,9 @@ threads?: number | null,
 /**
  * Hash (MB) of this engine when it differs from the tournament's.
  */
-hash_mb?: number | null, };
+hash_mb?: number | null, 
+/**
+ * Withdrawn from the tournament: its games still to play are dropped (the other pairings
+ * keep their openings), and its games are left out of the CCRL export by default.
+ */
+withdrawn?: boolean, };

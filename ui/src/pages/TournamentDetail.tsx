@@ -464,6 +464,42 @@ function Rounds({ v, ko }: { v: StagesView; ko: boolean }) {
   );
 }
 
+/** Withdraw an engine (its games still to play are dropped) or bring it back. */
+function Withdraw({ d, refresh }: { d: TournamentDetail; refresh: () => void }) {
+  const r = d.summary.record;
+  if (r.imported) return null;
+  const dynamic = r.config.kind === "swiss" || r.config.kind === "knockout";
+  const running = d.summary.runner_alive;
+  const toggle = async (name: string, withdrawn: boolean) => {
+    if (withdrawn && !confirm(`Withdraw ${name}? Its games still to play are dropped; the games already played stay in the PGNs and are left out of the export by default.`)) return;
+    try {
+      const x = await call<{ expected_games: number }>("tournament_withdraw", { id: r.id, name, withdrawn });
+      toast.success(`${name} ${withdrawn ? "withdrawn" : "back in the tournament"}: ${x.expected_games} games`);
+      refresh();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+  return (
+    <Panel title="Engines" actions={<span className="muted text-[11.5px]">{dynamic ? "Swiss / knockout: no withdrawals" : running ? "pause the tournament to withdraw an engine" : "withdraw a crashing engine: its remaining games are dropped"}</span>}>
+      <div className="flex flex-col gap-1" data-testid="withdraw-panel">
+        {r.config.participants.map((p) => (
+          <div key={p.name} className="flex items-center gap-2 text-[12.5px]">
+            <span className={`flex-1 truncate ${p.withdrawn ? "line-through muted" : ""}`}>{p.name}</span>
+            {p.role === "seed" && <span className="chip">seed</span>}
+            {p.withdrawn && <span className="chip chip-warn">withdrawn</span>}
+            {p.role !== "seed" && !dynamic && (
+              <button className="btn btn-sm" disabled={running} onClick={() => toggle(p.name, !p.withdrawn)} data-testid={`withdraw-${p.name}`}>
+                {p.withdrawn ? "Bring back" : "Withdraw"}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
 function Config({ d, refresh }: { d: TournamentDetail; refresh: () => void }) {
   const r = d.summary.record;
   const [old, setOld] = useState(r.config.participants[0]?.name ?? "");
@@ -487,6 +523,7 @@ function Config({ d, refresh }: { d: TournamentDetail; refresh: () => void }) {
         <pre className="mono text-[11.5px] overflow-auto max-h-[60vh]">{JSON.stringify(r.config, null, 2)}</pre>
       </Panel>
       <div className="flex flex-col gap-3">
+        <Withdraw d={d} refresh={refresh} />
         <Panel title="Pairings">
           <div className="max-h-[260px] overflow-auto">
             {d.pairings.map(([a, b, n, t], i) => (

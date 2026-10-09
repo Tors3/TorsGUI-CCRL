@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0] - 2026-10-09
+
+### Added
+- **Withdraw an engine** from a tournament (*Configuration → Engines*, with the tournament
+  paused or stopped): its games still to play are dropped, the other pairings keep their
+  openings, the expected games are updated. *Bring back* undoes it. Not for Swiss / knockout.
+- **Export without abandoned games**: *leave out abandoned games* (on by default) drops the
+  games fastchess ended as abandoned (an engine crashed or stopped answering); a *Leave out*
+  column drops an engine's games (a withdrawn engine is ticked by default). The result says
+  how many games were left out.
+- **UCI analysis mode**: test suites and game analysis send `setoption name UCI_AnalyseMode
+  value true` to the engines that declare the option (as Fritz and ChessBase do in analysis);
+  tournament games never do.
+
 ## [0.6.9] - 2026-10-09
 
 ### Added

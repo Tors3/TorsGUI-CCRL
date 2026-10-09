@@ -209,7 +209,7 @@ pub fn run_game(cfg: &GameAnalysisConfig, engine: &EngineEntry, progress: Arc<Mu
         p.done = 0;
         p.result = Some(out.clone());
     }
-    let mut e = uci::start_entry(engine, cfg.threads, cfg.hash, &BTreeMap::new())?;
+    let mut e = uci::start_analysis(engine, cfg.threads, cfg.hash, &BTreeMap::new())?;
     e.new_game()?;
     for (i, b) in bs.iter().enumerate() {
         if cancel.load(Ordering::Relaxed) {
@@ -299,7 +299,7 @@ impl LiveAnalyzer {
                     }
                     let mut extra = BTreeMap::new();
                     extra.insert("MultiPV".to_string(), req.multipv.max(1).to_string());
-                    match uci::start_entry(&entry, req.threads, req.hash, &extra) {
+                    match uci::start_analysis(&entry, req.threads, req.hash, &extra) {
                         Ok(e) => eng = Some((e, req.clone())),
                         Err(err) => {
                             let mut s = state.lock().unwrap();

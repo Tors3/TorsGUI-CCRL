@@ -83,6 +83,10 @@ pub struct Participant {
     /// Hash (MB) of this engine when it differs from the tournament's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hash_mb: Option<u32>,
+    /// Withdrawn from the tournament: its games still to play are dropped (the other pairings
+    /// keep their openings), and its games are left out of the CCRL export by default.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub withdrawn: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ts_rs::TS)]
@@ -555,7 +559,7 @@ mod cpu_tests {
     use super::*;
 
     fn p(name: &str, role: Role, threads: Option<u32>) -> Participant {
-        Participant { name: name.into(), cmd: String::new(), dir: String::new(), args: String::new(), options: Default::default(), role, engine_id: None, has_syzygy: false, uci_id: None, rating: None, rating_estimated: false, threads, hash_mb: None }
+        Participant { name: name.into(), cmd: String::new(), dir: String::new(), args: String::new(), options: Default::default(), role, engine_id: None, has_syzygy: false, uci_id: None, rating: None, rating_estimated: false, threads, hash_mb: None, withdrawn: false }
     }
 
     #[test]

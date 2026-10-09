@@ -91,6 +91,7 @@ fn participant(v: &serde_json::Value, role: Role) -> Participant {
         rating_estimated: false,
         threads: None,
         hash_mb: None,
+        withdrawn: false,
     }
 }
 

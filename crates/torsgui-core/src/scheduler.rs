@@ -129,6 +129,10 @@ pub fn all_jobs(cfg: &TournamentConfig) -> Vec<Job> {
     for node in 0..cfg.nodes.len().max(1) as u32 {
         for p in 1..=play {
             for (j, (ea, eb)) in pairs.iter().enumerate() {
+                // a withdrawn engine plays no more; the pairing index (its openings) stays
+                if ea.withdrawn || eb.withdrawn {
+                    continue;
+                }
                 for r in 1..=rounds_for_node(cfg, node) {
                     let opening = opening_index(cfg, node, p, j, r, n_pair);
                     for rev in [false, true] {
@@ -661,6 +665,7 @@ pub(crate) mod tests {
             rating_estimated: false,
             threads: None,
             hash_mb: None,
+            withdrawn: false,
         }
     }
 
@@ -743,6 +748,17 @@ pub(crate) mod tests {
         }
         // RPP_BLOCK = 8 spacing even for node 1 which plays 7
         assert_eq!(opening_index(&c, 1, 1, 0, 1, 3), 1 + 3 * 8);
+    }
+
+    #[test]
+    fn a_withdrawn_engine_keeps_the_others_openings() {
+        let mut c = cfg(TournamentKind::Gauntlet, &["T"], &["A", "B", "C"], 30, 1, 2);
+        let before: Vec<Job> = all_jobs(&c).into_iter().filter(|j| j.black != "B" && j.white != "B").collect();
+        c.participants.iter_mut().find(|p| p.name == "B").unwrap().withdrawn = true;
+        let after = all_jobs(&c);
+        assert_eq!(after.len(), 60);
+        assert_eq!(after, before, "same slots and openings for the others");
+        assert_eq!(expected_games(&c), 60);
     }
 
     #[test]

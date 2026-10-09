@@ -194,6 +194,8 @@ pub struct Engine {
     rx: Receiver<String>,
     pub name: String,
     pub chess960: bool,
+    /// `UCI_AnalyseMode true` was sent (the engine declares it).
+    pub analyse_mode: bool,
 }
 
 impl Engine {
@@ -218,14 +220,22 @@ impl Engine {
                 }
             }
         });
-        let mut e = Engine { child, stdin, rx, name: String::new(), chess960: false };
+        let mut e = Engine { child, stdin, rx, name: String::new(), chess960: false, analyse_mode: false };
         e.send("uci")?;
         let lines = e.wait_for("uciok", Duration::from_secs(30)).context("the engine did not answer uciok")?;
         e.name = lines.iter().find_map(|l| l.strip_prefix("id name ")).unwrap_or("?").trim().to_string();
         e.chess960 = lines.iter().any(|l| l.starts_with("option name UCI_Chess960 "));
+        let analyse_mode = lines.iter().any(|l| l.starts_with("option name UCI_AnalyseMode "));
         for (k, v) in options {
             if v.is_empty() || v.contains("${") {
                 continue;
+            }
+            // analysis mode only for the engines that declare it
+            if k == ANALYSE_MODE {
+                if !analyse_mode {
+                    continue;
+                }
+                e.analyse_mode = v == "true";
             }
             e.send(&format!("setoption name {k} value {v}"))?;
         }
@@ -338,6 +348,17 @@ impl Drop for Engine {
 }
 
 /// Starts a library engine with its saved options, `threads` and `hash`.
+/// UCI's standard option for analysis (test suites, game analysis), like Fritz and ChessBase:
+/// the engine may then search differently than in a game. Sent only to the engines that declare it.
+pub const ANALYSE_MODE: &str = "UCI_AnalyseMode";
+
+/// `start_entry` in analysis mode (`UCI_AnalyseMode true` when the engine has it).
+pub fn start_analysis(e: &crate::engines::EngineEntry, threads: u32, hash: u32, extra: &BTreeMap<String, String>) -> Result<Engine> {
+    let mut x = extra.clone();
+    x.insert(ANALYSE_MODE.into(), "true".into());
+    start_entry(e, threads, hash, &x)
+}
+
 pub fn start_entry(e: &crate::engines::EngineEntry, threads: u32, hash: u32, extra: &BTreeMap<String, String>) -> Result<Engine> {
     let mut o = e.default_options.clone();
     o.insert("Threads".into(), threads.max(1).to_string());
@@ -347,7 +368,7 @@ pub fn start_entry(e: &crate::engines::EngineEntry, threads: u32, hash: u32, ext
     }
     // undeclared Threads/Hash are not sent when the declared options are known
     if !e.options.is_empty() {
-        for k in ["Threads", "Hash", "MultiPV", "UCI_Chess960"] {
+        for k in ["Threads", "Hash", "MultiPV", "UCI_Chess960", ANALYSE_MODE] {
             if !e.options.iter().any(|x| x.name == k) {
                 o.remove(k);
             }

@@ -84,6 +84,7 @@ fn part(name: &str, role: Role, args: &str) -> Participant {
         rating_estimated: false,
         threads: None,
         hash_mb: None,
+        withdrawn: false,
     }
 }
 
@@ -808,4 +809,17 @@ fn a_person_plays_against_an_engine() {
     let s = app.call("play_move", serde_json::json!({"uci": "d1d8"})).unwrap();
     assert_eq!((s["result"].as_str(), s["termination"].as_str(), s["active"].as_bool()), (Some("1-0"), Some("Black is checkmated"), Some(false)));
     app.call("play_stop", serde_json::json!({})).unwrap();
+}
+
+/// Test suites and analysis run engines in UCI analysis mode, only when they declare it.
+#[test]
+fn analysis_mode_only_for_engines_that_declare_it() {
+    use std::collections::BTreeMap;
+    let opts = BTreeMap::from([(torsgui_core::uci::ANALYSE_MODE.to_string(), "true".to_string())]);
+    let e = torsgui_core::uci::Engine::start(&mock(), "--analyse", &opts).unwrap();
+    assert!(e.analyse_mode);
+    e.quit();
+    let e = torsgui_core::uci::Engine::start(&mock(), "", &opts).unwrap();
+    assert!(!e.analyse_mode, "not declared: not sent");
+    e.quit();
 }

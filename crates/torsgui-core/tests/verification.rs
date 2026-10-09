@@ -112,6 +112,8 @@ fn export_matches(r: &Path, name: &str) {
         make_zip: true,
         ccrl_names: Default::default(),
         name_sources: Default::default(),
+        skip_abandoned: false,
+        exclude_players: vec![],
     };
     let dir = tempfile::tempdir().unwrap();
     let res = export::export(&t.pgns, &o, dir.path()).unwrap();
@@ -218,6 +220,8 @@ fn export_byte_compatible_with_python() {
         make_zip: false,
         ccrl_names: Default::default(),
         name_sources: Default::default(),
+        skip_abandoned: false,
+        exclude_players: vec![],
     };
     let files = torsgui_core::pgn::list_pgns(&g.join("pgn"));
     let res = export::export(&files, &o, &dir.path().join("rust")).unwrap();

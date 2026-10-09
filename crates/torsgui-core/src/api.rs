@@ -540,6 +540,39 @@ impl App {
                 store.push_event("info", "engine_options", Some(&id), &format!("{name}: options {}{}", if list.is_empty() { "reset to the defaults".to_string() } else { list }, if t.done_games > 0 { format!(" (from game {} on)", t.done_games + 1) } else { String::new() }))?;
                 ok(json!({"warnings": warnings}))
             }
+            "tournament_withdraw" => {
+                // withdraw an engine (or bring it back): its games still to play are dropped
+                let id: String = arg(&a, "id")?;
+                let name: String = arg(&a, "name")?;
+                let withdrawn: bool = opt(&a, "withdrawn").unwrap_or(true);
+                let mut t = store.tournament(&id)?.context("not found")?;
+                if t.imported {
+                    bail!("imported tournaments are read-only");
+                }
+                if t.config.kind.is_dynamic() {
+                    bail!("an engine cannot be withdrawn from a Swiss or knockout: the pairings of the next rounds depend on it");
+                }
+                if runner::is_running(&self.ws.tournament_dir(&id)) {
+                    bail!("pause or stop the tournament first, then withdraw the engine and resume");
+                }
+                let p = t.config.participants.iter_mut().find(|p| p.name == name).with_context(|| format!("'{name}' is not in this tournament"))?;
+                p.withdrawn = withdrawn;
+                if t.config.participants.iter().filter(|p| !p.withdrawn).count() < 2 || t.config.seeds().iter().all(|p| p.withdrawn) {
+                    bail!("at least the seed and one opponent must stay in the tournament");
+                }
+                let expected = scheduler::expected_games(&t.config) as u32;
+                store.update_config(&id, &t.config, expected)?;
+                let dir = self.ws.tournament_dir(&id);
+                std::fs::create_dir_all(&dir)?;
+                std::fs::write(dir.join("config.json"), serde_json::to_string_pretty(&t.config)?)?;
+                store.push_event(
+                    "info",
+                    "engine_withdrawn",
+                    Some(&id),
+                    &if withdrawn { format!("{name} withdrawn: {expected} games in the tournament now; its games are left out of the export") } else { format!("{name} back in the tournament: {expected} games") },
+                )?;
+                ok(json!({"expected_games": expected}))
+            }
             "engine_check_options" => {
                 let id: i64 = arg(&a, "engine_id")?;
                 let e = store.engine(id)?.context("engine not found")?;
@@ -1921,6 +1954,8 @@ impl App {
             make_zip: true,
             ccrl_names,
             name_sources,
+            skip_abandoned: true,
+            exclude_players: t.config.participants.iter().filter(|p| p.withdrawn).map(|p| p.name.clone()).collect(),
         })
     }
 

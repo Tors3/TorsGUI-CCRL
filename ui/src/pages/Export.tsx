@@ -186,6 +186,9 @@ export function ExportPage() {
                   <label className="flex items-center gap-1.5">
                     <input type="checkbox" checked={copyOut} onChange={(e) => setCopyOut(e.target.checked)} /> copy to the output folder
                   </label>
+                  <label className="flex items-center gap-1.5" title="games fastchess ended as abandoned: an engine crashed or stopped answering">
+                    <input type="checkbox" checked={opts.skip_abandoned} onChange={(e) => set("skip_abandoned", e.target.checked)} data-testid="skip-abandoned" /> leave out abandoned games
+                  </label>
                 </div>
               </div>
               <div className="flex flex-col gap-1">
@@ -196,6 +199,7 @@ export function ExportPage() {
                       <th>Played as</th>
                       <th>CCRL name</th>
                       <th>In the export</th>
+                      <th title="leave this engine's games out of the export (a withdrawn engine, by default)">Leave out</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -217,6 +221,15 @@ export function ExportPage() {
                           <td className="mono text-[12px]">
                             {exportName(p)}
                             {changed && <span className="chip chip-accent ml-1.5">renamed</span>}
+                          </td>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={opts.exclude_players.includes(p)}
+                              disabled={p === opts.seed}
+                              onChange={(e) => set("exclude_players", e.target.checked ? [...opts.exclude_players, p] : opts.exclude_players.filter((x) => x !== p))}
+                              aria-label={`leave out the games of ${p}`}
+                            />
                           </td>
                         </tr>
                       );
@@ -248,7 +261,7 @@ export function ExportPage() {
               {res && (
                 <div className="flex flex-col gap-1 text-[12.5px]" data-testid="export-result">
                   <div>
-                    <b>{res.games}</b> games · {res.duplicates_dropped} duplicates dropped · Event <span className="mono">{res.event}</span>
+                    <b>{res.games}</b> games · {res.duplicates_dropped} duplicates dropped{res.left_out > 0 && <> · {res.left_out} left out</>} · Event <span className="mono">{res.event}</span>
                   </div>
                   <div className="mono text-[11.5px] break-all">{res.pgn_path}</div>
                   {res.zip_path && <div className="mono text-[11.5px] break-all">{res.zip_path}</div>}

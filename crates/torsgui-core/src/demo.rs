@@ -120,6 +120,7 @@ pub fn tournament(engine: &Path, ids: &[Option<i64>], variant: Variant, book: &P
             rating_estimated: false,
             threads: None,
             hash_mb: None,
+            withdrawn: false,
         })
         .collect();
     let frc = variant == Variant::Chess960;

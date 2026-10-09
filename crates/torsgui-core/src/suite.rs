@@ -377,7 +377,7 @@ pub fn run(cfg: &SuiteConfig, engines: &[EngineEntry], progress: Arc<Mutex<Suite
                     let Some((ei, pi)) = jobs.lock().unwrap().pop() else { break };
                     let res = match procs.get_mut(&ei) {
                         Some(e) => Ok(e),
-                        None => uci::start_entry(&engines[ei], run.threads, run.hash, &BTreeMap::new()).map(|e| procs.entry(ei).or_insert(e)),
+                        None => uci::start_analysis(&engines[ei], run.threads, run.hash, &BTreeMap::new()).map(|e| procs.entry(ei).or_insert(e)),
                     }
                     .map(|e| solve_one(e, &positions[pi], run.movetime_ms, &cancel));
                     let r = res.unwrap_or_else(|err| PositionResult { error: Some(format!("{err:#}")), ..Default::default() });
