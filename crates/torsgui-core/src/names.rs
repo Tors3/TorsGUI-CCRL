@@ -169,6 +169,7 @@ mod tests {
         assert_eq!(ccrl_name("Caissa 2.0 64-bit 4CPU", 8), "Caissa 2.0 64-bit 8CPU");
         assert_eq!(ccrl_name("Motor 0.9.0", 1), "Motor 0.9.0 64-bit");
         assert_eq!(ccrl_name("XY 64-Bit", 1), "XY 64-Bit");
+        assert_eq!(ccrl_name("XY 64-bit 1CPU", 1), "XY 64-bit"); // never "1CPU", as in the CCRL lists
         assert_eq!(display_name("Stockfish_19", ""), "Stockfish 19");
     }
     #[test]
