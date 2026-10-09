@@ -142,6 +142,12 @@ the bench test a 64-bit Stockfish 10 (`SF10`). Missing inputs skip those tests w
 
 ## Acknowledgements
 
+- The testers who use TorsGUI every day and keep making it better (and starred it on GitHub):
+  **Gabor**, who tests every release and reports everything useful or missing, from tablebase
+  paths and BMI2 builds to random openings, abandoned games and withdrawing engines;
+  **Bastiii**, who tests and uses it for his own tournaments; and **Mark Tang**, who uses it and
+  asked for the Cute Chess import, Swiss and cup tournaments, manual seeding, test suites and
+  game analysis.
 - [Rust Chess GUI](https://github.com/Bastiball21/Rust-Chess-GUI) by **Bastiball21**, the
   project that inspired TorsGUI (rebuilt from scratch around fastchess).
 - [fastchess](https://github.com/Disservin/fastchess) by **Disservin** and contributors, which
@@ -169,8 +175,6 @@ the bench test a 64-bit Stockfish 10 (`SF10`). Missing inputs skip those tests w
 - [Lichess](https://lichess.org) again for the winning-chance curve and the inaccuracy / mistake /
   blunder thresholds used by the game analysis, and the [Nord](https://www.nordtheme.com) palette
   by Arctic Ice Studio & Sven Greb for the Nord colour theme.
-- **Mark Tang** and the testers who asked for the Cute Chess import, Swiss and cup tournaments,
-  manual seeding, test suites and game analysis.
 - [chessground](https://github.com/lichess-org/chessground) and the
   [lichess](https://github.com/lichess-org/lila) project for the board, and
   [sharechess](https://github.com/sharechess/sharechess) for the piece-set collection; every
