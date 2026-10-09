@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.1] - 2026-10-09
+
+### Changed
+- **Pause and Stop differ**: *Pause* lets the games in progress finish, then the tournament
+  pauses; *Stop* interrupts them at once (they are replayed later). Both can be resumed, also
+  after a reboot, and neither starts the next queued tournament.
+
+### Fixed
+- A withdrawn engine still showed in the standings: it is now out of the standings, and its
+  games out of the totals (as in the CCRL export).
+- README: thanks to the testers Gabor, Bastiii (Bastiball21) and Mark Tang.
+
 ## [0.7.0] - 2026-10-09
 
 ### Added

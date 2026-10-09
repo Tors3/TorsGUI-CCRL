@@ -257,7 +257,7 @@ fn kill_runner_mid_game_then_resume() {
 }
 
 #[test]
-fn pause_discards_games_in_progress_and_resumes() {
+fn pause_lets_games_in_progress_finish_and_resumes() {
     let _ = need_fastchess!();
     let e = env().unwrap();
     let mut cfg = config(&e, "pause", &[("Opp A", "")], 8, 2, 40);
@@ -275,6 +275,9 @@ fn pause_discards_games_in_progress_and_resumes() {
     let rec = e.ws.open().unwrap().tournament(&id).unwrap().unwrap();
     let lanes = rec.status.unwrap()["lanes"].as_array().unwrap().clone();
     assert!(lanes.iter().all(|l| l["busy"] == false), "no game left running");
+    // pause plays the games in progress to the end: none is discarded
+    let log = std::fs::read_to_string(e.ws.tournament_dir(&id).join("runner.log")).unwrap();
+    assert!(!log.contains("discarded"), "{log}");
     // resume
     e.ws.open().unwrap().set_desired(&id, Desired::Run).unwrap();
     let out = runner_cmd(&e, &id).output().unwrap();

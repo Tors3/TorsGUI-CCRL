@@ -512,7 +512,9 @@ fn lane_loop(
                 Ok(None) => {}
                 Err(_) => break None,
             }
-            if control.load(Ordering::SeqCst) != RUN {
+            // stop: the game is interrupted (replayed later); pause: it is played to the end and
+            // the lane takes no new game
+            if control.load(Ordering::SeqCst) == STOP {
                 platform::os().kill_tree(&mut child);
                 interrupted = true;
                 break None;

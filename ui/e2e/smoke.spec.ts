@@ -847,6 +847,9 @@ test("withdraw an engine: its games are dropped and left out of the export", asy
   expect(w.expected_games).toBe(4);
   const rec = await get();
   expect(rec.config.participants.find((p: any) => p.name === "Stockfish 19").withdrawn).toBe(true);
+  // out of the standings
+  const d = await (await page.request.post("/api/tournament_get", { data: { id } })).json();
+  expect(d.standings.rows.map((r: any) => r.name)).not.toContain("Stockfish 19");
   // the export leaves its games out by default, and abandoned games too
   const ex = await (await page.request.post("/api/export_defaults", { data: { id } })).json();
   expect(ex.exclude_players).toEqual(["Stockfish 19"]);

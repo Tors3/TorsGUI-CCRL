@@ -303,9 +303,10 @@ match* games: every opening twice with colours reversed.
   kill-on-close), then resumed; engines inherit the job, so an engine that pins its threads
   on every node (Caissa 2.0) cannot escape. *Lanes & placement* shows the planned CPUs and the
   placement read back from the job for every running game.
-- **Pause** kills the games in progress (they are discarded and replayed later, never counted
-  twice) and stops the runner; **Resume** continues. **Stop** does the same and is meant for
-  "not now". Neither ever starts the next queued tournament.
+- **Pause** lets the games in progress finish, then stops the runner (no new game starts).
+  **Stop** acts at once: the games in progress are interrupted, discarded and replayed later
+  (never counted twice). **Resume** continues either, also after a reboot; the games already
+  finished are always kept. Neither ever starts the next queued tournament.
 - The **queue** starts the next tournament only when the current one has **all** its expected
   games and finished cleanly. If it ended cleanly with games missing (a crashed engine never
   recorded a game…), it is retried up to 2 times, then marked *incomplete* and the queue stops.

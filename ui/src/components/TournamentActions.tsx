@@ -30,12 +30,12 @@ export function TournamentActions({ t, onDone, compact }: { t: TournamentSummary
       )}
       {running && (
         <>
-          <Tip content="Pause: games in progress are discarded and replayed later. The queue does not advance.">
-            <button className={`btn ${size}`} onClick={() => act("tournament_pause", `Pausing ${r.name}…`)}>
+          <Tip content="Pause: the games in progress are played to the end, then the tournament pauses. Resume continues it. The queue does not advance.">
+            <button className={`btn ${size}`} onClick={() => act("tournament_pause", `Pausing ${r.name}: the games in progress finish first…`)}>
               <Pause size={13} /> Pause
             </button>
           </Tip>
-          <Tip content="Stop: like pause, and the next queued tournament will not start.">
+          <Tip content="Stop: right now. The games in progress are interrupted and replayed later (never counted twice). Resume continues it. The queue does not advance.">
             <button className={`btn btn-danger ${size}`} onClick={() => act("tournament_stop", `Stopping ${r.name}…`)}>
               <Square size={12} /> Stop
             </button>

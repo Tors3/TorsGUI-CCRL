@@ -36,8 +36,17 @@ pub fn tournament_standings(cfg: &TournamentConfig, loaded: &Loaded, seed: Optio
         .map(|s| s.to_string())
         .or_else(|| cfg.participants.iter().find(|p| p.role == Role::Seed).map(|p| p.name.clone()))
         .unwrap_or_default();
-    let names: Vec<String> = cfg.participants.iter().map(|p| p.name.clone()).collect();
-    let mut st = standings(&seed, &loaded.games, &names, &ratings(cfg), order);
+    // a withdrawn engine is out of the standings, its games too (as in the CCRL export)
+    let out: Vec<&str> = cfg.participants.iter().filter(|p| p.withdrawn).map(|p| p.name.as_str()).collect();
+    let names: Vec<String> = cfg.participants.iter().filter(|p| !p.withdrawn).map(|p| p.name.clone()).collect();
+    let kept: Vec<crate::pgn::Game>;
+    let games = if out.is_empty() {
+        &loaded.games
+    } else {
+        kept = loaded.games.iter().filter(|g| !out.contains(&g.white()) && !out.contains(&g.black())).cloned().collect();
+        &kept
+    };
+    let mut st = standings(&seed, games, &names, &ratings(cfg), order);
     st.duplicates = loaded.duplicates.len() as u32;
     st
 }
