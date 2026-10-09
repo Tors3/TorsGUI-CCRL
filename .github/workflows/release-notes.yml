@@ -1,0 +1,27 @@
+# Rewrites the notes of an existing release from its CHANGELOG.md section (nothing is rebuilt).
+name: Release notes
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v0.7.3"
+        required: true
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update the release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          version="${TAG#v}"
+          notes=$(awk -v h="## [$version]" 'index($0, "## [")==1 {on = (index($0, h)==1)} on' CHANGELOG.md)
+          if [ -z "$notes" ]; then echo "no CHANGELOG section for $version"; exit 1; fi
+          printf '%s\n' "$notes"
+          gh release edit "$TAG" --notes "$notes"
