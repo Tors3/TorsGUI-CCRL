@@ -145,9 +145,8 @@ the bench test a 64-bit Stockfish 10 (`SF10`). Missing inputs skip those tests w
 - The testers who use TorsGUI every day and keep making it better (and starred it on GitHub):
   **Gabor**, who tests every release and reports everything useful or missing, from tablebase
   paths and BMI2 builds to random openings, abandoned games and withdrawing engines;
-  **Bastiii** (Bastiball21, see below), who tests it and runs tournaments with it; and **Mark Tang**, who uses it and
-  asked for the Cute Chess import, Swiss and cup tournaments, manual seeding, test suites and
-  game analysis.
+  **Bastiii** (Bastiball21, see below), who tests it and runs tournaments with it; and
+  **Mark Tang**, who uses it, also to test the pre-releases of Triumviratus 8.
 - [Rust Chess GUI](https://github.com/Bastiball21/Rust-Chess-GUI) by **Bastiball21** (Bastiii), the
   project that inspired TorsGUI (rebuilt from scratch around fastchess).
 - [fastchess](https://github.com/Disservin/fastchess) by **Disservin** and contributors, which
