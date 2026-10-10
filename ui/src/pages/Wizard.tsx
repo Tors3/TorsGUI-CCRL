@@ -795,7 +795,7 @@ export function Wizard() {
                       ? "must be even"
                       : "must be a multiple of passes × 2"
                     : kind === "knockout"
-                      ? `${games / 2} openings × 2 colours; a tie: 2-game tiebreaks (up to 3), then the higher seed`
+                      ? `${games / 2} openings × 2 colours; a tie: 2-game tiebreaks until one engine wins one (after 20 drawn tiebreaks, the higher seed)`
                       : `${games / 2} openings × 2 colours`
                 }
               >

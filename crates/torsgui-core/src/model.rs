@@ -19,7 +19,7 @@ pub enum TournamentKind {
     /// next round is paired when the current one is finished. `passes` = number of rounds.
     Swiss,
     /// Knockout cup: seeded bracket, each match is a mini-match of `games_per_pairing`
-    /// games; a tie goes to 2-game tiebreaks, then to the higher seed.
+    /// games; a tie goes to 2-game tiebreaks until one engine wins one (after 20, the higher seed).
     Knockout,
 }
 

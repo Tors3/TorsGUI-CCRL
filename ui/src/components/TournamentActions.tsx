@@ -17,12 +17,21 @@ export function TournamentActions({ t, onDone, compact }: { t: TournamentSummary
     }
   };
   const running = r.state === "running" && t.runner_alive;
-  const canStart = !r.imported && !running && r.state !== "completed";
+  // a completed cup whose final is tied again (more tiebreaks since 0.7.5) can be resumed
+  const canStart = !r.imported && !running && (r.state !== "completed" || t.unfinished);
   const size = compact ? "btn-sm" : "";
   return (
     <div className="flex items-center gap-1.5">
       {canStart && (
-        <Tip content={r.state === "draft" || r.state === "queued" ? "Start now in a detached runner" : "Resume where it stopped (games in progress when it stopped are replayed)"}>
+        <Tip
+          content={
+            r.state === "draft" || r.state === "queued"
+              ? "Start now in a detached runner"
+              : t.unfinished
+                ? "A tied match still needs tiebreaks: resume to play them (TorsGUI 0.7.4 and earlier gave it to the higher seed after 3)"
+                : "Resume where it stopped (games in progress when it stopped are replayed)"
+          }
+        >
           <button className={`btn btn-primary ${size}`} onClick={() => act("tournament_start", `${r.name}: runner launched`)} data-testid="btn-start">
             <Play size={13} /> {r.state === "draft" || r.state === "queued" ? "Start" : "Resume"}
           </button>

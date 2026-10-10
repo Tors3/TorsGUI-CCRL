@@ -2,4 +2,9 @@
 import type { Progress } from "./Progress";
 import type { TournamentRecord } from "./TournamentRecord";
 
-export type TournamentSummary = { record: TournamentRecord, progress: Progress, runner_alive: boolean, seed: string, score_line: string | null, };
+export type TournamentSummary = { record: TournamentRecord, progress: Progress, runner_alive: boolean, seed: string, score_line: string | null, 
+/**
+ * A completed knockout whose games no longer decide it (a tie that 0.7.4 and earlier gave
+ * to the higher seed after 3 tiebreaks): it can be resumed to play the tiebreaks.
+ */
+unfinished: boolean, };

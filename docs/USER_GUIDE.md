@@ -284,7 +284,8 @@ match* games: every opening twice with colours reversed.
   drawn match. The **Rounds** tab shows every round and the table (points, then Buchholz).
 - **Cup (knockout)**: a seeded bracket (1 against the last seed, 2 against the second-to-last…);
   with a number of engines that is not a power of two the best seeds get a bye in round 1. A
-  tied match plays 2-game tiebreaks (up to 3), then the higher seed goes through. The **Bracket**
+  tied match plays 2-game tiebreaks until one engine wins one (only after 20 drawn tiebreaks
+  does the higher seed go through). The **Bracket**
   tab shows every round up to the final and the winner.
 - Lanes: a round has at most (engines ÷ 2) × games per match games, so more lanes than that stay
   idle until the next round is paired.

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.5] - 2026-10-10
+
+### Fixed
+- **Cup (knockout) ties**: a tied match went to the higher seed after 3 drawn tiebreaks, so a
+  4–4 final was "won" by the higher seed. Tiebreaks now go on until one engine wins one (only
+  after 20 drawn tiebreaks, which two engines that never lose to each other could reach, does
+  the higher seed go through); the extra tiebreaks get openings of their own. A cup that ended
+  this way shows the match as still open and can be resumed to play the tiebreaks.
+
 ## [0.7.4] - 2026-10-09
 
 ### Added

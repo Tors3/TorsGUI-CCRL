@@ -206,8 +206,12 @@ pub fn build_queue_of(jobs: Vec<Job>, done: &HashSet<SlotKey>) -> Vec<Job> {
 /// Result of every finished game: slot → White's score (1, ½, 0).
 pub type Results = HashMap<SlotKey, f64>;
 
-/// Knockout: 2-game tiebreaks played when a match is tied, before the higher seed goes through.
+/// Knockout: openings reserved after each match's own, for its first 2-game tiebreaks.
 pub const KO_TIEBREAKS: u32 = 3;
+/// Knockout: a tied match plays 2-game tiebreaks until one engine wins one; only after this
+/// many drawn tiebreaks (engines that never lose to each other) does the higher seed go through.
+/// The tiebreaks after the first `KO_TIEBREAKS` take their openings after the whole bracket's.
+pub const KO_MAX_TIEBREAKS: u32 = 20;
 
 /// One match of a Swiss round or of a knockout round (`b` = None: a bye).
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, ts_rs::TS)]
@@ -295,9 +299,12 @@ fn match_jobs(cfg: &TournamentConfig, stage: u32, pairing: usize, a: &str, b: &s
     let n = cfg.participants.len() as u32;
     let stride = openings_per_match(cfg) + if cfg.kind == TournamentKind::Knockout { KO_TIEBREAKS } else { 0 };
     let block = (stage - 1) * n.div_ceil(2) + pairing as u32;
+    // knockout tiebreaks beyond the reserved ones: openings after those of the whole bracket
+    let extra_base = cfg.book_start + stage_count(cfg) * n.div_ceil(2) * stride;
+    let extra_per_match = KO_MAX_TIEBREAKS - KO_TIEBREAKS;
     let mut v = Vec::new();
     for r in rounds {
-        let opening = cfg.book_start + block * stride + r - 1;
+        let opening = if r <= stride { cfg.book_start + block * stride + r - 1 } else { extra_base + block * extra_per_match + (r - stride - 1) };
         for rev in [false, true] {
             let (w, bl) = if rev { (b, a) } else { (a, b) };
             v.push(Job { node: 0, pass: stage, pairing, round: r, reversed: rev, opening: game_opening(cfg, opening, rev), white: w.to_string(), black: bl.to_string() });
@@ -521,8 +528,8 @@ fn knockout(cfg: &TournamentConfig, results: &Results) -> Staged {
                             winner = Some(if sa > sb { a.clone() } else { b.clone() });
                             break;
                         }
-                        if tb == KO_TIEBREAKS {
-                            // still level: the higher seed goes through
+                        if tb == KO_MAX_TIEBREAKS {
+                            // still level after every tiebreak: the higher seed goes through
                             winner = Some(if seed_of(a) < seed_of(b) { a.clone() } else { b.clone() });
                             break;
                         }
@@ -931,12 +938,22 @@ pub(crate) mod tests {
         assert!(st.view.table.iter().filter(|r| r.alive).count() == 1);
         assert_eq!(st.view.table[0].name, "E01");
         assert_eq!(st.view.table[1].name, "E02", "the losing finalist is second");
-        // every match drawn: 3 tiebreak pairs, then the higher seed
+        // every match drawn: tiebreak pairs up to the limit, only then the higher seed
         let (_, draws) = play(&c, |_| 0.5);
         assert!(draws.finished);
         assert_eq!(draws.view.champion.as_deref(), Some("E01"));
-        assert!(draws.view.stages.iter().flat_map(|s| s.matches.iter()).filter(|m| m.b.is_some()).all(|m| m.tiebreaks == KO_TIEBREAKS && m.played == 8));
-        assert_eq!(draws.jobs.len(), 4 * 8);
+        let per_match = 2 + 2 * KO_MAX_TIEBREAKS;
+        assert!(draws.view.stages.iter().flat_map(|s| s.matches.iter()).filter(|m| m.b.is_some()).all(|m| m.tiebreaks == KO_MAX_TIEBREAKS && m.played == per_match));
+        assert_eq!(draws.jobs.len(), 4 * per_match as usize);
+        // still level after 3 tiebreaks: they go on, and the lower seed can win (the 5th here)
+        let (_, late) = play(&c, |j| if j.round == 6 && j.reversed { 1.0 } else { 0.5 });
+        assert!(late.finished);
+        let ms: Vec<_> = late.view.stages.iter().flat_map(|s| s.matches.iter()).filter(|m| m.b.is_some()).collect();
+        assert!(ms.iter().all(|m| m.tiebreaks == 5 && m.played == 12 && m.winner.as_ref() == m.b.as_ref()));
+        // E05 beats E04 and E01, E03 beats E02, then E03 (second in the final) beats E05
+        assert_eq!(late.view.champion.as_deref(), Some("E03"));
+        let late_openings: HashSet<u32> = late.jobs.iter().map(|j| j.opening).collect();
+        assert_eq!(late_openings.len(), late.jobs.len() / 2, "the extra tiebreaks have openings of their own");
         // a tie broken in the first tiebreak
         let (_, tb) = play(&c, |j| if j.round == 2 && !j.reversed { 1.0 } else { 0.5 });
         assert!(tb.view.stages.iter().flat_map(|s| s.matches.iter()).filter(|m| m.b.is_some()).all(|m| m.tiebreaks == 1 && m.played == 4));

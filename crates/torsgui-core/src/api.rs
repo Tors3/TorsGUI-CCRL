@@ -72,6 +72,10 @@ pub struct TournamentSummary {
     pub runner_alive: bool,
     pub seed: String,
     pub score_line: Option<String>,
+    /// A completed knockout whose games no longer decide it (a tie that 0.7.4 and earlier gave
+    /// to the higher seed after 3 tiebreaks): it can be resumed to play the tiebreaks.
+    #[serde(default)]
+    pub unfinished: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
@@ -1587,7 +1591,8 @@ impl App {
             let st = analysis::tournament_standings(&t.config, l, None, RowOrder::Config);
             forum::result_line(&st)
         });
-        TournamentSummary { record: t, progress, runner_alive: alive, seed, score_line }
+        let unfinished = t.state == TState::Completed && t.config.kind == TournamentKind::Knockout && loaded.as_ref().is_some_and(|l| !scheduler::staged(&t.config, &games_results(&l.games)).finished);
+        TournamentSummary { record: t, progress, runner_alive: alive, seed, score_line, unfinished }
     }
 
     fn detail(&self, store: &crate::store::Store, id: &str, order: RowOrder) -> Result<Value> {
