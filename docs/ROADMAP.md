@@ -17,6 +17,11 @@ full screen.
   (outside the squares, as on a real board), or in the board image itself, instead of chessground's
   text over the squares; with the flipped board they must follow the orientation.
 
+- **Pieces facing their own side (option)**: today every piece is drawn upright, so White's and
+  Black's pawns all "point" up the screen, also on a flipped board (as in Lichess, Arena and Cute
+  Chess). An option in the board settings to turn the pieces of the side at the top by 180°, so
+  that the pawns of the two sides face each other, as seen from above on a real board.
+
 ## To verify on an installed build
 
 - **Full screen in the desktop app**: the board button should make the Windows / Linux window
