@@ -22,6 +22,9 @@ full screen.
   Chess). An option in the board settings to turn the pieces of the side at the top by 180°, so
   that the pawns of the two sides face each other, as seen from above on a real board.
 
+- **Number of games in progress next to "Live"** in the sidebar (a small badge, e.g. "Live 4"),
+  updated as games start and end; nothing when no game is being played.
+
 ## To verify on an installed build
 
 - **Full screen in the desktop app**: the board button should make the Windows / Linux window
