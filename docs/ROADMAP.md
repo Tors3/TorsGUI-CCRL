@@ -11,6 +11,11 @@ full screen.
   keeps the numbering of the source collection, so IQ4 (ids 1–201 with 18 gaps) looks like 201
   positions.
 - **Sounds on by default** (Wood set): today they are off until "Sounds" is ticked.
+- **Rank numbers (1–8) badly placed**: they sit cramped against the left edge and do not line
+  up well with their squares (seen on the Szőts wood board, flipped, in Test suites). The files
+  were fixed in 0.7.3, the ranks were not. Idea: draw the coordinates on the board's wooden frame
+  (outside the squares, as on a real board), or in the board image itself, instead of chessground's
+  text over the squares; with the flipped board they must follow the orientation.
 
 ## To verify on an installed build
 
