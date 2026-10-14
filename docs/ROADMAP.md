@@ -30,6 +30,20 @@ full screen.
   state (paused or stopped when it already has games), not always "draft" as `queue_remove` does
   today, so that it still shows *Resume*.
 
+- **Random openings: wrong texts** (Gabor). With "one random opening per game" the games are
+  right (every opening is used once), but the texts still speak of openings played with both
+  colours:
+  - the *Colour pairs* panel of the tournament (`ui/src/pages/TournamentDetail.tsx`) says
+    "Every opening played with both colours" in green, and while games are in progress
+    "N opening(s) played with only one colour so far". With random openings a "pair" is the
+    same two engines with colours reversed, each game with its own opening: say "N pair(s)
+    waiting for the colour-reversed game" (it falls as the second games end, which is why Gabor
+    saw 4, then 1);
+  - the CCRL checklist (`crates/torsgui-core/src/checklist.rs`): "Opening book … each opening
+    with both colours" and "Every opening with both colours" need the same wording;
+  - show the opening mode in the tournament's conditions ("one random opening per game" or
+    "each opening with both colours"), so that it can be checked after the start.
+
 ## To verify on an installed build
 
 - **Full screen in the desktop app**: the board button should make the Windows / Linux window
