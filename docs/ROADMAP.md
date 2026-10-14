@@ -25,6 +25,11 @@ full screen.
 - **Number of games in progress next to "Live"** in the sidebar (a small badge, e.g. "Live 4"),
   updated as games start and end; nothing when no game is being played.
 
+- **"Unqueue" button** next to a queued tournament (the opposite of *Queue*): the backend command
+  `queue_remove` exists, the button does not. It should give the tournament back its previous
+  state (paused or stopped when it already has games), not always "draft" as `queue_remove` does
+  today, so that it still shows *Resume*.
+
 ## To verify on an installed build
 
 - **Full screen in the desktop app**: the board button should make the Windows / Linux window
