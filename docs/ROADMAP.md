@@ -44,6 +44,18 @@ full screen.
   - show the opening mode in the tournament's conditions ("one random opening per game" or
     "each opening with both colours"), so that it can be checked after the start.
 
+- **Clearer cores / concurrency panel** (wizard step *NUMA & lanes* and the *Summary* beside it,
+  `ui/src/pages/Wizard.tsx`). Today it shows nodes, "Lanes per node", a placement switch
+  ("Node (1 thread / core)", "Disjoint cores per lane", "None") and in the summary "Concurrent
+  games" and "Cores: N busy / M physical", without saying how they relate. To do:
+  - one line that spells it out: "L lanes × N nodes = G games at the same time; each engine
+    T threads → B busy cores of M physical";
+  - name things by what they do ("games at the same time" rather than lanes / concurrency) and
+    explain each placement option in a sentence;
+  - a small picture of the cores: which cores each game / engine uses, free cores, and red when
+    more threads than physical cores (the engines would share cores and play weaker);
+  - the suggested number of lanes as a button ("use 4"), not only as a hint.
+
 ## To verify on an installed build
 
 - **Full screen in the desktop app**: the board button should make the Windows / Linux window
