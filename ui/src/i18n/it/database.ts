@@ -64,4 +64,13 @@ export const database: Shape<typeof en> = {
   fenCopied: "FEN copiata",
   whiteToMove: "Muove il Bianco",
   blackToMove: "Muove il Nero",
+  saveToDb: "Salva nel Database",
+  saveToDbTitle: "Salva la partita nel Database",
+  saveFolder: "Cartella",
+  saveNewInside: "Oppure una nuova cartella al suo interno",
+  saveNewFolder: "Nuova cartella",
+  saveNewHint: "Lascia vuoto per salvare nella cartella qui sopra.",
+  saveAbout: "La partita viene salvata con mosse, valutazioni e commenti; la trovi in Analisi → Database.",
+  savedTo: "Salvata nel Database: {folder}",
+  nothingSaved: "Niente salvato: la partita non ha mosse",
 };

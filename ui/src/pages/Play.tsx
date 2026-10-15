@@ -1,4 +1,5 @@
 import type { Key } from "chessground/types";
+import { SaveToDatabaseButton } from "../components/SaveToDatabase";
 import { Copy, Flag, FlipVertical2, Gamepad2, Microscope, Play as PlayIcon, Save, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -319,6 +320,7 @@ export function PlayPage() {
                 )}
               </div>
               <div className="flex gap-2 flex-wrap">
+                <SaveToDatabaseButton getText={pgn} disabled={!st?.moves.length} testid="play-db-save" />
                 <button className="btn btn-sm" onClick={save} disabled={!st?.moves.length} data-testid="play-save">
                   <Save size={12} /> {tr("play.save")}
                 </button>

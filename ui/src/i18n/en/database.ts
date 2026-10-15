@@ -61,4 +61,13 @@ export const database = {
   fenCopied: "FEN copied",
   whiteToMove: "White to move",
   blackToMove: "Black to move",
+  saveToDb: "Save to Database",
+  saveToDbTitle: "Save the game to the Database",
+  saveFolder: "Folder",
+  saveNewInside: "Or a new folder inside it",
+  saveNewFolder: "New folder",
+  saveNewHint: "Leave empty to save into the folder above.",
+  saveAbout: "The game is saved with its moves, evaluations and comments; find it in Analysis → Database.",
+  savedTo: "Saved to the Database: {folder}",
+  nothingSaved: "Nothing saved: the game has no moves",
 };

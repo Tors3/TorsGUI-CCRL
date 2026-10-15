@@ -1,4 +1,5 @@
 import { UciOptionsEditor } from "../components/UciOptions";
+import { SaveToDatabaseButton } from "../components/SaveToDatabase";
 import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, Copy, FlipVertical2, Microscope, Play, Save, SlidersHorizontal, Square, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -386,6 +387,11 @@ export function AnalysisPage() {
               <span className="muted text-[12px] ml-2 tnum">
                 {ply}/{n}
               </span>
+              {n > 0 && (
+                <span className="ml-2">
+                  <SaveToDatabaseButton getText={pgnText} testid="analysis-db-save" />
+                </span>
+              )}
               <label className="ml-auto flex items-center gap-2 text-[12.5px]">
                 <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} disabled={engineId == null} data-testid="analysis-live" /> {tr("analysis.live")}
               </label>
@@ -509,6 +515,7 @@ export function AnalysisPage() {
                     <button className="btn btn-sm" onClick={() => savePgn()} data-testid="pgn-save">
                       <Save size={12} /> {tr("analysis.save")}
                     </button>
+                    <SaveToDatabaseButton getText={pgnText} testid="analysis-db-save-review" />
                     <span className="muted text-[11px]">{tr("analysis.saveAbout")}</span>
                   </div>
                 </div>

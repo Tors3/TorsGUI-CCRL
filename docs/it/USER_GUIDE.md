@@ -574,7 +574,9 @@ per giocatore, evento, apertura, ECO o anno; *Anche le sottocartelle* mostra le 
 cartelle interne; spunta le partite per spostarle o eliminarle; *Esporta PGN* salva una cartella
 in `<cartella di export>/database`. *Posizioni* contiene FEN o righe EPD (il loro `id` diventa il
 titolo, `c0` la nota) su piccole scacchiere. Clicca una partita per rivederla, oppure *Analizza*
-una partita o una posizione per aprirla in Analisi partita.
+una partita o una posizione per aprirla in Analisi partita. **Salva nel Database** in Analisi
+partita e in Gioca col motore mette la partita che stai guardando (con le valutazioni della
+revisione) in una cartella del Database.
 
 ## 14. Test suite {#test-suites}
 

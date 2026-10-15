@@ -9,6 +9,9 @@
   not, move or delete games, export a folder to PGN. Positions are FENs or EPD lines with a title
   and a note, shown on small boards. Every game opens in the viewer, every game or position in
   Game analysis.
+- **Save to Database** from Game analysis (with the evaluations and marks of the review, when
+  there is one) and from Play vs engine: pick a folder or create one; the last folder used is
+  proposed next time.
 - **UCI options for one analysis** (Game analysis → *UCI options*): the options of the engine for
   that analysis only (kept for that engine on this computer), over the engine's own; the live
   engine and the game review use them.

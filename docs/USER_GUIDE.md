@@ -537,7 +537,9 @@ TorsGUI, so the files can move afterwards. Search by player, event, opening, ECO
 *Subfolders too* shows the games of the folders inside; tick games to move or delete them;
 *Export PGN* saves a folder to `<export folder>/database`. *Positions* holds FENs or EPD lines
 (their `id` becomes the title, `c0` the note) on small boards. Click a game to replay it, or
-*Analyse* a game or a position to open it in Game analysis.
+*Analyse* a game or a position to open it in Game analysis. **Save to Database** in Game
+analysis and in Play vs engine puts the game you are looking at (with the evaluations of the
+review) into a folder of the Database.
 
 ## 14. Test suites
 
