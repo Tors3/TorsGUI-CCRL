@@ -162,6 +162,9 @@ pub struct Settings {
     pub avx2_only: bool,
     /// PGN files or folders outside the workspace shown in the game archive.
     pub archive_paths: Vec<String>,
+    /// Folders of engines (Engines → Import a folder): *Refresh* imports the new ones.
+    #[serde(default)]
+    pub engine_folders: Vec<String>,
     /// Lichess API token (scopes study:read, study:write) for live broadcasts.
     pub lichess_token: String,
     /// Visibility of new Lichess broadcasts: public, unlisted or private.
@@ -227,6 +230,7 @@ impl Default for Settings {
             prefer_avx512: false,
             avx2_only: false,
             archive_paths: Vec::new(),
+            engine_folders: Vec::new(),
             lichess_token: String::new(),
             lichess_visibility: "public".into(),
             ccrl_live_port: 16001,

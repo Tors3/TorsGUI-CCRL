@@ -155,6 +155,13 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
   file, which runs AVX2 or AVX-512 by itself); the button copies them to the engines folder (sha256 checked)
   and verifies them. Both are GPL-3: their sources are linked in the engine entry.
 - **Add local file** does the same verification for a binary already on disk.
+- **From a folder** imports every engine of a folder at once (its subfolders too): TorsGUI starts
+  each executable and asks it `uci`; the engines that answer take their name and version from
+  their `id name` and are verified when imported. When a folder holds several builds of one
+  engine, the best build for this CPU (and the CCRL rules) is proposed. *Remember the folder*
+  adds a **Refresh** button to Engines: download a new engine into that folder, press Refresh,
+  and it is imported. Threads and Hash are set by each tournament and the tablebase paths come
+  from Settings → Paths, so there is nothing to set engine by engine.
 - **Import Cute Chess** reads the `engines.json` of Cute Chess (**Find it** looks in the usual
   Cute Chess folders, or give the file or its folder, or paste its content): every UCI engine is
   added with its working folder, its arguments and the UCI options changed in Cute Chess (not

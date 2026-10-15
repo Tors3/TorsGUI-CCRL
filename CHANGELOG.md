@@ -31,6 +31,11 @@
 - **"As is" tournaments** (New tournament → Conditions): the tournament sends no Threads, Hash or
   Syzygy path; every engine plays with the options of its entry (or its own defaults). The cores
   are counted from each engine's own Threads; tournament files take `as_is = true`.
+- **Import a folder of engines** (Engines → Add engine → From a folder; suggested by Tiberius):
+  every executable of the folder and its subfolders is probed with UCI, the engines found take
+  their name from their `id name` and are imported and verified in one go; of several builds of
+  one engine the best for this CPU is proposed. The folder can be remembered: **Refresh** then
+  imports the engines added to it later.
 - **Crosstables** (asked by Gabor Szőts): every player against every other, on the tournament
   page (tab *Crosstable*) and in Games for any tournament or PGN file, also games from other
   GUIs. Points, W/D/L, %, Sonneborn-Berger, performance; cells with each result in order

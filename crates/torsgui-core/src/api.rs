@@ -135,6 +135,28 @@ pub struct WizardPreview {
     pub event_example: String,
 }
 
+/// An executable found in a folder of engines (Engines → Import a folder).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
+pub struct FolderCandidate {
+    pub path: String,
+    /// The path inside the folder.
+    pub file: String,
+    /// Already in the library (same executable): not probed again.
+    pub in_library: bool,
+    /// Answered `uciok`.
+    pub ok: bool,
+    pub id_name: String,
+    pub id_author: String,
+    /// The name it gets in the library.
+    pub display_name: String,
+    pub error: String,
+    /// Not proposed: another build of an engine of the folder (the best build for this CPU and
+    /// the CCRL rules is), or an engine of that name is already in the library.
+    pub duplicate: bool,
+    pub note: String,
+}
+
 /// A group of PGN games in the archive: a tournament or an external PGN file.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
 #[ts(export)]
@@ -1012,6 +1034,35 @@ impl App {
                 ok(json!({"source": source, "engines": engines}))
             }
             "cutechess_import" => ok(self.cutechess_import(&store, &a)?),
+            // a folder of engines: probe every executable with UCI, import the chosen ones
+            "engines_folder_scan" => {
+                let dir: PathBuf = arg(&a, "dir")?;
+                ok(self.folder_scan(&store, &dir)?)
+            }
+            "engines_folder_import" => {
+                let paths: Vec<PathBuf> = arg(&a, "paths")?;
+                let r = self.folder_import(&store, &paths)?;
+                // remember the folder: Refresh imports what is added to it later
+                if let Some(dir) = opt::<String>(&a, "remember").filter(|d| !d.trim().is_empty()) {
+                    let mut s = store.settings()?;
+                    if !s.engine_folders.iter().any(|f| f.eq_ignore_ascii_case(&dir)) {
+                        s.engine_folders.push(dir);
+                        store.save_settings(&s)?;
+                    }
+                }
+                ok(r)
+            }
+            "engines_folders_refresh" => {
+                let folders = store.settings()?.engine_folders;
+                let mut paths = Vec::new();
+                for f in &folders {
+                    let scan = self.folder_scan(&store, Path::new(f))?;
+                    paths.extend(scan.iter().filter(|c| c.ok && !c.in_library && !c.duplicate).map(|c| PathBuf::from(&c.path)));
+                }
+                let mut r = self.folder_import(&store, &paths)?;
+                r["folders"] = json!(folders);
+                ok(r)
+            }
             "engine_add_local" => {
                 let path: PathBuf = arg(&a, "path")?;
                 ok(self.add_local(&store, &path, opt(&a, "engine"), opt(&a, "version"))?)
@@ -2221,6 +2272,105 @@ impl App {
         std::fs::write(self.ws.tournament_dir(&rec.id).join("config.json"), serde_json::to_string_pretty(&rec.config)?)?;
         store.push_event("info", "tournament_imported", Some(&rec.id), &format!("{} imported: {done} / {} games", rec.name, rec.expected_games))?;
         Ok(rec)
+    }
+
+    /// The executables of a folder, each probed with UCI (`uci` → `isready` → `go depth 1`,
+    /// 8 at a time); the ones already in the library are marked and not probed.
+    fn folder_scan(&self, store: &crate::store::Store, dir: &Path) -> Result<Vec<FolderCandidate>> {
+        if !dir.is_dir() {
+            bail!("{} is not a folder", dir.display());
+        }
+        let lib = store.engines()?;
+        let same = |a: &str, b: &Path| Path::new(a) == b || a.eq_ignore_ascii_case(&b.to_string_lossy());
+        let files = engines::folder_candidates(dir);
+        let mut out: Vec<FolderCandidate> = files
+            .iter()
+            .map(|p| {
+                let have = lib.iter().find(|e| same(&e.path, p));
+                FolderCandidate {
+                    path: p.to_string_lossy().into(),
+                    file: p.strip_prefix(dir).unwrap_or(p).to_string_lossy().into(),
+                    in_library: have.is_some(),
+                    display_name: have.map(|e| e.display_name.clone()).unwrap_or_default(),
+                    ..Default::default()
+                }
+            })
+            .collect();
+        std::thread::scope(|s| {
+            for chunk in out.chunks_mut(8) {
+                let hs: Vec<_> = chunk
+                    .iter_mut()
+                    .filter(|c| !c.in_library)
+                    .map(|c| {
+                        s.spawn(move || {
+                            let v = engines::verify(Path::new(&c.path), 1, std::time::Duration::from_secs(15));
+                            c.ok = v.uciok;
+                            c.id_name = v.id_name.clone();
+                            c.id_author = v.id_author.clone();
+                            if v.uciok {
+                                c.display_name = local_entry(Path::new(&c.path), None, None, &v).display_name;
+                            } else {
+                                c.error = v.error.clone().unwrap_or_else(|| "not a UCI engine".into());
+                            }
+                        })
+                    })
+                    .collect();
+                for h in hs {
+                    let _ = h.join();
+                }
+            }
+        });
+        // several builds of one engine (engine-avx2.exe, engine-avx512.exe…): the best one for
+        // this CPU and the CCRL rules is proposed, as for a GitHub release
+        let policy = if store.settings()?.avx2_only { crate::assets::AssetPolicy::ccrl() } else { crate::assets::AssetPolicy::for_this_cpu() };
+        let rank = |c: &FolderCandidate| {
+            let v = crate::assets::classify_with(&c.file, crate::assets::TargetOs::current(), policy);
+            (!v.accepted, v.tier, c.file.clone())
+        };
+        let fresh: Vec<usize> = (0..out.len()).filter(|i| out[*i].ok && !out[*i].in_library).collect();
+        for &i in &fresh {
+            let name = out[i].display_name.to_lowercase();
+            if lib.iter().any(|e| e.display_name.to_lowercase() == name) {
+                out[i].duplicate = true;
+                out[i].note = "same name in the library".into();
+                continue;
+            }
+            let best = fresh.iter().copied().filter(|j| out[*j].display_name.to_lowercase() == name).min_by_key(|j| rank(&out[*j])).unwrap_or(i);
+            if best != i {
+                out[i].duplicate = true;
+                out[i].note = format!("another build: {} is proposed", out[best].file);
+            }
+        }
+        Ok(out)
+    }
+
+    /// Imports engines of a folder: each one is verified (`go depth 10`, 4 at a time) and added
+    /// like a local file; an executable already in the library is skipped.
+    fn folder_import(&self, store: &crate::store::Store, paths: &[PathBuf]) -> Result<Value> {
+        let lib = store.engines()?;
+        let todo: Vec<&PathBuf> = paths.iter().filter(|p| !lib.iter().any(|e| Path::new(&e.path) == p.as_path())).collect();
+        let results: Vec<(PathBuf, engines::VerifyResult)> = std::thread::scope(|s| {
+            let mut out = Vec::new();
+            for chunk in todo.chunks(4) {
+                let hs: Vec<_> = chunk.iter().map(|p| s.spawn(move || ((*p).clone(), engines::verify(p, 10, std::time::Duration::from_secs(60))))).collect();
+                out.extend(hs.into_iter().filter_map(|h| h.join().ok()));
+            }
+            out
+        });
+        let (mut added, mut failed) = (Vec::new(), Vec::new());
+        for (p, v) in results {
+            if !v.uciok {
+                failed.push(json!({"path": p, "error": v.error.clone().unwrap_or_else(|| "not a UCI engine".into())}));
+                continue;
+            }
+            let e = local_entry(&p, None, None, &v);
+            store.save_engine(&e)?;
+            added.push(e.display_name.clone());
+        }
+        if !added.is_empty() {
+            store.push_event("success", "engines_imported", None, &format!("{} engine(s) imported from a folder: {}", added.len(), added.join(", ")))?;
+        }
+        Ok(json!({"added": added, "failed": failed}))
     }
 
     fn add_local(&self, store: &crate::store::Store, path: &Path, engine: Option<String>, version: Option<String>) -> Result<EngineEntry> {

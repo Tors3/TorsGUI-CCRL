@@ -80,6 +80,44 @@ pub struct EngineEntry {
     pub gpu: bool,
 }
 
+/// Files of `dir` (and its subfolders, 3 levels) that may be engines: executables (`.exe` on
+/// Windows, files with the execute bit elsewhere), without installers, uninstallers, updaters,
+/// TorsGUI's own programs and fastchess.
+pub fn folder_candidates(dir: &Path) -> Vec<std::path::PathBuf> {
+    let skip = regex::Regex::new(r"(?i)(unins|setup|install|update|vcredist|crashpad|helper|torsgui|fastchess|cutechess|7z|gzip|tar\.exe)").unwrap();
+    let mut out = Vec::new();
+    let mut stack = vec![(dir.to_path_buf(), 0u32)];
+    while let Some((d, depth)) = stack.pop() {
+        let Ok(rd) = std::fs::read_dir(&d) else { continue };
+        for e in rd.flatten() {
+            let p = e.path();
+            let Ok(md) = e.metadata() else { continue };
+            if md.is_dir() {
+                if depth < 3 {
+                    stack.push((p, depth + 1));
+                }
+                continue;
+            }
+            let name = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+            if skip.is_match(&name) || md.len() < 10_000 {
+                continue;
+            }
+            #[cfg(windows)]
+            let exe = p.extension().is_some_and(|x| x.eq_ignore_ascii_case("exe"));
+            #[cfg(not(windows))]
+            let exe = {
+                use std::os::unix::fs::PermissionsExt;
+                md.permissions().mode() & 0o111 != 0 && p.extension().is_none()
+            };
+            if exe {
+                out.push(p);
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
 /// An engine that runs its network on a graphics card: Lc0 and its forks declare
 /// `WeightsFile` and `Backend`, Ceres declares `Device`/`GPU`… and the names say it.
 pub fn looks_gpu(opts: &[UciOption], uci_id: &str) -> bool {
@@ -774,5 +812,28 @@ mod tablebase_tests {
         let s = tablebase_options(&scorpio, "", "", "E:\\sakk\\egbb");
         assert_eq!(s, vec![("egbb_path".to_string(), "E:\\sakk\\egbb\\".to_string()), ("egbb_files_path".to_string(), "E:\\sakk\\egbb\\".to_string())]);
         assert_eq!(tablebase_options(&scorpio, "", "", "/tb/egbb/")[0].1, "/tb/egbb/");
+    }
+
+    #[test]
+    fn a_folder_of_engines_lists_the_executables() {
+        let d = std::env::temp_dir().join(format!("torsgui-folder-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(d.join("Stockfish_17").join("nets")).unwrap();
+        let big = vec![0u8; 20_000];
+        let names = ["Stockfish_17/stockfish.exe", "Stockfish_17/stockfish", "unins000.exe", "fastchess.exe", "tiny.exe", "readme.txt", "Stockfish_17/nets/x.nnue"];
+        for n in names {
+            std::fs::write(d.join(n), if n == "tiny.exe" { &big[..10] } else { &big[..] }).unwrap();
+        }
+        #[cfg(not(windows))]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(d.join("Stockfish_17/stockfish"), std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let got: Vec<String> = folder_candidates(&d).iter().map(|p| p.strip_prefix(&d).unwrap().to_string_lossy().replace('\\', "/")).collect();
+        #[cfg(windows)]
+        assert_eq!(got, ["Stockfish_17/stockfish.exe"]);
+        #[cfg(not(windows))]
+        assert_eq!(got, ["Stockfish_17/stockfish"]);
+        let _ = std::fs::remove_dir_all(&d);
     }
 }

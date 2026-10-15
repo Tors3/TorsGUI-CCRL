@@ -47,6 +47,10 @@ avx2_only: boolean,
  */
 archive_paths: Array<string>, 
 /**
+ * Folders of engines (Engines → Import a folder): *Refresh* imports the new ones.
+ */
+engine_folders: Array<string>, 
+/**
  * Lichess API token (scopes study:read, study:write) for live broadcasts.
  */
 lichess_token: string, 

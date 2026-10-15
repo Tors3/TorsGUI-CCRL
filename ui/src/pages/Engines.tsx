@@ -13,6 +13,7 @@ import type { Release } from "../bindings/Release";
 import type { RepoRef } from "../bindings/RepoRef";
 import type { Selection } from "../bindings/Selection";
 import { UciOptionsEditor } from "../components/UciOptions";
+import { FolderImportDialog, RefreshFoldersButton } from "../components/FolderImport";
 import { cmpNum, EloCell, matchesEngine, RATING_LISTS, SortTh, useEngineRatings, type RatingList, type SortDir } from "../components/EngineRatings";
 import { ENGINE_FILTERS, PathInput } from "../components/PathInput";
 import { Empty, ErrorBox, Field, Modal, PageHeader, PageTabs, Panel, Spinner, Tip, MenuButton, useTabParam } from "../components/ui";
@@ -487,6 +488,7 @@ export function Engines() {
   const [localPath, setLocalPath] = useState("");
   const [imp, setImp] = useState(false);
   const [cute, setCute] = useState(false);
+  const [folder, setFolder] = useState(false);
   const [impPath, setImpPath] = useState("");
   const [busy, setBusy] = useState<number | null>(null);
   const engines = data ?? [];
@@ -595,6 +597,7 @@ export function Engines() {
         sub={t("engines.page.sub", { count: engines.length, verified, flagged })}
         actions={
           <>
+            <RefreshFoldersButton onDone={refresh} />
             <button className="btn" onClick={() => call<string>("engines_report").then(setReport)}>
               <FileText size={14} /> {t("engines.page.report")}
             </button>
@@ -608,6 +611,7 @@ export function Engines() {
               }
               items={[
                 { icon: <PackagePlus size={14} />, label: t("engines.page.fromGithub"), hint: t("engines.page.fromGithubHint"), onSelect: () => setGh(true), testid: "engines-github" },
+                { icon: <FolderOpen size={14} />, label: t("engines.page.folder"), hint: t("engines.page.folderHint"), onSelect: () => setFolder(true), testid: "engines-folder" },
                 { icon: <FolderOpen size={14} />, label: t("engines.page.local"), hint: t("engines.page.localHint"), onSelect: () => setLocal(true), testid: "engines-local" },
                 { icon: <FolderOpen size={14} />, label: t("engines.page.cute"), hint: t("engines.page.cuteHint"), onSelect: () => setCute(true), testid: "engines-cutechess" },
                 {
@@ -817,6 +821,7 @@ export function Engines() {
       />
       <EditDialog e={edit} setE={setEdit} onDone={refresh} />
       <CuteChessDialog open={cute} setOpen={setCute} onDone={refresh} />
+      <FolderImportDialog open={folder} setOpen={setFolder} onDone={refresh} />
       <Modal open={local} onOpenChange={setLocal} title={t("engines.local.title")} footer={<button className="btn btn-primary" onClick={addLocal} disabled={!localPath}>{t("engines.local.add")}</button>}>
         <Field label={t("engines.local.path")} hint={t("engines.local.pathHint")}>
           <PathInput kind="file" value={localPath} onChange={setLocalPath} filters={ENGINE_FILTERS} placeholder="C:\CCRL\engines\Engine_1.0\engine-avx2.exe" testid="local-path" />

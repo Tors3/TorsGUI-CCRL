@@ -72,7 +72,9 @@ Open source (GPL-3.0-or-later); nothing is specific to one machine.
   build), 73 known engines one click away, UCI verification and a report.
 - **Active and inactive** engines (the wizard offers the active ones), a **GPU** tab, the UCI
   options of each engine with their defaults, per-tournament options.
-- Imports your engines from **Cute Chess** (`engines.json`: folders, arguments, UCI options).
+- Imports a **whole folder of engines** at once (each executable probed with UCI; *Refresh* picks
+  up the new ones) and your engines from **Cute Chess** (`engines.json`: folders, arguments, UCI
+  options).
 - Stockfish 10 and Triumviratus 8.0 come with the installers.
 
 ### CCRL

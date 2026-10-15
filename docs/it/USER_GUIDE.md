@@ -165,6 +165,14 @@ di file (`book = "GM2700+.pgn"`).
   per Windows, che usa da solo AVX2 o AVX-512); il bottone li copia nella cartella dei motori (con controllo sha256)
   e li verifica. Entrambi sono GPL-3: i loro sorgenti sono collegati nella scheda del motore.
 - **File locale** fa la stessa verifica per un eseguibile già sul disco.
+- **Da una cartella** importa tutti i motori di una cartella in un colpo (anche nelle
+  sottocartelle): TorsGUI avvia ogni eseguibile e gli chiede `uci`; i motori che rispondono
+  prendono nome e versione dal loro `id name` e vengono verificati quando li importi. Se una
+  cartella contiene più build dello stesso motore, viene proposta la migliore per questa CPU (e
+  per le regole CCRL). *Ricorda la cartella* aggiunge in Motori un bottone **Aggiorna**: scarichi
+  un motore nuovo in quella cartella, premi Aggiorna, ed è importato. Thread e Hash li imposta
+  ogni torneo e i percorsi delle tablebase vengono da Impostazioni → Percorsi, quindi non c'è
+  niente da impostare motore per motore.
 - **Importa da Cute Chess** legge l'`engines.json` di Cute Chess (**Trovalo** cerca nelle
   solite cartelle di Cute Chess, oppure indica il file o la sua cartella, o incollane il
   contenuto): ogni motore UCI viene aggiunto con la sua cartella di lavoro, i suoi argomenti e le
