@@ -16,4 +16,8 @@ heartbeat: number | null, expected_games: number, done_games: number, last_error
 /**
  * Extra PGN sources (imported legacy tournaments).
  */
-status: JsonValue | null, };
+status: JsonValue | null, 
+/**
+ * The folder the user put it in (Tournaments page), None: no folder.
+ */
+folder: string | null, };

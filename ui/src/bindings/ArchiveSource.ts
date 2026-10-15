@@ -12,4 +12,8 @@ kind: string,
 /**
  * Tournament id, or the file path.
  */
-id: string, label: string, path: string, files: number, games: number, state: TState | null, };
+id: string, label: string, path: string, files: number, games: number, state: TState | null, 
+/**
+ * The tournament's folder (Tournaments page).
+ */
+folder: string | null, };

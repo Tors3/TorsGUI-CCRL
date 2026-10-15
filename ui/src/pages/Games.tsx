@@ -1,4 +1,4 @@
-import { FileText, FolderPlus, Grid3x3, Swords, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Folder, FolderPlus, Grid3x3, Swords, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { ArchiveSource } from "../bindings/ArchiveSource";
@@ -22,6 +22,23 @@ export function Games() {
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
   const [crosstable, setCrosstable] = useState(false);
+  // tournament folders folded in the list (kept on this computer)
+  const [folded, setFolded] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("torsgui-games-folded") ?? "[]");
+    } catch {
+      return [];
+    }
+  });
+  const toggleFolder = (f: string) => {
+    const next = folded.includes(f) ? folded.filter((x) => x !== f) : [...folded, f];
+    setFolded(next);
+    try {
+      localStorage.setItem("torsgui-games-folded", JSON.stringify(next));
+    } catch {
+      /* private mode */
+    }
+  };
   const [path, setPath] = useState("");
   const t = useT();
   useEffect(() => {
@@ -114,7 +131,23 @@ export function Games() {
           <Panel noPad title={t("games.sources")} actions={<input className="input" style={{ width: 130 }} placeholder={t("games.search")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("games.searchLabel")} />}>
             <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
               {tournaments.length > 0 && <div className="kpi-label px-2.5 pt-2 pb-1">{t("games.tournaments")}</div>}
-              {tournaments.map(item)}
+              {tournaments.filter((s) => !s.folder).map(item)}
+              {Array.from(new Set(tournaments.map((s) => s.folder).filter((f): f is string => !!f)))
+                .sort((a, b) => a.localeCompare(b))
+                .map((f) => {
+                  const inside = tournaments.filter((s) => s.folder === f);
+                  const open = !folded.includes(f) || !!q;
+                  return (
+                    <div key={f} data-testid="games-folder">
+                      <button className="w-full text-left px-2.5 py-1.5 flex items-center gap-1.5 text-[12.5px] font-medium" style={{ borderBottom: "1px solid var(--border)" }} onClick={() => toggleFolder(f)} aria-expanded={open}>
+                        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                        <Folder size={12} className="muted" /> <span className="truncate">{f}</span>
+                        <span className="chip ml-auto">{inside.length}</span>
+                      </button>
+                      {open && <div style={{ paddingLeft: 14 }}>{inside.map(item)}</div>}
+                    </div>
+                  );
+                })}
               {files.length > 0 && (
                 <div className="kpi-label px-2.5 pt-3 pb-1 flex items-center gap-1">
                   <FileText size={11} /> {t("games.pgnFiles")}

@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Folders for tournaments** (Tournaments): a tab per folder plus *All* and *No folder*; tick
+  tournaments (finished or running) and *Move to folder*, create, rename or delete folders
+  (deleting a folder keeps its tournaments). **Games** shows the tournaments grouped in the same
+  folders, folded or open.
+
+### Fixed
+- **A light line between the board and its frame** on the right and at the bottom: chessground
+  rounds the board down to a multiple of 8 pixels; the board is now centred and the pixels left
+  over take the colour of the frame.
+
 ## [0.8.0] - 2026-10-15
 
 ### Added

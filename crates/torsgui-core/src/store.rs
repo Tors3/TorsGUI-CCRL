@@ -334,6 +334,9 @@ pub struct TournamentRecord {
     pub imported: bool,
     /// Extra PGN sources (imported legacy tournaments).
     pub status: Option<serde_json::Value>,
+    /// The folder the user put it in (Tournaments page), None: no folder.
+    #[serde(default)]
+    pub folder: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
@@ -437,6 +440,10 @@ fn migrate(conn: &Connection) -> Result<()> {
     // the state a tournament had when it was queued, given back when it leaves the queue
     if !has("tournaments", "queued_from")? {
         conn.execute("ALTER TABLE tournaments ADD COLUMN queued_from TEXT", [])?;
+    }
+    // the folder of the Tournaments page
+    if !has("tournaments", "folder")? {
+        conn.execute("ALTER TABLE tournaments ADD COLUMN folder TEXT", [])?;
     }
     Ok(())
 }
@@ -556,13 +563,14 @@ impl Store {
             last_error: r.get(14)?,
             imported: r.get::<_, i64>(15)? != 0,
             status: status.and_then(|s| serde_json::from_str(&s).ok()),
+            folder: r.get(17)?,
         })
     }
-    const T_COLS: &'static str = "id,name,state,desired,config,created_at,started_at,finished_at,queue_pos,retries,runner_pid,heartbeat,expected_games,done_games,last_error,imported,status";
+    const T_COLS: &'static str = "id,name,state,desired,config,created_at,started_at,finished_at,queue_pos,retries,runner_pid,heartbeat,expected_games,done_games,last_error,imported,status,folder";
 
     pub fn insert_tournament(&self, t: &TournamentRecord) -> Result<()> {
         self.conn.execute(
-            &format!("INSERT INTO tournaments({}) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17)", Self::T_COLS),
+            &format!("INSERT INTO tournaments({}) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18)", Self::T_COLS),
             params![
                 t.id,
                 t.name,
@@ -581,9 +589,24 @@ impl Store {
                 t.last_error,
                 t.imported as i64,
                 t.status.as_ref().map(|s| s.to_string()),
+                t.folder,
             ],
         )?;
         Ok(())
+    }
+    /// Puts tournaments in a folder (None or "": out of any folder).
+    pub fn set_folder(&self, ids: &[String], folder: Option<&str>) -> Result<usize> {
+        let f = folder.map(str::trim).filter(|f| !f.is_empty());
+        let mut n = 0;
+        for id in ids {
+            n += self.conn.execute("UPDATE tournaments SET folder=?2 WHERE id=?1", params![id, f])?;
+        }
+        Ok(n)
+    }
+    /// Renames a folder (an empty name takes its tournaments out of any folder).
+    pub fn rename_folder(&self, from: &str, to: &str) -> Result<usize> {
+        let to = Some(to.trim()).filter(|t| !t.is_empty());
+        Ok(self.conn.execute("UPDATE tournaments SET folder=?2 WHERE folder=?1", params![from, to])?)
     }
     pub fn tournament(&self, id: &str) -> Result<Option<TournamentRecord>> {
         Ok(self
@@ -900,6 +923,7 @@ impl TournamentRecord {
             last_error: None,
             imported: false,
             status: None,
+            folder: None,
         }
     }
 }
@@ -940,6 +964,24 @@ mod portable_tests {
 #[cfg(test)]
 mod queue_tests {
     use super::*;
+
+    #[test]
+    fn tournaments_go_in_folders() {
+        let st = Store::in_memory().unwrap();
+        for id in ["a", "b", "c"] {
+            st.insert_tournament(&TournamentRecord { id: id.into(), ..Default::default() }).unwrap();
+        }
+        let folder = |id: &str| st.tournament(id).unwrap().unwrap().folder;
+        assert_eq!(folder("a"), None);
+        assert_eq!(st.set_folder(&["a".into(), "b".into()], Some(" Blitz 2026 ")).unwrap(), 2);
+        assert_eq!((folder("a").as_deref(), folder("c")), (Some("Blitz 2026"), None));
+        assert_eq!(st.rename_folder("Blitz 2026", "Blitz").unwrap(), 2);
+        assert_eq!(folder("b").as_deref(), Some("Blitz"));
+        st.set_folder(&["b".into()], Some("")).unwrap();
+        assert_eq!(folder("b"), None);
+        st.rename_folder("Blitz", "").unwrap();
+        assert_eq!(folder("a"), None, "deleting a folder takes its tournaments out");
+    }
 
     #[test]
     fn unqueue_gives_back_the_previous_state() {

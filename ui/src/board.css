@@ -304,6 +304,19 @@
 }
 /* coordinates on a frame around the board, as on a real board: the frame is the box's border
    and the labels sit in it, one per square; a theme sets --frame-bg and --frame-fg */
+/* chessground rounds the board down to a multiple of 8 pixels: the few pixels left over are
+   split on both sides (the board is centred) and painted like the frame, never a light line */
+.board-box cg-container {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+.board-box.board-framed {
+  background-color: var(--frame-bg, color-mix(in srgb, var(--sq-dark) 45%, #111));
+}
+.board-box:not(.board-framed) {
+  background-color: var(--sq-dark);
+}
 .board-box.board-framed {
   --frame-w: 20px;
   border: var(--frame-w) solid var(--frame-bg, color-mix(in srgb, var(--sq-dark) 45%, #111));

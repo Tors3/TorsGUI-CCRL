@@ -323,6 +323,10 @@ match* games: every opening twice with colours reversed.
 - Lanes: a round has at most (engines ÷ 2) × games per match games, so more lanes than that stay
   idle until the next round is paired.
 
+**Folders**: the Tournaments page has a tab per folder (plus *All* and *No folder*). Tick
+tournaments, finished or running, and *Move to folder*; *New folder*, *Rename* and *Delete folder*
+(the tournaments stay) manage them. Games shows the tournaments grouped in the same folders.
+
 ## 6. Run it
 
 - The tournament runs in a separate **`torsgui-runner`** process started detached (new process

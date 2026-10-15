@@ -170,6 +170,9 @@ pub struct ArchiveSource {
     pub files: u32,
     pub games: u32,
     pub state: Option<TState>,
+    /// The tournament's folder (Tournaments page).
+    #[serde(default)]
+    pub folder: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
@@ -808,6 +811,13 @@ impl App {
                 store.push_event("info", "queue_changed", Some(&id), "added to the queue")?;
                 ok(true)
             }
+            // folders of the Tournaments page
+            "tournaments_set_folder" => {
+                let ids: Vec<String> = arg(&a, "ids")?;
+                let folder: Option<String> = opt(&a, "folder");
+                ok(store.set_folder(&ids, folder.as_deref())?)
+            }
+            "tournament_folder_rename" => ok(store.rename_folder(&arg::<String>(&a, "from")?, &opt::<String>(&a, "to").unwrap_or_default())?),
             "queue_remove" => {
                 let id: String = arg(&a, "id")?;
                 let back = store.unqueue(&id)?;
@@ -1608,7 +1618,7 @@ impl App {
                 continue;
             }
             let games = self.loaded(store, &t.id).map(|l| l.games.len() as u32).unwrap_or(0);
-            v.push(ArchiveSource { kind: "tournament".into(), id: t.id.clone(), label: t.name.clone(), path: self.ws.pgn_dir(&t.id).to_string_lossy().into(), files: files.len() as u32, games, state: Some(t.state) });
+            v.push(ArchiveSource { kind: "tournament".into(), id: t.id.clone(), label: t.name.clone(), path: self.ws.pgn_dir(&t.id).to_string_lossy().into(), files: files.len() as u32, games, state: Some(t.state), folder: t.folder.clone() });
         }
         for a in store.settings()?.archive_paths {
             let p = PathBuf::from(&a);
@@ -1616,7 +1626,7 @@ impl App {
             for f in files {
                 let games = pgn::read_games(&f).map(|g| g.len() as u32).unwrap_or(0);
                 let label = f.file_name().unwrap_or_default().to_string_lossy().to_string();
-                v.push(ArchiveSource { kind: "file".into(), id: f.to_string_lossy().into(), label, path: f.to_string_lossy().into(), files: 1, games, state: None });
+                v.push(ArchiveSource { kind: "file".into(), id: f.to_string_lossy().into(), label, path: f.to_string_lossy().into(), files: 1, games, state: None, folder: None });
             }
         }
         Ok(v)

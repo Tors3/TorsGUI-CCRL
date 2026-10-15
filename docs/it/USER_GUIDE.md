@@ -342,6 +342,10 @@ partite: ogni apertura due volte a colori invertiti.
 - Lane: un turno ha al massimo (motori ÷ 2) × partite per match partite, quindi le lane in più
   restano ferme finché non viene accoppiato il turno successivo.
 
+**Cartelle**: la pagina Tornei ha una scheda per cartella (più *Tutti* e *Senza cartella*). Spunta
+i tornei, finiti o in corso, e *Sposta nella cartella*; *Nuova cartella*, *Rinomina* ed *Elimina
+cartella* (i tornei restano) le gestiscono. Partite mostra i tornei raggruppati nelle stesse cartelle.
+
 ## 6. Farlo girare {#run-it}
 
 - Il torneo gira in un processo separato **`torsgui-runner`** avviato staccato (nuovo gruppo di
