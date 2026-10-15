@@ -25,7 +25,10 @@ pub struct UciOption {
     pub vars: Vec<String>,
 }
 
+/// Missing fields take their defaults: an entry written by an older version, or added by hand,
+/// still loads (and the library with it).
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
+#[serde(default)]
 #[ts(export)]
 pub struct EngineEntry {
     pub id: Option<i64>,
