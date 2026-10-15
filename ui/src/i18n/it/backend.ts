@@ -130,6 +130,7 @@ export const backend: Shape<typeof en> = {
     smtNoSiblings: "SMT / Hyper-Threading è attivo ma questa CPU ha un thread per core (o l'SMT è spento nel BIOS): non cambia niente",
     smtShare: "SMT: {busy} thread di motore su {cores} core fisici, quindi i motori dividono i core e calcolano più lentamente; va bene per i tuoi test, ma il CCRL usa un thread di motore per core fisico",
     swissRematches: "{rounds} turni per {engines} motori: alcuni motori si incontreranno due volte (al massimo {max} turni senza rivincite)",
+    verifyFailed: "{engine} non ha superato la verifica ({detail}): ogni partita finirebbe con un crash; verificalo di nuovo o installa un'altra build (Motori)",
     swissThree: "uno svizzero richiede almeno tre motori (con due motori: usa un match)",
   },
 };

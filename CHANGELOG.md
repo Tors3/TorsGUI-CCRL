@@ -11,6 +11,8 @@
   versions of an engine have no rank and took the rank of the row above ("1, 1, 1, 2, 2…").
   Every version now has its place in the list (1 to 4753 in the 40/15 list). Fetch the lists
   again to replace the stored ones.
+- **An engine that failed its verification could join a tournament** (e.g. an AVX-512 build
+  using instructions the CPU lacks) and lose every game by crash: the summary now refuses it.
 - **The engine library failing to load** ("missing field `has_syzygy`") when an entry was
   written without some fields: they now take their defaults.
 

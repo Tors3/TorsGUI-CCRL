@@ -128,6 +128,7 @@ export const backend = {
     "smtNoSiblings": "SMT / Hyper-Threading is on but this CPU has one thread per core (or SMT is disabled in the BIOS): nothing changes",
     "smtShare": "SMT: {busy} engine threads on {cores} physical cores, so engines share cores and search slower; fine for your own tests, but CCRL runs one engine thread per physical core",
     "swissRematches": "{rounds} rounds for {engines} engines: some engines will meet twice (at most {max} rounds without rematches)",
-    "swissThree": "a Swiss needs at least three engines (two engines: use a match)"
+    "swissThree": "a Swiss needs at least three engines (two engines: use a match)",
+    "verifyFailed": "{engine} failed its verification ({detail}): every game would end in a crash; verify it again or install another build (Engines)"
   }
 };

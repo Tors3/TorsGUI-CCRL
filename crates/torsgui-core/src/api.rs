@@ -1990,6 +1990,11 @@ impl App {
             }
             for pp in &cfg.participants {
                 if let Some(e) = pp.engine_id.and_then(|id| store.engine(id).ok().flatten()) {
+                    // a build that fails uci / isready / go (e.g. AVX-512 instructions this CPU lacks)
+                    // would lose every game by crash
+                    if e.verify_status == "failed" {
+                        p.errors.push(msg!("preview.verifyFailed", "{engine} failed its verification ({detail}): every game would end in a crash; verify it again or install another build (Engines)", engine = pp.name, detail = e.verify_detail.chars().take(80).collect::<String>()));
+                    }
                     p.warnings.extend(engines::check_options(&pp.name, &pp.options, &e.options, &pp.dir).into_iter().map(Msg::plain));
                     if frc && !e.chess960 {
                         if e.options.is_empty() {
