@@ -44,4 +44,11 @@ export const analysis: Shape<typeof en> = {
   saveAbout: "con valutazioni, ?! ? ?? e le linee del motore; le partite salvate compaiono in Partite",
   reviewAbout: "Ogni posizione viene analizzata per il tempo scelto; le mosse che perdono possibilità di vittoria sono segnate ?! imprecisione, ? errore, ?? svarione.",
   noMoves: "Una posizione senza mosse: usa il motore in diretta.",
+  options: "Opzioni UCI",
+  optionsEngine: "le opzioni del motore",
+  optionsOwn: { one: "{count} opzione di questa analisi", other: "{count} opzioni di questa analisi" },
+  optionsTitle: "Opzioni UCI per l'analisi — {engine}",
+  optionsAbout: "Queste opzioni valgono solo per l'analisi (ricordate su questo computer per questo motore); la scheda del motore e i tornei tengono le loro. Thread, Hash e MultiPV vengono dai campi del pannello.",
+  optionsReset: "Usa le opzioni del motore",
+  optionsSave: "Usa queste opzioni",
 };

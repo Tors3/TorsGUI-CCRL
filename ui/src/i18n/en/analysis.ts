@@ -41,4 +41,11 @@ export const analysis = {
   saveAbout: "with evaluations, ?! ? ?? and the engine's lines; saved games appear in Games",
   reviewAbout: "Every position is searched for the time chosen; moves that lose winning chances are marked ?! inaccuracy, ? mistake, ?? blunder.",
   noMoves: "A position without moves: use the live engine.",
+  options: "UCI options",
+  optionsEngine: "the engine's own options",
+  optionsOwn: { one: "{count} option of this analysis", other: "{count} options of this analysis" },
+  optionsTitle: "UCI options for the analysis — {engine}",
+  optionsAbout: "These options are used for the analysis only (kept on this computer for this engine); the engine's entry and the tournaments keep theirs. Threads, Hash and MultiPV come from the fields of the panel.",
+  optionsReset: "Use the engine's options",
+  optionsSave: "Use these options",
 };

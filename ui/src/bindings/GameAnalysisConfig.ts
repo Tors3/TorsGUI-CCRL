@@ -4,4 +4,8 @@ export type GameAnalysisConfig = { engine_id: number, start_fen: string,
 /**
  * The moves of the game (UCI).
  */
-moves: Array<string>, movetime_ms: number, threads: number, hash: number, };
+moves: Array<string>, movetime_ms: number, threads: number, hash: number, 
+/**
+ * UCI options for this analysis only (over the engine's own options).
+ */
+options: { [key in string]: string }, };

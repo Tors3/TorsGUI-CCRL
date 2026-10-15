@@ -23,6 +23,9 @@ pub struct GameAnalysisConfig {
     pub movetime_ms: u64,
     pub threads: u32,
     pub hash: u32,
+    /// UCI options for this analysis only (over the engine's own options).
+    #[serde(default)]
+    pub options: BTreeMap<String, String>,
 }
 
 /// The engine's view of one position of the game.
@@ -209,7 +212,7 @@ pub fn run_game(cfg: &GameAnalysisConfig, engine: &EngineEntry, progress: Arc<Mu
         p.done = 0;
         p.result = Some(out.clone());
     }
-    let mut e = uci::start_analysis(engine, cfg.threads, cfg.hash, &BTreeMap::new())?;
+    let mut e = uci::start_analysis(engine, cfg.threads, cfg.hash, &cfg.options)?;
     e.new_game()?;
     for (i, b) in bs.iter().enumerate() {
         if cancel.load(Ordering::Relaxed) {
@@ -262,6 +265,9 @@ pub struct LiveRequest {
     pub multipv: u32,
     pub threads: u32,
     pub hash: u32,
+    /// UCI options for this analysis only (over the engine's own options).
+    #[serde(default)]
+    pub options: BTreeMap<String, String>,
 }
 
 /// One engine searching the position asked last, until stopped.
@@ -292,12 +298,12 @@ impl LiveAnalyzer {
                     continue;
                 };
                 cancel.store(false, Ordering::Relaxed);
-                let same = eng.as_ref().is_some_and(|(_, r)| r.engine_id == req.engine_id && r.threads == req.threads && r.hash == req.hash);
+                let same = eng.as_ref().is_some_and(|(_, r)| r.engine_id == req.engine_id && r.threads == req.threads && r.hash == req.hash && r.options == req.options);
                 if !same {
                     if let Some((e, _)) = eng.take() {
                         e.quit();
                     }
-                    let mut extra = BTreeMap::new();
+                    let mut extra = req.options.clone();
                     extra.insert("MultiPV".to_string(), req.multipv.max(1).to_string());
                     match uci::start_analysis(&entry, req.threads, req.hash, &extra) {
                         Ok(e) => eng = Some((e, req.clone())),

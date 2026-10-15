@@ -9,6 +9,9 @@
   not, move or delete games, export a folder to PGN. Positions are FENs or EPD lines with a title
   and a note, shown on small boards. Every game opens in the viewer, every game or position in
   Game analysis.
+- **UCI options for one analysis** (Game analysis → *UCI options*): the options of the engine for
+  that analysis only (kept for that engine on this computer), over the engine's own; the live
+  engine and the game review use them.
 - **Folders for tournaments** (Tournaments): a tab per folder plus *All* and *No folder*; tick
   tournaments (finished or running) and *Move to folder*, create, rename or delete folders
   (deleting a folder keeps its tournaments). **Games** shows the tournaments grouped in the same

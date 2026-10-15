@@ -1,4 +1,5 @@
-import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, Copy, FlipVertical2, Microscope, Play, Save, Square, Upload } from "lucide-react";
+import { UciOptionsEditor } from "../components/UciOptions";
+import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, Copy, FlipVertical2, Microscope, Play, Save, SlidersHorizontal, Square, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -12,7 +13,7 @@ import type { ViewerGame } from "../bindings/ViewerGame";
 import { Board, EvalBar, type Arrow } from "../components/Board";
 import { BoardColumn } from "../components/BoardColumn";
 import { LineChart } from "../components/Chart";
-import { Empty, ErrorBox, Field, PageHeader, Panel, ProgressBar, Result, Spinner } from "../components/ui";
+import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, ProgressBar, Result, Spinner } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { isCheck } from "../lib/chess";
 import { evalText, nps, num } from "../lib/format";
@@ -39,6 +40,31 @@ export function AnalysisPage() {
   const [ply, setPly] = useState(0);
   const [flip, setFlip] = useState(false);
   const [engineId, setEngineId] = useState<number>();
+  // UCI options for the analysis, per engine, over the engine's own (kept on this computer)
+  const [optsByEngine, setOptsByEngine] = useState<Record<string, Record<string, string>>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("torsgui-analysis-options") ?? "{}");
+    } catch {
+      return {};
+    }
+  });
+  const [optsOpen, setOptsOpen] = useState(false);
+  const [optsDraft, setOptsDraft] = useState<Record<string, string>>({});
+  const options = (engineId != null && optsByEngine[engineId]) || {};
+  const optionsKey = JSON.stringify(options);
+  const engine = (engines ?? []).find((e) => e.id === engineId);
+  const saveOptions = (v: Record<string, string> | null) => {
+    if (engineId == null) return;
+    const next = { ...optsByEngine };
+    if (v && Object.keys(v).length) next[engineId] = v;
+    else delete next[engineId];
+    setOptsByEngine(next);
+    try {
+      localStorage.setItem("torsgui-analysis-options", JSON.stringify(next));
+    } catch {
+      /* private mode */
+    }
+  };
   const [threads, setThreads] = useState(1);
   const [hash, setHash] = useState(256);
   const [live, setLive] = useState(false);
@@ -130,13 +156,14 @@ export function AnalysisPage() {
   useEffect(() => {
     if (!live || engineId == null) return;
     const t = setTimeout(() => {
-      call("analysis_live", { request: { engine_id: engineId, fen, multipv, threads, hash } }).catch((e) => {
+      call("analysis_live", { request: { engine_id: engineId, fen, multipv, threads, hash, options } }).catch((e) => {
         toast.error(e.message);
         setLive(false);
       });
     }, 120);
     return () => clearTimeout(t);
-  }, [live, engineId, fen, multipv, threads, hash]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live, engineId, fen, multipv, threads, hash, optionsKey]);
   useEffect(() => {
     if (!live) {
       call("analysis_live_stop").catch(() => {});
@@ -165,7 +192,7 @@ export function AnalysisPage() {
   const startReview = async () => {
     if (engineId == null || !game) return;
     try {
-      await call("analysis_game_start", { config: { engine_id: engineId, start_fen: game.start_fen, moves: plies.map((p) => p.uci), movetime_ms: movetime, threads, hash } });
+      await call("analysis_game_start", { config: { engine_id: engineId, start_fen: game.start_fen, moves: plies.map((p) => p.uci), movetime_ms: movetime, threads, hash, options } });
       pollReview();
     } catch (e) {
       toast.error((e as Error).message);
@@ -285,8 +312,43 @@ export function AnalysisPage() {
                 ))}
               </select>
             </Field>
+            <div className="col-span-3 flex items-center gap-2 text-[12px]">
+              <button
+                className="btn btn-sm"
+                disabled={!engine}
+                onClick={() => {
+                  setOptsDraft(Object.keys(options).length ? options : { ...(engine?.default_options ?? {}) });
+                  setOptsOpen(true);
+                }}
+                data-testid="analysis-options"
+              >
+                <SlidersHorizontal size={12} /> {tr("analysis.options")}
+              </button>
+              <span className="muted truncate">{Object.keys(options).length ? tr("analysis.optionsOwn", { count: Object.keys(options).length }) : tr("analysis.optionsEngine")}</span>
+            </div>
           </div>
         </Panel>
+        <Modal
+          open={optsOpen}
+          onOpenChange={setOptsOpen}
+          title={tr("analysis.optionsTitle", { engine: engine?.display_name ?? "" })}
+          width={760}
+          footer={
+            <>
+              <button className="btn mr-auto" onClick={() => { saveOptions(null); setOptsOpen(false); }}>
+                {tr("analysis.optionsReset")}
+              </button>
+              <button className="btn btn-primary" onClick={() => { saveOptions(optsDraft); setOptsOpen(false); }} data-testid="analysis-options-save">
+                {tr("analysis.optionsSave")}
+              </button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-2 text-[12.5px]">
+            <div className="muted">{tr("analysis.optionsAbout")}</div>
+            {engine && <UciOptionsEditor key={engine.id} options={engine.options} values={optsDraft} onChange={setOptsDraft} engineId={engine.id} dir={engine.dir} />}
+          </div>
+        </Modal>
       </div>
       {!game ? (
         <Panel>
