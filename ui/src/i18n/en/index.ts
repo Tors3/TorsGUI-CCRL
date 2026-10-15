@@ -28,7 +28,8 @@ import { insights } from "./insights";
 import { uci } from "./uci";
 import { backend } from "./backend";
 import { crosstable } from "./crosstable";
+import { database } from "./database";
 
 /** English, the source of every text: one file per area of the app. */
-export const en = { app, cores, engines, tournament, themes, ui, dashboard, tournaments, wizard, detail, live, games, exportPage, ccrl, bench, suites, analysis, play, settings, logs, start, help, viewer, tfile, board, broadcast, insights, uci, backend, crosstable };
+export const en = { app, cores, engines, tournament, themes, ui, dashboard, tournaments, wizard, detail, live, games, exportPage, ccrl, bench, suites, analysis, play, settings, logs, start, help, viewer, tfile, board, broadcast, insights, uci, backend, crosstable, database };
 export type Messages = typeof en;

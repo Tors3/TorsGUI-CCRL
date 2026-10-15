@@ -29,6 +29,7 @@ import { insights } from "./insights";
 import { uci } from "./uci";
 import { backend } from "./backend";
 import { crosstable } from "./crosstable";
+import { database } from "./database";
 
 /** Italiano: the areas translated so far (the others show in English). */
-export const it: Translation = { app, cores, engines, tournament, themes, ui, dashboard, tournaments, wizard, detail, live, games, exportPage, ccrl, bench, suites, analysis, play, settings, logs, start, help, viewer, tfile, board, broadcast, insights, uci, backend, crosstable };
+export const it: Translation = { app, cores, engines, tournament, themes, ui, dashboard, tournaments, wizard, detail, live, games, exportPage, ccrl, bench, suites, analysis, play, settings, logs, start, help, viewer, tfile, board, broadcast, insights, uci, backend, crosstable, database };

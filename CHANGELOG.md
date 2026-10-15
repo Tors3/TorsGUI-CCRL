@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Added
+- **Database** (Analysis → Database): your own games, engine or human, and positions, in
+  folders and subfolders. Import a PGN file, a folder of PGN files or pasted PGN (the games are
+  copied into TorsGUI); search by player, event, opening, ECO or year, include the subfolders or
+  not, move or delete games, export a folder to PGN. Positions are FENs or EPD lines with a title
+  and a note, shown on small boards. Every game opens in the viewer, every game or position in
+  Game analysis.
 - **Folders for tournaments** (Tournaments): a tab per folder plus *All* and *No folder*; tick
   tournaments (finished or running) and *Move to folder*, create, rename or delete folders
   (deleting a folder keeps its tournaments). **Games** shows the tournaments grouped in the same

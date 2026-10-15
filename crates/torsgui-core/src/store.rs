@@ -441,6 +441,8 @@ fn migrate(conn: &Connection) -> Result<()> {
     if !has("tournaments", "queued_from")? {
         conn.execute("ALTER TABLE tournaments ADD COLUMN queued_from TEXT", [])?;
     }
+    // the user's database (games and positions in folders)
+    conn.execute_batch(crate::database::SCHEMA)?;
     // the folder of the Tournaments page
     if !has("tournaments", "folder")? {
         conn.execute("ALTER TABLE tournaments ADD COLUMN folder TEXT", [])?;

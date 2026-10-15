@@ -24,6 +24,7 @@ export const app: Shape<typeof en> = {
     bench: "Bench",
     analysis: "Analisi partita",
     suites: "Test suite",
+    database: "Database",
     play: "Gioca col motore",
     settings: "Impostazioni",
     logs: "Log",

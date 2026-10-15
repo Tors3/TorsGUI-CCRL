@@ -530,6 +530,15 @@ Below the review, **Copy PGN** and **Save PGN** give the game with the evaluatio
 (`[%eval]`), the marks ($6 ?!, $2 ?, $4 ??) and the engine's better line as a variation; saved
 games go to `<export folder>/analysis` and appear in **Games**.
 
+**Database** (Analysis → Database): your own games, engine or human, and your positions, in
+folders and subfolders (*New folder*, *Subfolder*, *Rename*, *Delete*). *Import games* takes a PGN
+file, a folder of PGN files (with its subfolders) or pasted PGN; the games are copied into
+TorsGUI, so the files can move afterwards. Search by player, event, opening, ECO or year;
+*Subfolders too* shows the games of the folders inside; tick games to move or delete them;
+*Export PGN* saves a folder to `<export folder>/database`. *Positions* holds FENs or EPD lines
+(their `id` becomes the title, `c0` the note) on small boards. Click a game to replay it, or
+*Analyse* a game or a position to open it in Game analysis.
+
 ## 14. Test suites
 
 **Analysis → Test suites** runs engines on EPD positions with a known answer: puzzles and mate

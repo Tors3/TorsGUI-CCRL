@@ -101,6 +101,8 @@ Open source (GPL-3.0-or-later); nothing is specific to one machine.
 - **Test suites** (`bm`, `am`, `dm`) on several engines: WAC, ECM GCP, IQ4, BT-2630, LCT II,
   endgame tests and Arasan 2026 from the Arasan collection, mates, hard tactics and endgames from
   the lichess puzzles, or any EPD file.
+- A **Database** of your own games, engine or human, and positions, in folders and subfolders:
+  import PGN files or folders, search, move, export, open in the viewer or in Game analysis.
 - **Play against any engine** of the library (clock, strength, take-backs).
 - Per tournament: an **Elo graph** with its error band, **statistics per opening** and where the
   engine **lands in the CCRL list**.

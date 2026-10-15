@@ -566,6 +566,16 @@ Sotto la revisione, **Copia il PGN** e **Salva il PGN** danno la partita con le 
 (`[%eval]`), i segni ($6 ?!, $2 ?, $4 ??) e la linea migliore del motore come variante; le
 partite salvate vanno in `<cartella di export>/analysis` e compaiono in **Partite**.
 
+**Database** (Analisi → Database): le tue partite, di motori o umane, e le tue posizioni, in
+cartelle e sottocartelle (*Nuova cartella*, *Sottocartella*, *Rinomina*, *Elimina*). *Importa
+partite* accetta un file PGN, una cartella di file PGN (con le sue sottocartelle) o del PGN
+incollato; le partite vengono copiate in TorsGUI, quindi dopo i file si possono spostare. Cerca
+per giocatore, evento, apertura, ECO o anno; *Anche le sottocartelle* mostra le partite delle
+cartelle interne; spunta le partite per spostarle o eliminarle; *Esporta PGN* salva una cartella
+in `<cartella di export>/database`. *Posizioni* contiene FEN o righe EPD (il loro `id` diventa il
+titolo, `c0` la nota) su piccole scacchiere. Clicca una partita per rivederla, oppure *Analizza*
+una partita o una posizione per aprirla in Analisi partita.
+
 ## 14. Test suite {#test-suites}
 
 **Analisi → Test suite** fa girare i motori su posizioni EPD con una risposta nota: problemi e

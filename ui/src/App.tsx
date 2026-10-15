@@ -13,6 +13,7 @@ import {
   Gamepad2,
   Gauge,
   LayoutDashboard,
+  Library,
   ListOrdered,
   Microscope,
   Palette as PaletteIcon,
@@ -56,6 +57,7 @@ import { Tournaments } from "./pages/Tournaments";
 import { Wizard } from "./pages/Wizard";
 import { AnalysisPage } from "./pages/Analysis";
 import { SuitesPage } from "./pages/Suites";
+import { DatabasePage } from "./pages/Database";
 import { PlayPage } from "./pages/Play";
 import { THEMES, themeLabel, useTheme, type ThemeId } from "./lib/theme";
 
@@ -88,6 +90,7 @@ const GROUPS: { id: string; label: Key | ""; items: NavItem[] }[] = [
     label: "app.group.analysis",
     items: [
       { to: "/analysis", label: "app.nav.analysis", icon: Microscope, key: "y" },
+      { to: "/database", label: "app.nav.database", icon: Library, key: "k" },
       { to: "/suites", label: "app.nav.suites", icon: Puzzle, key: "p" },
       { to: "/play", label: "app.nav.play", icon: Gamepad2, key: "v" },
     ],
@@ -575,6 +578,7 @@ function Layout() {
               <Route path="/games" element={<Games />} />
               <Route path="/analysis" element={<AnalysisPage />} />
               <Route path="/suites" element={<SuitesPage />} />
+              <Route path="/database" element={<DatabasePage />} />
               <Route path="/play" element={<PlayPage />} />
               <Route path="/help" element={<Help />} />
               <Route path="/start" element={<GettingStarted />} />

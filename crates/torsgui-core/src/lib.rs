@@ -14,6 +14,7 @@ pub mod checklist;
 pub mod chess960;
 pub mod crosstable;
 pub mod cutechess;
+pub mod database;
 pub mod demo;
 pub mod engines;
 pub mod export;

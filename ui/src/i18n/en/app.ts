@@ -22,6 +22,7 @@ export const app = {
     bench: "Bench",
     analysis: "Game analysis",
     suites: "Test suites",
+    database: "Database",
     play: "Play vs engine",
     settings: "Settings",
     logs: "Logs",

@@ -923,6 +923,70 @@ impl App {
                 let rows: Vec<GameRow> = pgn::read_games(&source)?.iter().map(game_row).collect();
                 ok(rows)
             }
+            "game_get" if arg::<String>(&a, "source")?.starts_with("db:") => {
+                // a game of the user's database: source "db:<id>"
+                let id: i64 = arg::<String>(&a, "source")?[3..].parse().context("bad game id")?;
+                let text = store.db_game_pgn(id)?;
+                let g = pgn::parse_games(&text, Path::new("")).into_iter().next().context("game not found")?;
+                ok(crate::live::viewer_game(&g))
+            }
+            // ---------------------------------------------------------- the user's database
+            "db_collections" => ok(store.db_collections()?),
+            "db_collection_create" => ok(store.db_collection_create(&arg::<String>(&a, "name")?, opt(&a, "parent"))?),
+            "db_collection_rename" => {
+                store.db_collection_rename(arg(&a, "id")?, &arg::<String>(&a, "name")?)?;
+                ok(true)
+            }
+            "db_collection_move" => {
+                store.db_collection_move(arg(&a, "id")?, opt(&a, "parent"))?;
+                ok(true)
+            }
+            "db_collection_delete" => {
+                store.db_collection_delete(arg(&a, "id")?)?;
+                ok(true)
+            }
+            "db_import" => {
+                let collection: i64 = arg(&a, "collection")?;
+                let mut store = store;
+                let r = match opt::<String>(&a, "text").filter(|t| !t.trim().is_empty()) {
+                    Some(t) => store.db_import_text(collection, &t)?,
+                    None => store.db_import_path(collection, Path::new(arg::<String>(&a, "path")?.trim().trim_matches('"')))?,
+                };
+                ok(r)
+            }
+            "db_games" => {
+                let collection: i64 = arg(&a, "collection")?;
+                let sub = opt::<bool>(&a, "sub").unwrap_or(true);
+                let q: String = opt(&a, "q").unwrap_or_default();
+                ok(json!({"games": store.db_games(collection, sub, &q, 5000)?, "total": store.db_games_count(collection, sub)?}))
+            }
+            "db_game_pgn" => ok(store.db_game_pgn(arg(&a, "id")?)?),
+            "db_games_move" => ok(store.db_games_move(&arg::<Vec<i64>>(&a, "ids")?, arg(&a, "collection")?)?),
+            "db_games_delete" => ok(store.db_games_delete(&arg::<Vec<i64>>(&a, "ids")?)?),
+            "db_export" => {
+                let collection: i64 = arg(&a, "collection")?;
+                let name = store.db_collections()?.into_iter().find(|c| c.id == collection).map(|c| c.name).unwrap_or_else(|| "database".into());
+                let text = store.db_export_pgn(collection, opt::<bool>(&a, "sub").unwrap_or(true))?;
+                let settings = store.settings()?;
+                let base = if settings.output_dir.trim().is_empty() { self.ws.root.join("results") } else { PathBuf::from(&settings.output_dir) };
+                let dir = base.join("database");
+                std::fs::create_dir_all(&dir).with_context(|| format!("{}", dir.display()))?;
+                let clean: String = name.chars().map(|c| if c.is_alphanumeric() || " .-_".contains(c) { c } else { '_' }).collect::<String>().trim().chars().take(80).collect();
+                let file = dir.join(format!("{}.pgn", if clean.is_empty() { "database" } else { &clean }));
+                std::fs::write(&file, text)?;
+                ok(json!({"path": file}))
+            }
+            "db_positions" => ok(store.db_positions(arg(&a, "collection")?, opt::<bool>(&a, "sub").unwrap_or(true))?),
+            "db_positions_add" => {
+                let (added, errors) = store.db_positions_add(arg(&a, "collection")?, &arg::<String>(&a, "text")?)?;
+                ok(json!({"added": added, "errors": errors}))
+            }
+            "db_position_update" => {
+                store.db_position_update(arg(&a, "id")?, &opt::<String>(&a, "title").unwrap_or_default(), &opt::<String>(&a, "note").unwrap_or_default())?;
+                ok(true)
+            }
+            "db_positions_delete" => ok(store.db_positions_delete(&arg::<Vec<i64>>(&a, "ids")?)?),
+            "db_positions_move" => ok(store.db_positions_move(&arg::<Vec<i64>>(&a, "ids")?, arg(&a, "collection")?)?),
             "game_get" => {
                 let source: PathBuf = arg(&a, "source")?;
                 let index: usize = arg(&a, "index")?;
