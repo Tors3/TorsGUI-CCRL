@@ -98,6 +98,9 @@ export const wizard: Shape<typeof en> = {
   cond: {
     title: "Condizioni",
     cpu: "Categoria CPU",
+    asIs: "As is: non cambiare le opzioni dei motori",
+    asIsAbout: "Di solito il torneo imposta Thread, Hash e percorso Syzygy di ogni motore. Spunta qui per inviare solo le opzioni scritte nella scheda di ogni motore: i motori giocano come li hai impostati tu (o con i loro valori predefiniti).",
+    asIsOn: "Il torneo non invia né Thread, né Hash, né percorso Syzygy: ogni motore riceve solo le opzioni della sua scheda. Thread e hash qui sotto servono allora solo a dare il nome al torneo; i core si contano dai Thread scritti nella scheda di ogni motore (1 se non scritti).",
     threadsLabel: "Thread per motore",
     threadsAbout: "thread per motore; la categoria di lista di ogni motore",
     custom: "Diversi per motore",

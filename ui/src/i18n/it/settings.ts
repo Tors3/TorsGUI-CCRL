@@ -10,6 +10,8 @@ export const settings: Shape<typeof en> = {
   saved: "Impostazioni salvate",
   done: "Fatto",
   gpuRefresh: "Cerca di nuovo",
+  strongText: "Testo più marcato",
+  strongTextAbout: "Testo secondario e grigio nel colore del testo principale; sui temi chiari lettere nere e un po' più spesse, per leggere meglio.",
   tabs: { general: "Generali", appearance: "Aspetto", paths: "Percorsi e fastchess", books: "Libri di aperture", broadcast: "Diretta", hardware: "Topologia CPU", maintenance: "Manutenzione" },
   savedHere: "salvato su questo computer, applicato subito",
   savedHereT: "salvato su questo computer, applicato subito · tasto t",

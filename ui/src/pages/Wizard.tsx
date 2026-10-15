@@ -90,6 +90,8 @@ export function Wizard() {
   const [book, setBook] = useState("");
   const [bookStart, setBookStart] = useState(1);
   const [randomOpenings, setRandomOpenings] = useState(false);
+  // as is: the tournament sets no engine option
+  const [asIs, setAsIs] = useState(false);
   const [openingSeed, setOpeningSeed] = useState(() => 1 + Math.floor(Math.random() * 999_999));
   const [syzygy, setSyzygy] = useState("");
   const [site, setSite] = useState("");
@@ -192,6 +194,7 @@ export function Wizard() {
         setBook(c.book);
         setBookStart(c.book_start);
         setRandomOpenings(c.random_openings ?? false);
+        setAsIs(c.as_is ?? false);
         if (c.opening_seed) setOpeningSeed(c.opening_seed);
         setSyzygy(c.syzygy_path);
         setSite(c.site);
@@ -330,6 +333,7 @@ export function Wizard() {
         book_format: book.toLowerCase().endsWith(".epd") ? "epd" : "pgn",
         book_start: bookStart,
         random_openings: randomOpenings,
+        as_is: asIs,
         opening_seed: openingSeed,
         event: eventName,
         site,
@@ -753,6 +757,13 @@ export function Wizard() {
             ))}
           {shownStep === "conditions" && (
           <Panel title={t("wizard.cond.title")}>
+            <label className="flex items-start gap-2 mb-3 text-[12.5px] p-2 rounded-md" style={{ background: asIs ? "var(--warn-bg, var(--bg-2))" : "var(--bg-2)" }} data-testid="wizard-as-is">
+              <input type="checkbox" className="mt-0.5" checked={asIs} onChange={(e) => setAsIs(e.target.checked)} />
+              <span>
+                <span className="font-medium">{t("wizard.cond.asIs")}</span>
+                <span className="block muted">{t(asIs ? "wizard.cond.asIsOn" : "wizard.cond.asIsAbout")}</span>
+              </span>
+            </label>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-3 text-[12.5px]" data-testid="wizard-cpu-block">
               <span className="font-medium">{t("wizard.cond.cpu")}</span>
               <span className="inline-flex items-center gap-1">

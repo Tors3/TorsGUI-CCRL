@@ -90,7 +90,7 @@ pub struct SetupStatus {
     pub fastchess: bool,
     /// Demo tournaments already created (id, name, state).
     pub demos: Vec<(String, String, String)>,
-    /// Engines shipped with this installation ("Stockfish 10", "Triumviratus 7.0").
+    /// Engines shipped with this installation ("Stockfish 10", "Triumviratus 8.0").
     pub bundled: Vec<String>,
     /// Opening books (PGN) shipped with this installation.
     pub bundled_books: u32,
@@ -155,6 +155,7 @@ pub fn tournament(engine: &Path, ids: &[Option<i64>], variant: Variant, book: &P
         placement: Placement::Node,
         use_smt: false,
         gpus: vec![],
+        as_is: false,
         log_level: "info".into(),
         ccrl_list: list.into(),
         max_retries: 1,

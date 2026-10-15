@@ -20,7 +20,7 @@ this machine, and has a button to do it. The steps are the sections of this guid
    books*: the books come with TorsGUI, see [Opening books](#opening-books)).
 4. **Bench**: the SF10 bench gives the machine factor and the local time control
    (Stockfish 10 comes with TorsGUI: *Use the bundled Stockfish 10*).
-5. **Engines**: *Add the bundled engines* (Stockfish 10 and Triumviratus 7.0 AVX2 come with
+5. **Engines**: *Add the bundled engines* (Stockfish 10 and Triumviratus 8.0 come with
    TorsGUI), then add others from GitHub (or local files); each is verified.
 6. **CCRL list**: import the list for ratings, names and suggested opponents.
 7. **First tournament**: the wizard, then Live, Export and the post.
@@ -151,8 +151,8 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
   only if no AVX2 or AVX-512 build of them exists (some engines ship only a generic build).
   The CCRL checklist warns; a local file whose name does not tell the build is pointed out to check. An AVX-512
   build on a CPU without AVX-512 blocks the tournament (the engine would crash).
-- **Bundled engines**: the installers carry Stockfish 10 and Triumviratus 7.0 (AVX2, the
-  CCRL asset of its release); the button copies them to the engines folder (sha256 checked)
+- **Bundled engines**: the installers carry Stockfish 10 and Triumviratus 8.0 (its Windows
+  file, which runs AVX2 or AVX-512 by itself); the button copies them to the engines folder (sha256 checked)
   and verifies them. Both are GPL-3: their sources are linked in the engine entry.
 - **Add local file** does the same verification for a binary already on disk.
 - **Import Cute Chess** reads the `engines.json` of Cute Chess (**Find it** looks in the usual
@@ -469,13 +469,22 @@ captured material, clocks, eval and time graphs (click to jump), move list with 
 `Space` plays/pauses (0.5×–4×), `t` theater mode (large board), `f` flip. The large live
 board has the same bar, ticking clocks and the PV of the engine to move as arrows.
 **Board appearance** (palette button, or Settings): *Minimal* (flat, the default), slate,
-ocean, tournament green, classic brown, walnut, maple, Szőts wood, Bastiii felt, marble, or
-*Custom* with your own light/dark square colours; 69 piece sets (sharechess and lichess sets whose licence allows
+ocean, tournament green, classic brown, walnut, maple, Szőts wood, Bastiii felt, marble, olive, purple, coral, ice,
+ebony wood, leather, newspaper, night (dark), or
+*Custom* with your own light/dark square colours; 80 piece sets (sharechess and lichess sets whose licence allows
 bundling, with their colour variants; searchable); animation speed, coordinates (**on the frame**
 around the board, as on a real board, or inside the edge squares; they follow the board when it
 is flipped), arrows and an optional move sound. **Import** adds any other set from a folder (lichess names
 `wP.svg`…`bK.svg` or sharechess names `pw.svg`…`kb.svg`, SVG or PNG), e.g. the
 non-commercial sets of sharechess: they stay on your computer, for personal use.
+
+**Crosstables**: the tournament page (tab *Crosstable*) and **Games → Crosstable** (for the
+selected tournament or PGN file, also games played with other GUIs) show every player against
+every other: points, W/D/L, %, Sonneborn-Berger (it breaks ties on points) and the performance
+when every opponent has a rating (the tournament's ratings, else the PGN `WhiteElo`/`BlackElo`
+tags). A cell lists the results in the order played (`1=0=`) when every pair played at most 4
+games, else the score (`8.5/10`). **Copy** gives it as text, **Copy for the forum** inside
+`[code]`; **Save .txt** and **Save as web page** write it to `<export folder>/crosstables`.
 
 ## 11. Importing the old scripts' tournaments
 
@@ -520,7 +529,9 @@ another mate that short counts too).
 - Positions: built-in suites — *Mate finding* (mates in 1 to 7) and the first 20 *Win at
   Chess* positions (checked with Stockfish 10), plus, from the test collection of the Arasan
   engine by Jon Dart (MIT licence), the complete WAC (300, revised), ECM GCP, IQ4, BT-2630,
-  LCT II, a pawn endgame test and the Eigenmann Endgame Test — any EPD file (STS, Arasan, mate
+  LCT II, a pawn endgame test, the Eigenmann Endgame Test and Arasan 2026; three selections from
+  the lichess puzzle database (CC0): *Lichess mates* (mate in 2 to 5), *Lichess hard tactics*
+  (rated 2700+) and *Lichess endgames* (rated 2300+) — any EPD file (STS, Arasan, mate
   collections…) or pasted lines. Lines that cannot be read are listed and skipped.
 - Engines: one or more, a time per position, threads, hash and how many engine processes run
   at once.

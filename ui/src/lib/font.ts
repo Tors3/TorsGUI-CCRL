@@ -37,6 +37,43 @@ export function setFont(id: FontId) {
   listeners.forEach((l) => l());
 }
 
+// stronger text: secondary and grey text in the main text colour (black on light themes)
+const STRONG = "torsgui-strong-text";
+let strong = (() => {
+  try {
+    return localStorage.getItem(STRONG) === "1";
+  } catch {
+    return false;
+  }
+})();
+
+export function applyStrongText(on: boolean = strong) {
+  if (typeof document === "undefined") return;
+  if (on) document.documentElement.dataset.text = "strong";
+  else delete document.documentElement.dataset.text;
+}
+
+export function setStrongText(on: boolean) {
+  strong = on;
+  try {
+    localStorage.setItem(STRONG, on ? "1" : "0");
+  } catch {
+    /* private mode */
+  }
+  applyStrongText(on);
+  listeners.forEach((l) => l());
+}
+
+export function useStrongText() {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => strong,
+  );
+}
+
 export function useFont() {
   const font = useSyncExternalStore(
     (l) => {

@@ -21,7 +21,7 @@ fatto e ha un bottone per farlo. I passi sono le sezioni di questa guida:
    CCRL*: i libri sono inclusi in TorsGUI, vedi [Libri di aperture](#opening-books)).
 4. **Bench**: il bench di SF10 dà il fattore della macchina e il tempo di riflessione locale
    (Stockfish 10 è incluso in TorsGUI: *Usa lo Stockfish 10 incluso*).
-5. **Motori**: *Aggiungi i motori inclusi* (Stockfish 10 e Triumviratus 7.0 AVX2 sono inclusi
+5. **Motori**: *Aggiungi i motori inclusi* (Stockfish 10 e Triumviratus 8.0 sono inclusi
    in TorsGUI), poi aggiungine altri da GitHub (o da file locali); ognuno viene verificato.
 6. **Lista CCRL**: importa la lista per rating, nomi e avversari suggeriti.
 7. **Il tuo primo torneo**: la procedura guidata, poi Live, Esporta e il post.
@@ -161,8 +161,8 @@ di file (`book = "GM2700+.pgn"`).
   build generica). La checklist CCRL avvisa; un file locale il cui nome non dice la build viene
   indicato da controllare. Una build AVX-512 su una CPU senza AVX-512 blocca il torneo (il
   motore andrebbe in crash).
-- **Motori inclusi**: gli installer contengono Stockfish 10 e Triumviratus 7.0 (AVX2, il file
-  CCRL della sua release); il bottone li copia nella cartella dei motori (con controllo sha256)
+- **Motori inclusi**: gli installer contengono Stockfish 10 e Triumviratus 8.0 (il suo file
+  per Windows, che usa da solo AVX2 o AVX-512); il bottone li copia nella cartella dei motori (con controllo sha256)
   e li verifica. Entrambi sono GPL-3: i loro sorgenti sono collegati nella scheda del motore.
 - **File locale** fa la stessa verifica per un eseguibile già sul disco.
 - **Importa da Cute Chess** legge l'`engines.json` di Cute Chess (**Trovalo** cerca nelle
@@ -499,7 +499,8 @@ modalità teatro (scacchiera grande), `f` gira la scacchiera. La scacchiera gran
 la stessa barra, gli orologi che scorrono e la PV del motore che deve muovere come frecce.
 **Aspetto della scacchiera** (bottone con la tavolozza, o Impostazioni): *Minimale* (piatta,
 quella predefinita), ardesia, oceano, verde torneo, marrone classico, noce, acero, legno Szőts,
-panno Bastiii, marmo, oppure *Personalizzata* con i tuoi colori delle case chiare e scure; 69 set
+panno Bastiii, marmo, oliva, viola, corallo, ghiaccio, legno
+d'ebano, cuoio, giornale, notte (scura), oppure *Personalizzata* con i tuoi colori delle case chiare e scure; 80 set
 di pezzi (set di sharechess e lichess la cui licenza permette di includerli, con le loro
 varianti di colore; si possono cercare); velocità dell'animazione, coordinate (**sulla
 cornice** attorno alla scacchiera, come su una scacchiera vera, oppure dentro le case del bordo;
@@ -507,6 +508,15 @@ seguono la scacchiera quando la giri), frecce e un suono facoltativo delle mosse
 aggiunge qualsiasi altro set da una cartella (nomi lichess `wP.svg`…`bK.svg` o nomi sharechess
 `pw.svg`…`kb.svg`, SVG o PNG), per esempio i set non commerciali di sharechess: restano sul tuo
 computer, per uso personale.
+
+**Tabelle incrociate**: la pagina del torneo (scheda *Tabella incrociata*) e **Partite → Tabella
+incrociata** (per il torneo o il file PGN scelto, anche partite giocate con altre GUI) mostrano
+ogni giocatore contro ogni altro: punti, V/P/S, %, Sonneborn-Berger (decide le parità di punti) e
+la performance quando tutti gli avversari hanno un rating (quelli del torneo, altrimenti i tag
+PGN `WhiteElo`/`BlackElo`). Una casella elenca i risultati nell'ordine in cui sono stati giocati
+(`1=0=`) quando ogni coppia ha giocato al massimo 4 partite, altrimenti il punteggio (`8.5/10`).
+**Copia** la dà come testo, **Copia per il forum** dentro `[code]`; **Salva .txt** e **Salva come
+pagina web** la scrivono in `<cartella di export>/crosstables`.
 
 ## 11. Importare i tornei dei vecchi script {#importing-the-old-scripts-tournaments}
 
@@ -554,7 +564,9 @@ quanto richiesto (`dm`, matto in N: vale anche un altro matto altrettanto corto)
 - Posizioni: suite incluse — *Mate finding* (matti da 1 a 7) e le prime 20 posizioni di *Win at
   Chess* (controllate con Stockfish 10), più, dalla raccolta di test del motore Arasan di Jon
   Dart (licenza MIT), il WAC completo (300, rivisto), ECM GCP, IQ4, BT-2630, LCT II, un test di
-  finali di pedoni e l'Eigenmann Endgame Test — qualsiasi file EPD (STS, Arasan, raccolte di
+  finali di pedoni, l'Eigenmann Endgame Test e Arasan 2026; tre selezioni dal database dei
+  problemi di lichess (CC0): *Lichess mates* (matti da 2 a 5 mosse), *Lichess hard tactics*
+  (rating 2700+) e *Lichess endgames* (rating 2300+) — qualsiasi file EPD (STS, Arasan, raccolte di
   matti…) o righe incollate. Le righe che non si riescono a leggere vengono elencate e saltate.
 - Motori: uno o più, un tempo per posizione, thread, hash e quanti processi dei motori girano
   insieme.

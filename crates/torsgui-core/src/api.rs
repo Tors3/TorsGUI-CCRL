@@ -857,6 +857,24 @@ impl App {
                 ok(rows)
             }
             "archive_sources" => ok(self.archive_sources(&store)?),
+            // crosstables of a tournament (kind "tournament", id) or of a PGN file (kind "file", path)
+            "crosstable" => ok(self.crosstable(&store, &arg::<String>(&a, "kind")?, &arg::<String>(&a, "id")?)?),
+            "crosstable_text" => {
+                let ct = self.crosstable(&store, &arg::<String>(&a, "kind")?, &arg::<String>(&a, "id")?)?;
+                ok(if opt::<String>(&a, "format").as_deref() == Some("bbcode") { crate::crosstable::to_bbcode(&ct) } else { crate::crosstable::to_text(&ct) })
+            }
+            "crosstable_save" => {
+                let ct = self.crosstable(&store, &arg::<String>(&a, "kind")?, &arg::<String>(&a, "id")?)?;
+                let html = opt::<String>(&a, "format").as_deref() == Some("html");
+                let settings = store.settings()?;
+                let base = if settings.output_dir.trim().is_empty() { self.ws.root.join("results") } else { PathBuf::from(&settings.output_dir) };
+                let dir = base.join("crosstables");
+                std::fs::create_dir_all(&dir).with_context(|| format!("{}", dir.display()))?;
+                let clean: String = ct.title.chars().map(|c| if c.is_alphanumeric() || " .-_".contains(c) { c } else { '_' }).collect::<String>().trim().chars().take(100).collect();
+                let file = dir.join(format!("{}.{}", if clean.is_empty() { "crosstable" } else { &clean }, if html { "html" } else { "txt" }));
+                std::fs::write(&file, if html { crate::crosstable::to_html(&ct) } else { crate::crosstable::to_text(&ct) })?;
+                ok(json!({"path": file}))
+            }
             "piece_sets_user" => ok(crate::pieces::list(&self.ws.root.join("pieces"))),
             "piece_set_import" => {
                 let dir: PathBuf = arg(&a, "dir")?;
@@ -1558,6 +1576,24 @@ impl App {
     }
 
     /// Games of a tournament, cached until a PGN file changes.
+/// The crosstable of a tournament's games (its ratings, its event as title) or of a PGN file.
+    fn crosstable(&self, store: &crate::store::Store, kind: &str, id: &str) -> Result<crate::crosstable::Crosstable> {
+        let (title, mut games, ratings): (String, Vec<Game>, HashMap<String, f64>) = if kind == "tournament" {
+            let t = store.tournament(id)?.context("tournament not found")?;
+            let loaded = self.loaded(store, id)?;
+            let ratings = t.config.participants.iter().filter_map(|p| p.rating.map(|r| (p.name.clone(), r))).collect();
+            (if t.config.event.is_empty() { t.name.clone() } else { t.config.event.clone() }, loaded.games.clone(), ratings)
+        } else {
+            let path = PathBuf::from(id);
+            self.guard_path(&path)?;
+            let (games, _) = pgn::dedupe(pgn::read_games(&path)?);
+            (path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default(), games, HashMap::new())
+        };
+        // in the order played (games without an end time keep their file order)
+        games.sort_by(|a, b| a.end_time().cmp(b.end_time()));
+        Ok(crate::crosstable::build(&title, &games, &|n| ratings.get(n).copied()))
+    }
+
     fn loaded(&self, _store: &crate::store::Store, id: &str) -> Result<Arc<analysis::Loaded>> {
         let files = self.pgn_files(id);
         let sig: String = files
@@ -1782,7 +1818,10 @@ impl App {
         if p.ram_total_mb > 0 && p.ram_needed_mb as f64 > p.ram_total_mb as f64 * 0.85 {
             p.errors.push(msg!("preview.ram", "estimated RAM {needed} MB exceeds 85 % of the {total} MB installed (fastchess keeps both engines alive)", needed = p.ram_needed_mb, total = p.ram_total_mb));
         }
-        for x in &cfg.participants {
+        if cfg.as_is {
+            p.warnings.push(msg!("preview.asIs", "As is: TorsGUI sends no Threads, Hash or Syzygy path; every engine plays with the options of its entry (or its own defaults). The lanes count {threads} thread(s) for the heaviest game.", threads = cfg.cores_per_lane()));
+        }
+        for x in cfg.participants.iter().filter(|_| !cfg.as_is) {
             let rule = cfg.ccrl_hash(cfg.threads_of(x));
             if cfg.hash_of(x) != rule {
                 p.warnings.push(msg!("preview.hashRule", "{engine}: hash {hash} MB differs from the CCRL rule for {threads} threads on the {list} list: {rule} MB", engine = x.name, hash = cfg.hash_of(x), threads = cfg.threads_of(x), list = if cfg.ccrl_list.is_empty() { "Blitz" } else { &cfg.ccrl_list }, rule = rule));
@@ -2484,6 +2523,7 @@ impl Default for TournamentRecord {
             placement: Placement::Node,
             use_smt: false,
             gpus: vec![],
+        as_is: false,
             log_level: "info".into(),
             ccrl_list: String::new(),
             max_retries: 2,

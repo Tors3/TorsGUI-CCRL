@@ -7,6 +7,8 @@ export const settings = {
   saved: "Settings saved",
   done: "Done",
   gpuRefresh: "Look again",
+  strongText: "Stronger text",
+  strongTextAbout: "Secondary and grey text in the main text colour; on the light themes black, slightly thicker letters, for easier reading.",
   tabs: { general: "General", appearance: "Appearance", paths: "Paths & fastchess", books: "Opening books", broadcast: "Live broadcast", hardware: "CPU topology", maintenance: "Maintenance" },
   savedHere: "saved on this computer, applied immediately",
   savedHereT: "saved on this computer, applied immediately · shortcut t",

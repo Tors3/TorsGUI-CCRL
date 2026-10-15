@@ -22,7 +22,7 @@ export const start: Shape<typeof en> = {
     fastchess: { title: "Installa fastchess", why: "fastchess gioca le partite: TorsGUI avvia un processo fastchess per partita e lo piazza su un nodo NUMA." },
     folders: { title: "Cartelle e libro di aperture", why: "Dove si scaricano i motori, dove stanno libri e tablebase, e il libro predefinito da cui parte ogni torneo. I libri di aperture CCRL (AVT 2026, GM 2700+, Low Draw…) sono inclusi in TorsGUI." },
     bench: { title: "Fai il bench della macchina", why: "Il bench di Stockfish 10 misura questa macchina rispetto al riferimento CCRL e trasforma i tempi CCRL in tempi locali (es. Blitz 2'+1\" → 103+1). Stockfish 10 è incluso in TorsGUI: niente da scaricare." },
-    engines: { title: "Aggiungi i motori", why: "TorsGUI include Stockfish 10 e Triumviratus 7.0 (AVX2): aggiungili con un clic. Per gli altri incolla un repository GitHub: TorsGUI sceglie la build CCRL (AVX2), la scarica, la controlla e la verifica." },
+    engines: { title: "Aggiungi i motori", why: "TorsGUI include Stockfish 10 e Triumviratus 8.0: aggiungili con un clic. Per gli altri incolla un repository GitHub: TorsGUI sceglie la build CCRL (AVX2), la scarica, la controlla e la verifica." },
     ccrl: { title: "Importa la lista CCRL", why: "I rating, i nomi usati dal CCRL e i suggerimenti di avversari vicini al livello del tuo motore." },
     tournament: { title: "Il tuo primo torneo", why: "La procedura guidata calcola partite, aperture, durata e risorse; oppure importa un file torneo scritto da te o da Claude. Poi seguilo in diretta ed esportalo." },
   },

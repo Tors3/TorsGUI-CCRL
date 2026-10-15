@@ -708,6 +708,7 @@ pub(crate) mod tests {
             placement: Placement::None,
             use_smt: false,
         gpus: vec![],
+        as_is: false,
             log_level: "info".into(),
             ccrl_list: "Blitz".into(),
             max_retries: 2,

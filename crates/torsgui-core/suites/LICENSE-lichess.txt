@@ -1,0 +1,7 @@
+lichess-mates.epd, lichess-hard.epd and lichess-endgames.epd are selections from the lichess.org
+puzzle database (https://database.lichess.org/#puzzles), released by lichess under the
+Creative Commons CC0 licence (public domain dedication).
+
+Each position is the one after the opponent's move of the puzzle; the solution is the first
+move of the puzzle's answer (bm), or the mate length (dm) for the mate suite. The id names the
+puzzle: https://lichess.org/training/<id>

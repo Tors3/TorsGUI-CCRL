@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.8.0] - 2026-10-15
 
 ### Added
 - **Cores & games** (New tournament, the step that was *NUMA & lanes*), redone so that it says
@@ -18,6 +18,24 @@
   parameters (`msg!`), and the list of codes is generated for the UI, so a missing translation
   is a type error. Still in English: events, the logs, the forum post and the tournament files,
   which are meant for CCRL.
+- **More boards and pieces**: 8 new boards (olive, purple, coral, ice, ebony wood, leather,
+  newspaper, night), drawn in CSS for TorsGUI; 9 more piece sets from lichess with a free licence
+  (Letter, Pirouetti, Pixel, RhosGFX, Celtic, Kiwen-suwi, Firi, Totoy, Papercut): 80 sets in all.
+- **Test suites**: each position has its running number (1 to the total) next to its original id.
+  Four more suites: **Arasan 2026** (Jon Dart's suite, 200 positions, MIT) and three selections
+  from the lichess puzzle database (CC0): **Lichess mates** (120, mate in 2 to 5), **Lichess hard
+  tactics** (150, rated 2700+), **Lichess endgames** (120, rated 2300+).
+- **Easier to read** (asked by Gabor Szőts): darker secondary and grey text on the light themes
+  (Paper, Light, Szőts), lighter on the dark ones; *Settings → Appearance → Stronger text* puts all text in the main colour, with black, slightly thicker letters on the light
+  themes.
+- **"As is" tournaments** (New tournament → Conditions): the tournament sends no Threads, Hash or
+  Syzygy path; every engine plays with the options of its entry (or its own defaults). The cores
+  are counted from each engine's own Threads; tournament files take `as_is = true`.
+- **Crosstables** (asked by Gabor Szőts): every player against every other, on the tournament
+  page (tab *Crosstable*) and in Games for any tournament or PGN file, also games from other
+  GUIs. Points, W/D/L, %, Sonneborn-Berger, performance; cells with each result in order
+  (`1=0=`) up to 4 games per pair, else the score. Copy as text or for the forum (`[code]`),
+  save as .txt or as a web page (`<export folder>/crosstables`).
 - **GPU engines** (Lc0 and the like): a **GPU** tab in Engines with the graphics cards of the
   computer; engines with the options of a GPU engine are ticked when verified, and the *GPU*
   column ticks any engine. In *Cores & games* the cards to use (all by default), one game per
@@ -44,6 +62,9 @@
   card-table felt with a brass trim.
 
 ### Changed
+- **Bundled engine: Triumviratus 8.0** in place of 7.0 (the Windows file of the v8.0 release,
+  which runs AVX2 or AVX-512 by itself; network embedded). *Add the bundled engines* adds it next
+  to a 7.0 already in the library.
 - ccrl.live: the "copy the message" button is greyed out for now.
 - User guide: the Cores & games panel, active engines, Unqueue, language and board
   coordinates are described.

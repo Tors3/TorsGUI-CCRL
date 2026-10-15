@@ -185,6 +185,7 @@ pub fn read(tournament_dir: &Path, results_dir: Option<&Path>) -> Result<LegacyT
         placement: Placement::Node,
         use_smt: false,
         gpus: vec![],
+        as_is: false,
         log_level: get("LOG_LEVEL", "info"),
         ccrl_list: ccrl_list.into(),
         max_retries: 2,

@@ -1,10 +1,11 @@
-import { FileText, FolderPlus, Swords, Trash2 } from "lucide-react";
+import { FileText, FolderPlus, Grid3x3, Swords, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { ArchiveSource } from "../bindings/ArchiveSource";
 import type { GameRow } from "../bindings/GameRow";
 import type { Settings } from "../bindings/Settings";
 import { BoardSettingsButton } from "../components/BoardSettings";
+import { CrosstableView } from "../components/Crosstable";
 import { GameViewer, type GameRef } from "../components/GameViewer";
 import { GamesTable } from "../components/GamesTable";
 import { Empty, ErrorBox, Modal, PageHeader, Panel, StateChip } from "../components/ui";
@@ -20,6 +21,7 @@ export function Games() {
   const [game, setGame] = useState<GameRef | null>(null);
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
+  const [crosstable, setCrosstable] = useState(false);
   const [path, setPath] = useState("");
   const t = useT();
   useEffect(() => {
@@ -93,6 +95,9 @@ export function Games() {
         actions={
           <>
             <BoardSettingsButton />
+            <button className="btn" onClick={() => setCrosstable(true)} disabled={!sel || !sel.games} title={t("crosstable.openTip")} data-testid="open-crosstable">
+              <Grid3x3 size={14} /> {t("crosstable.open")}
+            </button>
             <button className="btn" onClick={() => setAdding(true)}>
               <FolderPlus size={14} /> {t("games.add")}
             </button>
@@ -125,6 +130,9 @@ export function Games() {
         </div>
       )}
       <GameViewer game={game} onClose={() => setGame(null)} />
+      <Modal open={crosstable && !!sel} onOpenChange={setCrosstable} title={t("crosstable.title")} width={1100}>
+        {sel && <CrosstableView source={sel.kind === "tournament" ? { kind: "tournament", id: sel.id } : { kind: "file", id: sel.path }} />}
+      </Modal>
       <Modal open={adding} onOpenChange={setAdding} title={t("games.addTitle")} footer={<button className="btn btn-primary" onClick={add} disabled={!path.trim()}>{t("games.addBtn")}</button>}>
         <p className="muted text-[12.5px] mb-2">{t("games.addAbout")}</p>
         <input className="input mono" value={path} onChange={(e) => setPath(e.target.value)} placeholder="C:\CCRL\CCRL_ScirptsTests\tournaments\Triumviratus_7.0_8CPU\pgn" data-testid="archive-path" />

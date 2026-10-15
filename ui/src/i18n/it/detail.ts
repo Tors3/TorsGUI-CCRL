@@ -4,7 +4,7 @@ import type { detail as en } from "../en/detail";
 export const detail: Shape<typeof en> = {
   loading: "Caricamento…",
   imported: "importato",
-  sub: "{event} · {kind}{variant} · TC {tc} · {cpu} · hash {hash} MB · {book} ({mode}) · {nodes} nodo/i × {lanes} lane",
+  sub: "{event} · {kind}{variant} · TC {tc} · {cpu} · hash {hash} · {book} ({mode}) · {nodes} nodo/i × {lanes} lane",
   exportTip: "Export CCRL e post per il forum",
   export: "Esporta",
   post: "Post",
@@ -25,10 +25,12 @@ export const detail: Shape<typeof en> = {
     eta: "Fine prevista",
     done: "finito",
   },
+  asIs: "as is (opzioni proprie dei motori)",
   tabs: {
     label: "Viste del torneo",
     bracket: "Tabellone",
     rounds: "Turni",
+    crosstable: "Tabella incrociata",
     standings: "Classifica",
     elo: "Grafico Elo",
     openings: "Aperture",

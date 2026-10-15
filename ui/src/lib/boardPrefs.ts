@@ -27,7 +27,7 @@ export type BoardPrefs = {
 export const COORDS_STYLES = ["frame", "inside"] as const;
 export type CoordsStyle = (typeof COORDS_STYLES)[number];
 
-export const BOARD_THEMES = ["minimal", "slate", "ocean", "tournament", "classic", "walnut", "maple", "szots", "basti", "marble", "custom"] as const;
+export const BOARD_THEMES = ["minimal", "slate", "ocean", "tournament", "classic", "walnut", "maple", "szots", "basti", "marble", "olive", "purple", "coral", "ice", "ebony", "leather", "newspaper", "night", "custom"] as const;
 export type BoardTheme = (typeof BOARD_THEMES)[number];
 export const THEME_LABEL: Record<BoardTheme, string> = {
   minimal: "Minimal",
@@ -41,6 +41,14 @@ export const THEME_LABEL: Record<BoardTheme, string> = {
   ocean: "Ocean",
   slate: "Slate",
   classic: "Classic brown",
+  olive: "Olive",
+  purple: "Purple",
+  coral: "Coral",
+  ice: "Ice",
+  ebony: "Ebony wood",
+  leather: "Leather",
+  newspaper: "Newspaper",
+  night: "Night",
 };
 
 /** A bundled set id ("merida", "cburnett_blue") or "user:<name>" for an imported set. */

@@ -165,6 +165,92 @@
   background: repeating-conic-gradient(#b58863 0 25%, #f0d9b5 0 50%) 0 0 / 25% 25%;
 }
 
+/* more boards, drawn in CSS for TorsGUI (no image files, no licence of others) */
+.board-theme-olive {
+  --sq-light: #dcd8b8;
+  --sq-dark: #8b8a5c;
+  --sq-last: rgba(214, 196, 80, 0.45);
+  --frame-bg: #4f4e31;
+  --frame-fg: #e6e2c6;
+}
+.board-theme-olive cg-board {
+  background: repeating-conic-gradient(#8b8a5c 0 25%, #dcd8b8 0 50%) 0 0 / 25% 25%;
+}
+.board-theme-purple {
+  --sq-light: #e6dcef;
+  --sq-dark: #8f72aa;
+  --sq-last: rgba(240, 190, 90, 0.42);
+  --frame-bg: #4c3a5e;
+  --frame-fg: #ece4f3;
+}
+.board-theme-purple cg-board {
+  background: repeating-conic-gradient(#8f72aa 0 25%, #e6dcef 0 50%) 0 0 / 25% 25%;
+}
+.board-theme-coral {
+  --sq-light: #f4dcd6;
+  --sq-dark: #c8807a;
+  --sq-last: rgba(255, 214, 120, 0.45);
+  --frame-bg: #6e3b37;
+  --frame-fg: #f7e6e1;
+}
+.board-theme-coral cg-board {
+  background: repeating-conic-gradient(#c8807a 0 25%, #f4dcd6 0 50%) 0 0 / 25% 25%;
+}
+.board-theme-ice {
+  --sq-light: #eef6fb;
+  --sq-dark: #9cc2da;
+  --sq-last: rgba(90, 170, 255, 0.35);
+  --frame-bg: #4a6d84;
+  --frame-fg: #eef6fb;
+}
+.board-theme-ice cg-board {
+  background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Cfilter id='f' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0.9 0 0 0 -0.25'/%3E%3C/filter%3E%3Crect width='512' height='512' filter='url%28%23f%29'/%3E%3C/svg%3E") 0 0 / 100% 100%, repeating-conic-gradient(#9cc2da 0 25%, #eef6fb 0 50%) 0 0 / 25% 25%;
+  background-blend-mode: soft-light, normal;
+}
+.board-theme-ebony {
+  --sq-light: #d9c3a3;
+  --sq-dark: #4e3322;
+  --sq-last: rgba(255, 205, 100, 0.40);
+  --frame-bg: #24170e;
+  --frame-fg: #d9c3a3;
+}
+.board-theme-ebony cg-board {
+  background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Cfilter id='f' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.16' numOctaves='4' seed='23'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  1.4 0 0 0 -0.35'/%3E%3C/filter%3E%3Crect width='512' height='512' filter='url%28%23f%29'/%3E%3C/svg%3E") 0 0 / 100% 100%, repeating-conic-gradient(#4e3322 0 25%, #d9c3a3 0 50%) 0 0 / 25% 25%;
+  background-blend-mode: overlay, normal;
+}
+.board-theme-leather {
+  --sq-light: #d8b48a;
+  --sq-dark: #8a5638;
+  --sq-last: rgba(255, 220, 140, 0.40);
+  --frame-bg: #4a2c1a;
+  --frame-fg: #ead2b3;
+}
+.board-theme-leather cg-board {
+  background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Cfilter id='f' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='4' seed='9'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  1.2 0 0 0 -0.3'/%3E%3C/filter%3E%3Crect width='512' height='512' filter='url%28%23f%29'/%3E%3C/svg%3E") 0 0 / 100% 100%, repeating-conic-gradient(#8a5638 0 25%, #d8b48a 0 50%) 0 0 / 25% 25%;
+  background-blend-mode: soft-light, normal;
+}
+.board-theme-newspaper {
+  --sq-light: #f3f0e7;
+  --sq-dark: #b9b3a3;
+  --sq-last: rgba(60, 60, 60, 0.18);
+  --frame-bg: #3b3a36;
+  --frame-fg: #f3f0e7;
+}
+.board-theme-newspaper cg-board {
+  background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Cfilter id='f' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' seed='4'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  1.8 0 0 0 -0.55'/%3E%3C/filter%3E%3Crect width='512' height='512' filter='url%28%23f%29'/%3E%3C/svg%3E") 0 0 / 100% 100%, repeating-conic-gradient(#b9b3a3 0 25%, #f3f0e7 0 50%) 0 0 / 25% 25%;
+  background-blend-mode: multiply, normal;
+}
+.board-theme-night {
+  --sq-light: #6b7383;
+  --sq-dark: #3a4150;
+  --sq-last: rgba(109, 140, 255, 0.40);
+  --frame-bg: #20242c;
+  --frame-fg: #a8b0bf;
+}
+.board-theme-night cg-board {
+  background: repeating-conic-gradient(#3a4150 0 25%, #6b7383 0 50%) 0 0 / 25% 25%;
+}
+
 .board-box cg-board square.last-move {
   background-color: var(--sq-last);
 }

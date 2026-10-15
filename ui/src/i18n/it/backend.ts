@@ -51,6 +51,7 @@ export const backend: Shape<typeof en> = {
     hash: {
       label: "Hash 1024 MB a 1CPU, 512 MB per thread da 2 thread",
       labelBlitz: "Hash 256 MB per thread (Blitz)",
+      asIs: "as is: l'hash di ogni motore è quello delle sue opzioni (o il suo predefinito); controlla che segua la regola CCRL ({rule} MB per {threads} thread)",
       ok: "{hash} MB per {threads} thread",
       wrong: "{hash} MB, la regola CCRL dà {rule} MB per {threads} thread",
     },
@@ -100,6 +101,7 @@ export const backend: Shape<typeof en> = {
     },
   },
   preview: {
+    asIs: "As is: TorsGUI non invia né Thread, né Hash, né percorso Syzygy; ogni motore gioca con le opzioni della sua scheda (o i suoi predefiniti). Le lane contano {threads} thread per la partita più pesante.",
     buildsBoth: "AVVISO: non tutti i motori scelti sono build AVX2 o AVX-512: {other}. Vai avanti solo se non trovi una loro build AVX2 o AVX-512. Controlla anche: valide per il CCRL solo se sono build AVX2 o AVX-512 (TorsGUI non può capirlo dal nome del file): {unknown}",
     buildsOther: "AVVISO: non tutti i motori scelti sono build AVX2 o AVX-512: {other}. Vai avanti solo se non trovi una loro build AVX2 o AVX-512",
     buildsUnknown: "Controlla le build: valide per il CCRL solo se sono build AVX2 o AVX-512 (TorsGUI non può capirlo dal nome del file): {unknown}",

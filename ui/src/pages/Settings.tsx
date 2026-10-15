@@ -15,7 +15,7 @@ import { ErrorBox, Field, PageHeader, PageTabs, Panel, Spinner, useTabParam } fr
 import { call, usePoll } from "../lib/api";
 import { bytes } from "../lib/format";
 import type { AppInfo } from "../lib/types";
-import { FONTS, useFont } from "../lib/font";
+import { FONTS, setStrongText, useFont, useStrongText } from "../lib/font";
 import { THEMES, themeAbout, themeLabel, useTheme } from "../lib/theme";
 
 const SETTINGS_TABS = [
@@ -406,8 +406,17 @@ export function SettingsPage() {
 /** The app's colour themes, with a preview of each palette. */
 function FontPicker() {
   const { font, setFont } = useFont();
+  const strong = useStrongText();
   const t = useT();
   return (
+    <div className="flex flex-col gap-3">
+    <label className="flex items-start gap-2 text-[12.5px]" data-testid="strong-text">
+      <input type="checkbox" className="mt-0.5" checked={strong} onChange={(e) => setStrongText(e.target.checked)} />
+      <span>
+        <span className="font-medium">{t("settings.strongText")}</span>
+        <span className="block muted">{t("settings.strongTextAbout")}</span>
+      </span>
+    </label>
     <div className="flex flex-wrap gap-2" data-testid="font-picker">
       {FONTS.map((f) => (
         <button
@@ -422,6 +431,7 @@ function FontPicker() {
         </button>
       ))}
       <span className="muted text-[12px] self-center">{t(`settings.fonts.${font}` as Key)}</span>
+    </div>
     </div>
   );
 }

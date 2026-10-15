@@ -1,4 +1,4 @@
-// Generated from the sharechess and lichess piece collections: only sets whose licence
+// From the sharechess and lichess piece collections: only sets whose licence
 // allows redistribution with a GPL-3.0 application (see public/pieces/README.md).
 export type PieceSetInfo = { id: string; label: string; family: string; author: string; license: string };
 
@@ -499,5 +499,68 @@ export const BUNDLED_PIECE_SETS: PieceSetInfo[] = [
     "family": "vecon",
     "author": "vecon",
     "license": "CC BY 3.0"
+  },
+  {
+    "id": "letter",
+    "label": "Letter",
+    "family": "letter",
+    "author": "usolando",
+    "license": "AGPLv3+"
+  },
+  {
+    "id": "pirouetti",
+    "label": "Pirouetti",
+    "family": "pirouetti",
+    "author": "pirouetti",
+    "license": "AGPLv3+"
+  },
+  {
+    "id": "pixel",
+    "label": "Pixel",
+    "family": "pixel",
+    "author": "therealqtpi",
+    "license": "AGPLv3+"
+  },
+  {
+    "id": "rhosgfx",
+    "label": "RhosGFX",
+    "family": "rhosgfx",
+    "author": "RhosGFX",
+    "license": "CC0 1.0"
+  },
+  {
+    "id": "celtic",
+    "label": "Celtic",
+    "family": "celtic",
+    "author": "Maurizio Monge",
+    "license": "MIT"
+  },
+  {
+    "id": "kiwen-suwi",
+    "label": "Kiwen-suwi",
+    "family": "kiwen-suwi",
+    "author": "neverRare",
+    "license": "CC BY 4.0"
+  },
+  {
+    "id": "firi",
+    "label": "Firi",
+    "family": "firi",
+    "author": "James Faure",
+    "license": "CC BY 4.0"
+  },
+  {
+    "id": "totoy",
+    "label": "Totoy",
+    "family": "totoy",
+    "author": "Kosal Sen",
+    "license": "CC BY 4.0"
+  },
+  {
+    "id": "papercut",
+    "label": "Papercut",
+    "family": "papercut",
+    "author": "Nikolay Anzarov",
+    "license": "CC BY 4.0"
   }
 ];

@@ -19,7 +19,7 @@ export const start = {
     fastchess: { title: "Install fastchess", why: "fastchess plays the games: TorsGUI starts one fastchess process per game and places it on a NUMA node." },
     folders: { title: "Folders and opening book", why: "Where engines are downloaded, where books and tablebases are, and the default book every tournament starts from. The CCRL opening books (AVT 2026, GM 2700+, Low Draw…) come with TorsGUI." },
     bench: { title: "Bench the machine", why: "The Stockfish 10 bench measures this machine against the CCRL reference and turns CCRL time controls into local ones (e.g. Blitz 2'+1\" → 103+1). Stockfish 10 comes with TorsGUI: nothing to download." },
-    engines: { title: "Add engines", why: "TorsGUI comes with Stockfish 10 and Triumviratus 7.0 (AVX2): add them with one click. For the others paste a GitHub repository: TorsGUI picks the CCRL build (AVX2), downloads, checks and verifies it." },
+    engines: { title: "Add engines", why: "TorsGUI comes with Stockfish 10 and Triumviratus 8.0: add them with one click. For the others paste a GitHub repository: TorsGUI picks the CCRL build (AVX2), downloads, checks and verifies it." },
     ccrl: { title: "Import the CCRL list", why: "Ratings, the names CCRL uses, and opponent suggestions around your engine's level." },
     tournament: { title: "Your first tournament", why: "The wizard computes games, openings, ETA and resources; or import a tournament file written by you or by Claude. Then follow it live and export it." },
   },

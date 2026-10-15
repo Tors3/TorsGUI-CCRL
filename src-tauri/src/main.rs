@@ -82,7 +82,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .manage(app)
         .setup(move |handle| {
-            // the engines bundled as resources (Stockfish 10, Triumviratus 7.0)
+            // the engines bundled as resources (Stockfish 10, Triumviratus 8.0)
             if let Ok(dir) = handle.path().resource_dir() {
                 let engines = dir.join("engines");
                 if engines.join("bundled.json").exists() {

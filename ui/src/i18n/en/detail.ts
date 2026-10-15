@@ -2,7 +2,7 @@
 export const detail = {
   loading: "Loading…",
   imported: "imported",
-  sub: "{event} · {kind}{variant} · TC {tc} · {cpu} · hash {hash} MB · {book} ({mode}) · {nodes} node(s) × {lanes} lanes",
+  sub: "{event} · {kind}{variant} · TC {tc} · {cpu} · hash {hash} · {book} ({mode}) · {nodes} node(s) × {lanes} lanes",
   exportTip: "CCRL export and forum post",
   export: "Export",
   post: "Post",
@@ -23,10 +23,12 @@ export const detail = {
     eta: "ETA",
     done: "done",
   },
+  asIs: "as is (engines' own options)",
   tabs: {
     label: "Tournament views",
     bracket: "Bracket",
     rounds: "Rounds",
+    crosstable: "Crosstable",
     standings: "Standings",
     elo: "Elo graph",
     openings: "Openings",

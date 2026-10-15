@@ -12,6 +12,7 @@ pub mod catalog;
 pub mod ccrl;
 pub mod checklist;
 pub mod chess960;
+pub mod crosstable;
 pub mod cutechess;
 pub mod demo;
 pub mod engines;

@@ -102,7 +102,9 @@ pub fn check(i: &Input) -> Checklist {
     // CCRL conditions
     let rule = c.ccrl_hash(c.threads);
     let title = || if crate::model::is_blitz(&c.ccrl_list) { msg!("check.hash.labelBlitz", "Hash 256 MB per thread (Blitz)") } else { msg!("check.hash.label", "Hash 1024 MB at 1CPU, 512 MB per thread from 2 threads") };
-    v.push(if c.hash_mb == rule {
+    v.push(if c.as_is {
+        item("hash", title(), Warn, msg!("check.hash.asIs", "as is: the hash of each engine is the one of its options (or its default); check it follows the CCRL rule ({rule} MB for {threads} thread(s))", rule = rule, threads = c.threads))
+    } else if c.hash_mb == rule {
         item("hash", title(), Ok, msg!("check.hash.ok", "{hash} MB for {threads} thread(s)", hash = c.hash_mb, threads = c.threads))
     } else {
         item("hash", title(), Fail, msg!("check.hash.wrong", "{hash} MB, the CCRL rule gives {rule} MB for {threads} thread(s)", hash = c.hash_mb, rule = rule, threads = c.threads))

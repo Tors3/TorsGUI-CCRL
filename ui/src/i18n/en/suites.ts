@@ -47,4 +47,6 @@ export const suites = {
   avoid: "Avoid: ",
   mate: "Mate in {n}",
   engineLine: "{move} ({eval}, depth {depth})",
+  numberTip: "Position number in this run, 1 to the total; the id next to it keeps the numbering of the original collection (it may skip numbers)",
+  numberOf: "{n} of {total}",
 };

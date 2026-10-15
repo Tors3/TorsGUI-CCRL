@@ -271,6 +271,7 @@ function SuiteResults({ run, sel, setSel }: { run: SuiteRun; sel: number; setSel
         <table className="tbl" data-testid="suite-results">
           <thead>
             <tr>
+              <th className="r" title={tr("suites.numberTip")}>#</th>
               <th>{tr("suites.position")}</th>
               <th>{tr("suites.task")}</th>
               {run.engines.map((e) => (
@@ -281,6 +282,7 @@ function SuiteResults({ run, sel, setSel }: { run: SuiteRun; sel: number; setSel
           <tbody>
             {run.positions.map((pos, i) => (
               <tr key={i} className="clickable" onClick={() => setSel(i)} style={i === sel ? { background: "var(--accent-bg)" } : undefined}>
+                <td className="r tnum muted" data-testid="suite-number">{i + 1}</td>
                 <td className="font-medium">{pos.id}</td>
                 <td className="muted text-[11.5px]">
                   {pos.bm.length ? `bm ${pos.bm.join(" ")}` : ""}
@@ -315,7 +317,7 @@ function SuiteResults({ run, sel, setSel }: { run: SuiteRun; sel: number; setSel
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={2}>
+              <td colSpan={3}>
                 {tr("suites.solvedLine", { count: run.positions.length, time: secs(run.movetime_ms) })}{!run.finished && run.engines.some((e) => e.results.some((r) => !r)) ? tr("suites.stopped") : ""}
               </td>
               {run.engines.map((e) => (
@@ -333,7 +335,7 @@ function SuiteResults({ run, sel, setSel }: { run: SuiteRun; sel: number; setSel
       {p && (
         <div className="flex flex-col gap-2">
           <div className="text-[12.5px]">
-            <b>{p.id}</b> <span className="muted">{p.fen.split(" ")[1] === "w" ? tr("suites.whiteToMove") : tr("suites.blackToMove")}</span>
+            <span className="tnum muted">{tr("suites.numberOf", { n: Math.min(sel, run.positions.length - 1) + 1, total: run.positions.length })}</span> · <b>{p.id}</b> <span className="muted">{p.fen.split(" ")[1] === "w" ? tr("suites.whiteToMove") : tr("suites.blackToMove")}</span>
           </div>
           <div style={{ maxWidth: 380 }}>
             <Board fen={p.fen} orientation={p.fen.split(" ")[1] === "b" ? "black" : "white"} arrows={arrows} />

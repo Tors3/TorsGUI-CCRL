@@ -20,6 +20,7 @@ import { UciOptionsEditor } from "../components/UciOptions";
 import { Empty, ErrorBox, Field, Kpi, PageHeader, Panel, ProgressBar, Result, Seg, StateChip, Tip, Warn, Wdl, WdlBar } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { cpuLabel } from "../lib/cpu";
+import { CrosstableView } from "../components/Crosstable";
 import { useMsg, useT, type Key } from "../i18n";
 import { duration, num, pct, shortTime, signed } from "../lib/format";
 
@@ -667,7 +668,7 @@ export function TournamentDetailPage() {
             {r.imported && <span className="chip">{t("detail.imported")}</span>}
           </span>
         }
-        sub={t("detail.sub", { event: r.config.event, kind: t(`tournament.kind.${r.config.kind}` as Key), variant: r.config.variant === "chess960" ? " · Chess960" : "", tc: r.config.tc, cpu: cpuLabel(r.config.participants, r.config.threads), hash: r.config.hash_mb, book: r.config.book.split(/[\\/]/).pop() ?? "", mode: t(r.config.random_openings ? "tournament.openingMode.random" : "tournament.openingMode.paired"), nodes: r.config.nodes.length, lanes: r.config.lanes_per_node })}
+        sub={t("detail.sub", { event: r.config.event, kind: t(`tournament.kind.${r.config.kind}` as Key), variant: r.config.variant === "chess960" ? " · Chess960" : "", tc: r.config.tc, cpu: cpuLabel(r.config.participants, r.config.threads), hash: r.config.as_is ? t("detail.asIs") : `${r.config.hash_mb} MB`, book: r.config.book.split(/[\\/]/).pop() ?? "", mode: t(r.config.random_openings ? "tournament.openingMode.random" : "tournament.openingMode.paired"), nodes: r.config.nodes.length, lanes: r.config.lanes_per_node })}
         actions={
           <>
             <Tip content={t("detail.exportTip")}>
@@ -714,6 +715,7 @@ export function TournamentDetailPage() {
             </Tabs.Trigger>
           )}
           <Tabs.Trigger className="tab" value="standings">{t("detail.tabs.standings")}</Tabs.Trigger>
+          <Tabs.Trigger className="tab" value="crosstable" data-testid="tab-crosstable">{t("detail.tabs.crosstable")}</Tabs.Trigger>
           <Tabs.Trigger className="tab" value="elo" data-testid="tab-elo">{t("detail.tabs.elo")}</Tabs.Trigger>
           <Tabs.Trigger className="tab" value="openings" data-testid="tab-openings">{t("detail.tabs.openings")}</Tabs.Trigger>
           <Tabs.Trigger className="tab" value="placement" data-testid="tab-placement">{t("detail.tabs.placement")}</Tabs.Trigger>
@@ -735,6 +737,9 @@ export function TournamentDetailPage() {
         )}
         <Tabs.Content value="standings">
           <Standings d={d} order={order} setOrder={setOrder} />
+        </Tabs.Content>
+        <Tabs.Content value="crosstable">
+          <CrosstableView source={{ kind: "tournament", id }} refreshKey={p.done} />
         </Tabs.Content>
         <Tabs.Content value="elo">
           <EloGraph id={id} running={r.state === "running"} />

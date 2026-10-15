@@ -235,6 +235,10 @@ pub struct TournamentConfig {
     /// Empty: the engines use their default card.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub gpus: Vec<u32>,
+    /// "As is": the tournament sets no engine option (no Threads, Hash or Syzygy path of its
+    /// own); every engine gets only the options written in its entry, or its own defaults.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub as_is: bool,
     #[serde(default = "info")]
     pub log_level: String,
     /// CCRL list the tournament is meant for ("Blitz", "40/15").
@@ -319,17 +323,31 @@ pub fn cpu_label(participants: &[Participant], threads: u32) -> String {
     format!("{} vs {}", join(&seeds), join(&opps))
 }
 
+/// A number written in a participant's options (not a `${…}` placeholder of the tournament).
+fn written(p: &Participant, option: &str) -> Option<u32> {
+    p.options.iter().find(|(k, _)| k.eq_ignore_ascii_case(option)).and_then(|(_, v)| v.trim().parse().ok())
+}
+
 /// Physical cores one lane needs: the two engines of the heaviest possible pairing.
 pub fn cores_per_lane(kind: TournamentKind, participants: &[Participant], threads: u32) -> u32 {
     heaviest_pair(kind, participants, |p| p.threads.unwrap_or(threads).max(1), threads.max(1)).max(2)
 }
 
 impl TournamentConfig {
-    /// Threads of a participant: its own, else the tournament's.
+    /// Threads of a participant: its own, else the tournament's. As is: the `Threads` written in
+    /// its options, else 1 (the UCI default of nearly every engine).
     pub fn threads_of(&self, p: &Participant) -> u32 {
+        if self.as_is {
+            return written(p, "Threads").unwrap_or(1).max(1);
+        }
         p.threads.unwrap_or(self.threads).max(1)
     }
+    /// Hash (MB) of a participant. As is: the `Hash` written in its options, else 16 (the
+    /// usual UCI default).
     pub fn hash_of(&self, p: &Participant) -> u32 {
+        if self.as_is {
+            return written(p, "Hash").unwrap_or(16);
+        }
         p.hash_mb.unwrap_or(self.hash_mb)
     }
     pub fn threads_of_name(&self, name: &str) -> u32 {
@@ -343,6 +361,9 @@ impl TournamentConfig {
         cpu_label(&self.participants, self.threads)
     }
     pub fn cores_per_lane(&self) -> u32 {
+        if self.as_is {
+            return heaviest_pair(self.kind, &self.participants, |p| self.threads_of(p), 1).max(2);
+        }
         cores_per_lane(self.kind, &self.participants, self.threads)
     }
     /// The GPU engines of the tournament.

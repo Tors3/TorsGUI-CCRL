@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import { applyFont } from "./lib/font";
+import { applyFont, applyStrongText } from "./lib/font";
 import { preloadBoardSounds } from "./lib/boardPrefs";
 import { applyTheme } from "./lib/theme";
 import { getLocale } from "./i18n";
@@ -15,6 +15,7 @@ import "@fontsource/pinyon-script/400.css";
 
 applyTheme();
 applyFont();
+applyStrongText();
 document.documentElement.lang = getLocale();
 // sounds are decoded after the first click or key (browsers allow audio only after a gesture)
 for (const ev of ["pointerdown", "keydown"]) window.addEventListener(ev, preloadBoardSounds, { once: true });

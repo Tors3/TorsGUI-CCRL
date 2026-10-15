@@ -1,9 +1,11 @@
 # Piece sets
 
 SVG piece sets from the [sharechess](https://github.com/sharechess/sharechess) collection
-(`PIECES_CREDITS.json`) and from lichess (`mpchess`). Only sets whose licence allows
-redistribution in a GPL-3.0-or-later application are bundled (GPL, Apache 2.0, MIT, CC BY,
-CC BY-SA, public domain); colour variants (`<set>_<variant>`) keep the licence of their set.
+(`PIECES_CREDITS.json`) and from lichess (`mpchess`, and the sets of lichess's `COPYING.md` with a free licence:
+`letter`, `pirouetti`, `pixel`, `rhosgfx`, `celtic`, `kiwen-suwi`, `firi`, `totoy`, `papercut`). Only sets whose licence allows
+redistribution in a GPL-3.0-or-later application are bundled (GPL, AGPL, Apache 2.0, MIT, CC BY,
+CC BY-SA, CC0, public domain; the AGPLv3 sets are combined as GPLv3 section 13 allows, and TorsGUI's
+source is public); colour variants (`<set>_<variant>`) keep the licence of their set.
 Non-commercial or "freeware" sets are not bundled: import them for personal use with
 *Board appearance → Import a piece set*.
 
@@ -28,3 +30,12 @@ Non-commercial or "freeware" sets are not bundled: import them for personal use 
 | saakyan | Sergey Saakyan | CC BY 3.0 |
 | trendy | Benjamin Kinard | CC BY 3.0 |
 | vecon | vecon | CC BY 3.0 |
+| letter | usolando | AGPLv3+ |
+| pirouetti | pirouetti | AGPLv3+ |
+| pixel | therealqtpi | AGPLv3+ |
+| rhosgfx | RhosGFX | CC0 1.0 |
+| celtic | Maurizio Monge | MIT |
+| kiwen-suwi | neverRare | CC BY 4.0 |
+| firi | James Faure | CC BY 4.0 |
+| totoy | Kosal Sen | CC BY 4.0 |
+| papercut | Nikolay Anzarov | CC BY 4.0 |

@@ -143,6 +143,7 @@ fn config(e: &Env, name: &str, opps: &[(&str, &str)], games: u32, lanes: u32, mo
         placement: Placement::Node,
         use_smt: false,
         gpus: vec![],
+        as_is: false,
         log_level: "info".into(),
         ccrl_list: "Blitz".into(),
         max_retries: 1,

@@ -47,6 +47,7 @@ export const backend = {
       "some": "GPU engines: {list}. The CCRL lists are for engines on the CPU (the time control is scaled by a CPU bench): send these games only if CCRL asked for them"
     },
     "hash": {
+      "asIs": "as is: the hash of each engine is the one of its options (or its default); check it follows the CCRL rule ({rule} MB for {threads} thread(s))",
       "label": "Hash 1024 MB at 1CPU, 512 MB per thread from 2 threads",
       "labelBlitz": "Hash 256 MB per thread (Blitz)",
       "ok": "{hash} MB for {threads} thread(s)",
@@ -98,6 +99,7 @@ export const backend = {
     }
   },
   "preview": {
+    "asIs": "As is: TorsGUI sends no Threads, Hash or Syzygy path; every engine plays with the options of its entry (or its own defaults). The lanes count {threads} thread(s) for the heaviest game.",
     "buildsBoth": "DISCLAIMER: not all the selected engines are AVX2 or AVX-512 builds: {other}. Go on only if you cannot get an AVX2 or AVX-512 build of them. Also check: valid for CCRL only if these are AVX2 or AVX-512 builds (TorsGUI cannot tell from the file name): {unknown}",
     "buildsOther": "DISCLAIMER: not all the selected engines are AVX2 or AVX-512 builds: {other}. Go on only if you cannot get an AVX2 or AVX-512 build of them",
     "buildsUnknown": "Check the builds: valid for CCRL only if these are AVX2 or AVX-512 builds (TorsGUI cannot tell from the file name): {unknown}",

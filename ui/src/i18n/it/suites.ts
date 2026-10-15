@@ -50,4 +50,6 @@ export const suites: Shape<typeof en> = {
   avoid: "Da evitare: ",
   mate: "Matto in {n}",
   engineLine: "{move} ({eval}, profondità {depth})",
+  numberTip: "Numero della posizione in questa esecuzione, da 1 al totale; l'id accanto tiene la numerazione della raccolta originale (può saltare dei numeri)",
+  numberOf: "{n} di {total}",
 };

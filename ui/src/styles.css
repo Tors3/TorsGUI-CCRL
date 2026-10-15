@@ -14,8 +14,8 @@
   --border: #232a35;
   --border-strong: #2f3846;
   --text: #e7eaf0;
-  --text-2: #b4bccb;
-  --muted: #7d8697;
+  --text-2: #c7cede;
+  --muted: #98a1b2;
   --accent: #6d8cff;
   --accent-2: #8aa2ff;
   --accent-bg: rgba(109, 140, 255, 0.12);
@@ -40,9 +40,9 @@
   --hover: #eef1f7;
   --border: #e1e5ec;
   --border-strong: #cfd5df;
-  --text: #151a22;
-  --text-2: #3b4452;
-  --muted: #6b7486;
+  --text: #0b0e13;
+  --text-2: #262d38;
+  --muted: #4b5363;
   --accent: #3d5fe0;
   --accent-2: #2f4fcf;
   --accent-bg: rgba(61, 95, 224, 0.1);
@@ -68,8 +68,8 @@
   --border: #2c2c2c;
   --border-strong: #3a3a3a;
   --text: #e4e4e4;
-  --text-2: #b8b8b8;
-  --muted: #8a8a8a;
+  --text-2: #cacaca;
+  --muted: #a3a3a3;
   --accent: #6f8296;
   --accent-2: #8b9cae;
   --accent-bg: rgba(139, 156, 174, 0.14);
@@ -93,9 +93,9 @@
   --hover: #ebe6da;
   --border: #ddd6c6;
   --border-strong: #cbc2ae;
-  --text: #2b2822;
-  --text-2: #4c473d;
-  --muted: #7a7366;
+  --text: #17140f;
+  --text-2: #332f27;
+  --muted: #575044;
   --accent: #3e5c7d;
   --accent-2: #2f4a68;
   --accent-bg: rgba(62, 92, 125, 0.1);
@@ -121,7 +121,7 @@
   --border-strong: #4c566a;
   --text: #eceff4;
   --text-2: #d8dee9;
-  --muted: #9aa5b8;
+  --muted: #b0b9ca;
   --accent: #5e81ac;
   --accent-2: #81a1c1;
   --accent-bg: rgba(136, 192, 208, 0.13);
@@ -146,8 +146,8 @@
   --border: #1d1d22;
   --border-strong: #2a2a31;
   --text: #e6e6ea;
-  --text-2: #b0b0b8;
-  --muted: #7a7a85;
+  --text-2: #c6c6ce;
+  --muted: #9696a1;
   --accent: #5b7cfa;
   --accent-2: #7e98ff;
   --accent-bg: rgba(91, 124, 250, 0.14);
@@ -172,8 +172,8 @@
   --border: #23322a;
   --border-strong: #2f4237;
   --text: #e3ece6;
-  --text-2: #b3c4b9;
-  --muted: #7f9387;
+  --text-2: #c6d5cb;
+  --muted: #9bada1;
   --accent: #4f9a72;
   --accent-2: #6db58e;
   --accent-bg: rgba(79, 154, 114, 0.14);
@@ -198,8 +198,8 @@
   --border: #3a2c21;
   --border-strong: #4d3b2d;
   --text: #f2e8dc;
-  --text-2: #d2c0ac;
-  --muted: #a08a75;
+  --text-2: #ddcdb9;
+  --muted: #b8a18b;
   --accent: #c99560;
   --accent-2: #dcad7a;
   --accent-bg: rgba(201, 149, 96, 0.15);
@@ -226,9 +226,9 @@
   --hover: #e3d5c3;
   --border: #d3c2ac;
   --border-strong: #b88a66;
-  --text: #2c1f13;
-  --text-2: #4a3522;
-  --muted: #7f6a56;
+  --text: #1c120a;
+  --text-2: #362515;
+  --muted: #5c4a38;
   --accent: #a65d32;
   --accent-2: #bf7849;
   --accent-bg: rgba(166, 93, 50, 0.13);
@@ -295,8 +295,8 @@
   --border: #14503b;
   --border-strong: #1e6a50;
   --text: #e4f0e8;
-  --text-2: #b6d0c1;
-  --muted: #84a796;
+  --text-2: #c8ddd0;
+  --muted: #9fbdac;
   --accent: #d1ae5f;
   --accent-2: #e2c47e;
   --accent-bg: rgba(209, 174, 95, 0.15);
@@ -328,6 +328,21 @@
 /* Retro fonts (Settings → Appearance), bundled with TorsGUI (OFL-1.1): DotGothic16 (Fontworks),
    a dot-matrix face like the screens of the classic chess GUIs, for text; IBM Plex Mono for
    numbers, moves and tables */
+/* stronger text (Settings → Appearance): secondary and grey text in the main text colour,
+   black on the light themes */
+:root[data-text="strong"] {
+  --text-2: var(--text);
+  --muted: color-mix(in srgb, var(--text) 82%, var(--bg));
+}
+/* on the light themes: black letters, grey text almost black, every glyph a little thicker */
+:root[data-text="strong"]:is([data-theme="paper"], [data-theme="light"], [data-theme="szots"]) {
+  --text: #000;
+  --text-2: #000;
+  --muted: color-mix(in srgb, #000 88%, var(--bg));
+}
+:root[data-text="strong"]:is([data-theme="paper"], [data-theme="light"], [data-theme="szots"]) body {
+  -webkit-text-stroke: 0.25px currentColor;
+}
 :root[data-font="retro"] {
   --font-sans: "DotGothic16", Tahoma, Verdana, sans-serif;
   --font-mono: "IBM Plex Mono", "Courier New", monospace;

@@ -1,5 +1,5 @@
 //! Engines shipped with the installers (Stockfish 10 for the bench and as an engine,
-//! Triumviratus 7.0 AVX2): `engines/bundled.json` in the app's resources lists them; the
+//! Triumviratus 8.0): `engines/bundled.json` in the app's resources lists them; the
 //! files present on this platform can be installed into the engines folder and the library.
 
 use anyhow::{Context, Result, bail};
@@ -92,7 +92,7 @@ mod tests {
         let d = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../src-tauri/resources/engines");
         let text = std::fs::read_to_string(d.join("bundled.json")).unwrap();
         let all: Vec<BundledEngine> = serde_json::from_str(&text).unwrap();
-        assert!(all.iter().any(|e| e.engine == "Triumviratus" && e.version == "7.0" && e.build == "avx2" && e.sha256.len() == 64));
+        assert!(all.iter().any(|e| e.engine == "Triumviratus" && e.version == "8.0" && crate::assets::build_level(&e.build) == "avx2" && e.sha256.len() == 64));
         // the Stockfish 10 hashes are those of the bench
         for (build, file, sha) in crate::bench::SF10_WINDOWS {
             let e = all.iter().find(|e| e.file == *file).unwrap_or_else(|| panic!("{file}"));

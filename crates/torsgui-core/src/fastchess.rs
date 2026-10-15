@@ -69,6 +69,10 @@ pub fn engine_args(p: &Participant, cfg: &TournamentConfig, gpu: Option<u32>) ->
         if k == "SyzygyPath" && !own_syzygy {
             continue;
         }
+        // as is: the tournament's own values (`${THREADS}`, `${HASH}`) are not sent
+        if cfg.as_is && v.contains("${") {
+            continue;
+        }
         let mut v = v.replace("${THREADS}", &cfg.threads_of(p).to_string()).replace("${HASH}", &cfg.hash_of(p).to_string());
         if let Some(g) = gpu.filter(|_| p.gpu && *k == p.gpu_select && !v.contains("gpu=")) {
             // the user's backend options keep theirs, the card is added
@@ -79,7 +83,7 @@ pub fn engine_args(p: &Participant, cfg: &TournamentConfig, gpu: Option<u32>) ->
     if let Some(g) = gpu.filter(|_| p.gpu && !p.gpu_select.is_empty() && !p.options.contains_key(&p.gpu_select)) {
         a.push(format!("option.{}=gpu={g}", p.gpu_select));
     }
-    if !cfg.syzygy_path.is_empty() && supports(p, "SyzygyPath") && !own_syzygy {
+    if !cfg.as_is && !cfg.syzygy_path.is_empty() && supports(p, "SyzygyPath") && !own_syzygy {
         a.push(format!("option.SyzygyPath={}", cfg.syzygy_effective()));
     }
     a
@@ -285,5 +289,15 @@ mod tests {
         // no card chosen: nothing is added
         g.gpus.clear();
         assert_eq!(g.lane_gpu(0), None);
+        // as is: no Threads, Hash or Syzygy path of the tournament; written options stay
+        let mut x = c.clone();
+        x.as_is = true;
+        x.participants[1].options.insert("Threads".into(), "4".into());
+        x.participants[1].options.insert("Contempt".into(), "10".into());
+        let px = crate::scheduler::pairings(&x);
+        let s = game_args(&x, &px[0], j, None, Path::new("p.pgn"), Path::new("l.log"), Path::new("s.json")).join(" ");
+        assert!(!s.contains("option.Hash") && !s.contains("SyzygyPath") && s.matches("option.Threads").count() == 1, "{s}");
+        assert!(s.contains("option.Contempt=10 option.Threads=4"), "{s}");
+        assert_eq!((x.threads_of(&x.participants[0]), x.threads_of(&x.participants[1]), x.cores_per_lane()), (1, 4, 5));
     }
 }

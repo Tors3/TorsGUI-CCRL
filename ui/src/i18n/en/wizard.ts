@@ -96,6 +96,9 @@ export const wizard = {
   cond: {
     title: "Conditions",
     cpu: "CPU category",
+    asIs: "As is: do not change the engines' options",
+    asIsAbout: "Normally the tournament sets Threads, Hash and the Syzygy path of every engine. Tick this to send only the options written in each engine's entry: the engines play as you set them (or with their own defaults).",
+    asIsOn: "The tournament sends no Threads, Hash or Syzygy path: each engine gets only the options of its entry. The threads and hash below then only name the tournament; the cores are counted from each engine's own Threads (1 when not written).",
     threadsLabel: "Threads per engine",
     threadsAbout: "threads per engine; the list category of every engine",
     custom: "Custom per engine",

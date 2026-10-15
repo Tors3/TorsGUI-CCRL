@@ -52,7 +52,12 @@ use_smt?: boolean,
  * Graphics cards for the GPU engines (their numbers): lane i plays on `gpus[i % len]`.
  * Empty: the engines use their default card.
  */
-gpus?: Array<number>, log_level: string, 
+gpus?: Array<number>, 
+/**
+ * "As is": the tournament sets no engine option (no Threads, Hash or Syzygy path of its
+ * own); every engine gets only the options written in its entry, or its own defaults.
+ */
+as_is?: boolean, log_level: string, 
 /**
  * CCRL list the tournament is meant for ("Blitz", "40/15").
  */

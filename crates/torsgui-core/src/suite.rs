@@ -189,6 +189,12 @@ pub const BUILTIN: &[BuiltinSuite] = &[
     BuiltinSuite { id: "lct2", name: "LCT II", about: "Louguet Chess Test II by Frédéric Louguet: positional, tactical and endgame positions (Arasan's collection).", text: include_str!("../suites/lapuce2.epd") },
     BuiltinSuite { id: "pet", name: "Pawn endgame test", about: "Pawn endgame test positions (Arasan's collection).", text: include_str!("../suites/pet.epd") },
     BuiltinSuite { id: "eet", name: "Eigenmann Endgame Test", about: "Endgames of every kind by Walter Eigenmann (Arasan's collection).", text: include_str!("../suites/eet.epd") },
+    BuiltinSuite { id: "arasan2026", name: "Arasan 2026", about: "Jon Dart's own test suite for the Arasan engine: 200 hard positions from recent games (MIT licence).", text: include_str!("../suites/arasan2026.epd") },
+    // selections from the lichess puzzle database (CC0, suites/LICENSE-lichess.txt): popular,
+    // well-rated puzzles with a single solution
+    BuiltinSuite { id: "lichess-mates", name: "Lichess mates", about: "120 mates from the lichess puzzles: 30 each of mate in 2, 3, 4 and 5 (any mate that short counts).", text: include_str!("../suites/lichess-mates.epd") },
+    BuiltinSuite { id: "lichess-hard", name: "Lichess hard tactics", about: "150 tactical puzzles rated 2700 and more on lichess, each with one winning move.", text: include_str!("../suites/lichess-hard.epd") },
+    BuiltinSuite { id: "lichess-endgames", name: "Lichess endgames", about: "120 endgame puzzles rated 2300 and more on lichess, each with one winning move.", text: include_str!("../suites/lichess-endgames.epd") },
 ];
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
