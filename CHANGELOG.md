@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.8.1] - 2026-10-15
 
 ### Added
 - **Database** (Analysis → Database): your own games, engine or human, and positions, in
