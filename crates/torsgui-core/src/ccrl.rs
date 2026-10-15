@@ -64,7 +64,7 @@ pub struct ListSource {
 pub const CCRL_ROOT: &str = "https://computerchess.org.uk";
 
 /// (list, site directory)
-pub const LIST_DIRS: [(&str, &str); 3] = [("Blitz", "404"), ("40/15", "4040"), ("FRC", "404FRC")];
+pub const LIST_DIRS: [(&str, &str); 4] = [("Blitz", "404"), ("40/15", "4040"), ("FRC", "404FRC"), ("Chess324", "Chess324")];
 
 /// Default sources: for every list the "best versions" index page and the complete list of
 /// all versions. Manual import (paste or a saved page) is always available.
@@ -161,6 +161,9 @@ pub fn parse_html(html: &str) -> Vec<CcrlEntry> {
     static SPAN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(?i)colspan\s*=\s*["']?(\d+)"#).unwrap());
     let mut header: Option<Vec<String>> = None;
     let mut out = Vec::new();
+    // a row without rank: the complete list ("all versions"), where only the best version of
+    // each engine is ranked
+    let mut unranked = false;
     for tr in TR.captures_iter(html) {
         let cells: Vec<String> = TD.captures_iter(&tr[1]).map(|c| strip_tags(&c[2])).collect();
         if cells.is_empty() {
@@ -187,11 +190,18 @@ pub fn parse_html(html: &str) -> Vec<CcrlEntry> {
         }
         if let Some(mut e) = row_to_entry(&cells, header.as_deref()) {
             if e.rank == 0 {
-                e.rank = out.last().map(|x: &CcrlEntry| x.rank).unwrap_or(1);
+                unranked = true;
             }
             if !out.iter().any(|x: &CcrlEntry| x.name == e.name) {
                 out.push(e);
             }
+        }
+    }
+    // the complete list ranks engines, not versions ("1, -, -, 2…"): every version gets its
+    // place in the list instead, so ranks read 1, 2, 3… and never repeat the row above
+    if unranked {
+        for (i, e) in out.iter_mut().enumerate() {
+            e.rank = i as i64 + 1;
         }
     }
     if out.is_empty() {
@@ -337,12 +347,14 @@ pub fn snapshot_lists() -> Vec<CcrlList> {
 /// only)" title: the list ("Blitz", "40/15", "FRC"), best versions only (Some(true)), all
 /// versions (Some(false)) or not said (None), and the title itself.
 pub fn page_identity(html: &str) -> Option<(String, Option<bool>, String)> {
-    static TITLE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)CCRL\s+([^\n<>]{1,30}?)\s+Rating\s+List([^\n<>]{0,120})").unwrap());
+    static TITLE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)CCRL[\s-]+([^\n<>]{1,30}?)\s+Rating\s+List([^\n<>]{0,120})").unwrap());
     let text = strip_tags(html);
     let c = TITLE.captures(&text)?;
     let name = c[1].to_string();
     let n = name.to_lowercase();
-    let list = if n.contains("frc") || n.contains("960") || n.contains("fischer") {
+    let list = if n.contains("324") {
+        "Chess324"
+    } else if n.contains("frc") || n.contains("960") || n.contains("fischer") {
         "FRC"
     } else if n.contains("40/15") || n.contains("40/40") || n.contains("4040") {
         "40/15"
@@ -848,7 +860,8 @@ mod tests {
         let e = parse_html(&html);
         let names: Vec<&str> = e.iter().map(|x| x.name.as_str()).collect();
         assert_eq!(names, ["Stockfish 19 64-bit 4CPU", "Coda 0.9.4 64-bit 4CPU", "Integral v8 64-bit 4CPU", "Integral v7 64-bit 4CPU"]);
-        assert_eq!((e[1].rank, e[2].rank, e[3].rank), (6, 6, 6));
+        // an unranked row makes it the complete list: every row gets its place
+        assert_eq!((e[0].rank, e[1].rank, e[2].rank, e[3].rank), (1, 2, 3, 4));
         assert_eq!((e[0].games, e[1].err_minus), (Some(698), Some(17.0)));
         assert_eq!(strip_tags("CCRL 40/15 Rating List &mdash; All"), "CCRL 40/15 Rating List \u{2014} All");
     }
@@ -872,7 +885,8 @@ mod tests {
     #[test]
     fn every_list_has_fallback_urls() {
         let src = default_sources();
-        assert_eq!(src.len(), 6);
+        assert_eq!(src.len(), 8);
+        assert!(src.iter().any(|s| s.list == "Chess324" && s.url.ends_with("/Chess324/")));
         let s4040 = src.iter().find(|s| s.list == "40/15" && s.variant == "all").unwrap();
         let c = candidate_urls(s4040);
         assert_eq!(c[0], "https://computerchess.org.uk/4040/rating_list_all.html");
@@ -1057,3 +1071,36 @@ mod tests {
     }
 }
 
+
+#[cfg(test)]
+mod pages_probe {
+    /// The pages of the CCRL site saved in CCRL_PAGES (blitz_best.html, ltc_all.html…):
+    /// rows, ranks and what each page says it is.
+    #[test]
+    #[ignore]
+    fn saved_pages_parse() {
+        let Ok(dir) = std::env::var("CCRL_PAGES") else { return };
+        let page = |f: &str| String::from_utf8_lossy(&std::fs::read(std::path::Path::new(&dir).join(f)).unwrap()).to_string();
+        for (file, list, rows) in [
+            ("blitz_best.html", "Blitz", 883),
+            ("blitz_all.html", "Blitz", 2996),
+            ("ltc_best.html", "40/15", 730),
+            ("ltc_all.html", "40/15", 4753),
+            ("frc_best.html", "FRC", 151),
+            ("frc_all.html", "FRC", 639),
+            ("c324_best.html", "Chess324", 26),
+            ("c324_all.html", "Chess324", 46),
+        ] {
+            let html = page(file);
+            let e = super::parse_html(&html);
+            assert_eq!(e.len(), rows, "{file}");
+            assert_eq!(super::page_identity(&html).map(|x| x.0).as_deref(), Some(list), "{file}");
+            // ranks never go down, and the complete lists number every row
+            assert!(e.windows(2).all(|w| w[1].rank >= w[0].rank), "{file}");
+            if file.contains("_all") {
+                assert_eq!(e.last().unwrap().rank, rows as i64, "{file}");
+            }
+            println!("{file}: {} rows, last rank {}", e.len(), e.last().unwrap().rank);
+        }
+    }
+}

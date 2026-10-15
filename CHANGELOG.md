@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Chess324 list** (computerchess.org.uk/Chess324): fetched with the others (best and all
+  versions); its "CCRL-Chess324" title is recognised.
+
+### Fixed
+- **CCRL complete lists ("all versions")**: the site ranks engines, not versions, so the other
+  versions of an engine have no rank and took the rank of the row above ("1, 1, 1, 2, 2…").
+  Every version now has its place in the list (1 to 4753 in the 40/15 list). Fetch the lists
+  again to replace the stored ones.
+- **The engine library failing to load** ("missing field `has_syzygy`") when an entry was
+  written without some fields: they now take their defaults.
+
 ## [0.8.1] - 2026-10-15
 
 ### Added
