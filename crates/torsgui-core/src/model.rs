@@ -87,6 +87,13 @@ pub struct Participant {
     /// keep their openings), and its games are left out of the CCRL export by default.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub withdrawn: bool,
+    /// Plays on a graphics card (Lc0 and the like): one game per card at a time.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub gpu: bool,
+    /// The UCI option that picks the card (`BackendOptions` for Lc0, which then gets
+    /// `gpu=N`); empty: the card is picked with `CUDA_VISIBLE_DEVICES`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub gpu_select: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ts_rs::TS)]
@@ -219,6 +226,15 @@ pub struct TournamentConfig {
     pub extra_args: Vec<String>,
     #[serde(default = "placement_node")]
     pub placement: Placement,
+    /// Count every hardware thread (SMT / Hyper-Threading) as a CPU: the lanes may use
+    /// both threads of each core instead of one per physical core. Off by default, as on
+    /// the CCRL machines; useful on desktop CPUs to run more games at once.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub use_smt: bool,
+    /// Graphics cards for the GPU engines (their numbers): lane i plays on `gpus[i % len]`.
+    /// Empty: the engines use their default card.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub gpus: Vec<u32>,
     #[serde(default = "info")]
     pub log_level: String,
     /// CCRL list the tournament is meant for ("Blitz", "40/15").
@@ -328,6 +344,17 @@ impl TournamentConfig {
     }
     pub fn cores_per_lane(&self) -> u32 {
         cores_per_lane(self.kind, &self.participants, self.threads)
+    }
+    /// The GPU engines of the tournament.
+    pub fn gpu_engines(&self) -> Vec<&Participant> {
+        self.participants.iter().filter(|p| p.gpu && !p.withdrawn).collect()
+    }
+    /// The card of lane `lane` (0-based over all nodes) when the tournament has GPU engines.
+    pub fn lane_gpu(&self, lane: usize) -> Option<u32> {
+        if self.gpus.is_empty() || self.gpu_engines().is_empty() {
+            return None;
+        }
+        Some(self.gpus[lane % self.gpus.len()])
     }
     /// Hash in MB the engines of one lane take together (the heaviest pairing).
     pub fn hash_per_lane(&self) -> u32 {
@@ -504,7 +531,7 @@ mod syzygy_tests {
 pub fn rounds_per_pass_for(kind: TournamentKind, games_per_pairing: u32, passes: u32, nodes: u32) -> Result<Vec<u32>, String> {
     if kind.is_dynamic() {
         if games_per_pairing == 0 || games_per_pairing % 2 != 0 {
-            return Err(format!("games per match ({games_per_pairing}) must be even and > 0: every opening is played with both colours"));
+            return Err(format!("games per match ({games_per_pairing}) must be even and > 0: the games go in pairs with colours reversed"));
         }
         return Ok(vec![games_per_pairing / 2]);
     }
@@ -513,7 +540,7 @@ pub fn rounds_per_pass_for(kind: TournamentKind, games_per_pairing: u32, passes:
 
 pub fn split_openings(games_per_pairing: u32, passes: u32, nodes: u32) -> Result<Vec<u32>, String> {
     if games_per_pairing == 0 || games_per_pairing % 2 != 0 {
-        return Err(format!("games per pairing ({games_per_pairing}) must be even and > 0: every opening is played with both colours"));
+        return Err(format!("games per pairing ({games_per_pairing}) must be even and > 0: the games go in pairs with colours reversed"));
     }
     let passes = passes.max(1);
     if games_per_pairing % (passes * 2) != 0 {
@@ -559,7 +586,7 @@ mod cpu_tests {
     use super::*;
 
     fn p(name: &str, role: Role, threads: Option<u32>) -> Participant {
-        Participant { name: name.into(), cmd: String::new(), dir: String::new(), args: String::new(), options: Default::default(), role, engine_id: None, has_syzygy: false, uci_id: None, rating: None, rating_estimated: false, threads, hash_mb: None, withdrawn: false }
+        Participant { name: name.into(), cmd: String::new(), dir: String::new(), args: String::new(), options: Default::default(), role, engine_id: None, has_syzygy: false, uci_id: None, rating: None, rating_estimated: false, threads, hash_mb: None, withdrawn: false, gpu: false, gpu_select: String::new() }
     }
 
     #[test]

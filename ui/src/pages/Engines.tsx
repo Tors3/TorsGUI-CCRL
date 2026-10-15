@@ -6,6 +6,7 @@ import type { AssetPolicy } from "../bindings/AssetPolicy";
 import type { BundledEngine } from "../bindings/BundledEngine";
 import type { CuteEngine } from "../bindings/CuteEngine";
 import type { EngineEntry } from "../bindings/EngineEntry";
+import type { Gpu } from "../bindings/Gpu";
 import type { KnownRepo } from "../bindings/KnownRepo";
 import type { Settings } from "../bindings/Settings";
 import type { Release } from "../bindings/Release";
@@ -14,7 +15,8 @@ import type { Selection } from "../bindings/Selection";
 import { UciOptionsEditor } from "../components/UciOptions";
 import { cmpNum, EloCell, matchesEngine, RATING_LISTS, SortTh, useEngineRatings, type RatingList, type SortDir } from "../components/EngineRatings";
 import { ENGINE_FILTERS, PathInput } from "../components/PathInput";
-import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, Spinner, Tip, MenuButton } from "../components/ui";
+import { Empty, ErrorBox, Field, Modal, PageHeader, PageTabs, Panel, Spinner, Tip, MenuButton, useTabParam } from "../components/ui";
+import { useT } from "../i18n";
 import { call, usePoll } from "../lib/api";
 
 type ReleasesResp = { repo: RepoRef; latest_stable: string | null; releases: { release: Release; selection: Selection }[]; policy: AssetPolicy };
@@ -38,6 +40,7 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
   const [asset, setAsset] = useState<string>();
   const [busy, setBusy] = useState<"list" | "install" | null>(null);
   const [error, setError] = useState<string>();
+  const tr = useT();
   // AVX2 only, or the AVX-512 build when this CPU runs it (CCRL accepts both)
   const [avx2Only, setAvx2Only] = useState<boolean | null>(null);
   useEffect(() => {
@@ -61,7 +64,7 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
       const d = await call<ReleasesResp>("github_releases", { url: u, ...policyArgs });
       setData(d);
       const wanted = version ? tagForVersion(d.releases.map((r) => r.release.tag), version) : undefined;
-      if (version && !wanted) setVersionNote(`No release tagged ${version} found: the latest is proposed.`);
+      if (version && !wanted) setVersionNote(tr("engines.gh.noTag", { version }));
       const t = wanted ?? d.repo.tag ?? d.latest_stable ?? d.releases[0]?.release.tag;
       setTag(t ?? undefined);
       setAsset(d.releases.find((r) => r.release.tag === t)?.selection.chosen ?? undefined);
@@ -105,15 +108,15 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
     <Modal
       open={open}
       onOpenChange={setOpen}
-      title="Add engine from GitHub"
+      title={tr("engines.gh.title")}
       width={860}
       footer={
         <>
           <button className="btn" onClick={() => setOpen(false)}>
-            Cancel
+            {tr("app.common.cancel")}
           </button>
           <button className="btn btn-primary" disabled={!asset || !!busy} onClick={install}>
-            {busy === "install" ? <Spinner /> : null} Download, extract &amp; verify
+            {busy === "install" ? <Spinner /> : null} {tr("engines.gh.install")}
           </button>
         </>
       }
@@ -121,45 +124,42 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
       <div className="flex flex-col gap-3">
         {target && (
           <div className="text-[12.5px]" data-testid="github-target">
-            From the CCRL list: <b>{target.name}</b>
+            {tr("engines.gh.fromList")}<b>{target.name}</b>
             {target.repo ? (
               <span className="muted">
-                {" "}
-                · repository {target.repo.repo}
-                {target.version ? ` · version ${target.version}` : ""}
+                {tr("engines.gh.repository", { repo: target.repo.repo })}
+                {target.version ? tr("engines.gh.version", { version: target.version }) : ""}
                 {target.source && target.source !== "TorsGUI's list" ? ` · ${target.source}` : ""}
               </span>
             ) : target.homepage ? (
               <span>
-                {" "}
-                · not on GitHub: get it from{" "}
+                {tr("engines.gh.notGithub")}
                 <a className="link" href={target.homepage} target="_blank" rel="noreferrer" data-testid="github-homepage">
-                  its site
+                  {tr("engines.gh.itsSite")}
                 </a>{" "}
-                <span className="muted">({target.homepage})</span>, then <i>Add engine → Local file</i>.
+                <span className="muted">({target.homepage})</span>{tr("engines.gh.thenLocal1")}<i>{tr("engines.gh.thenLocal2")}</i>.
               </span>
             ) : (
               <span style={{ color: "var(--warn)" }}>
-                {" "}
-                · no repository known for {target.family} yet{target.source ? ` (${target.source})` : ""}: paste its GitHub address (owner/repo) below; TorsGUI remembers it.
+                {tr("engines.gh.noRepo", { family: target.family, source: target.source ? ` (${target.source})` : "" })}
               </span>
             )}
             {versionNote && <div className="muted">{versionNote}</div>}
           </div>
         )}
         <div className="flex gap-2">
-          <input className="input" placeholder="https://github.com/owner/repo  or  owner/repo  or a release URL" value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && list()} data-testid="github-url" />
+          <input className="input" placeholder={tr("engines.gh.urlPlaceholder")} value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && list()} data-testid="github-url" />
           <button className="btn" onClick={() => list()} disabled={!url || !!busy}>
-            {busy === "list" ? <Spinner /> : <PackagePlus size={14} />} List releases
+            {busy === "list" ? <Spinner /> : <PackagePlus size={14} />} {tr("engines.gh.list")}
           </button>
         </div>
         {known && known.length > 0 && (
           <details className="rounded-md" style={{ background: "var(--bg-2)" }} open={!data} data-testid="known-repos">
             <summary className="cursor-pointer px-3 py-2 text-[12.5px] font-medium">
-              Known engines ({known.length} public repositories) <span className="muted font-normal">· click one to list its releases</span>
+              {tr("engines.gh.known", { count: known.length })} <span className="muted font-normal">{tr("engines.gh.knownClick")}</span>
             </summary>
             <div className="px-3 pb-3 flex flex-col gap-2">
-              <input className="input" placeholder="Filter engines" value={kq} onChange={(e) => setKq(e.target.value)} data-testid="known-filter" />
+              <input className="input" placeholder={tr("engines.gh.filter")} value={kq} onChange={(e) => setKq(e.target.value)} data-testid="known-filter" />
               <div className="grid gap-1.5 overflow-auto max-h-[220px]" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))" }}>
                 {known
                   .filter((k) => !kq || `${k.name} ${k.repo}`.toLowerCase().includes(kq.toLowerCase()))
@@ -169,7 +169,7 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
                       key={k.repo}
                       className="text-left rounded px-2 py-1 border hover:bg-[var(--hover)]"
                       style={{ borderColor: url === k.repo ? "var(--accent)" : "var(--border)" }}
-                      title={`${k.repo}${k.tested_tag ? ` · tested: ${k.tested_tag} ${k.tested_asset ?? ""}` : ""}${k.notes ? `\n${k.notes}` : ""}`}
+                      title={`${k.repo}${k.tested_tag ? ` · ${tr("engines.gh.tested", { tag: k.tested_tag, asset: k.tested_asset ?? "" })}` : ""}${k.notes ? `\n${k.notes}` : ""}`}
                       onClick={() => {
                         setUrl(k.repo);
                         list(k.repo);
@@ -179,8 +179,8 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
                       <div className="flex items-center justify-between gap-1 text-[12.5px]">
                         <span className="font-medium truncate">{k.name}</span>
                         <span className="flex gap-1 shrink-0">
-                          {k.installed && <span className="chip chip-win">in library</span>}
-                          {k.tested_tag && <span className="chip">tested {k.tested_tag}</span>}
+                          {k.installed && <span className="chip chip-win">{tr("engines.gh.inLibrary")}</span>}
+                          {k.tested_tag && <span className="chip">{tr("engines.gh.testedChip", { tag: k.tested_tag })}</span>}
                         </span>
                       </div>
                       <div className="muted text-[11px] truncate mono">{k.repo}</div>
@@ -192,16 +192,16 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
           </details>
         )}
         <p className="muted text-[12px]">
-          Official releases only. TorsGUI proposes a build and explains why; <b>click another row to choose it yourself</b>. CCRL tests <b>AVX2 or AVX-512</b> builds: TorsGUI takes the AVX-512 (VNNI first) build when this CPU runs it, else the AVX2 one (x86-64-v3 counts as AVX2, x86-64-v4 as AVX-512); bmi2 or generic builds are taken but flagged; never 32-bit; nothing is compiled. When the API is rate-limited TorsGUI falls back to the <span className="mono">releases/latest</span> redirect and the HTML asset listing.
+          {tr("engines.gh.policy1")}<b>{tr("engines.gh.policy2")}</b>{tr("engines.gh.policy3")}<b>{tr("engines.gh.policy4")}</b>{tr("engines.gh.policy5")}<span className="mono">releases/latest</span>{tr("engines.gh.policy6")}
         </p>
         <div className="flex items-center gap-4 text-[12.5px] rounded-md px-3 py-2" style={{ background: "var(--bg-2)" }}>
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={avx2Only ?? false} onChange={(e) => setAvx2Only(e.target.checked)} data-testid="gh-avx2-only" />
-            AVX2 only
+            {tr("engines.gh.avx2Only")}
           </label>
           <span className="muted">
-            {avx2Only ? "the AVX2 build, even on an AVX-512 CPU" : "the AVX-512 build when this CPU runs it, else AVX2 — CCRL accepts both"}
-            {data?.policy && <> · this CPU: AVX-512 {data.policy.cpu_avx512 ? "yes" : "no"}, VNNI {data.policy.cpu_vnni ? "yes" : "no"}</>}
+            {avx2Only ? tr("engines.gh.avx2OnlyOn") : tr("engines.gh.avx2OnlyOff")}
+            {data?.policy && tr("engines.gh.thisCpu", { avx512: tr(data.policy.cpu_avx512 ? "app.common.yes" : "app.common.no"), vnni: tr(data.policy.cpu_vnni ? "app.common.yes" : "app.common.no") })}
           </span>
         </div>
         <ErrorBox error={error} />
@@ -212,8 +212,8 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
                 <button key={r.release.tag} className="w-full text-left px-2.5 py-1.5 flex justify-between items-center" style={{ background: r.release.tag === tag ? "var(--accent-bg)" : undefined, borderBottom: "1px solid var(--border)" }} onClick={() => { setTag(r.release.tag); setAsset(r.selection.chosen ?? undefined); }}>
                   <span className="mono">{r.release.tag}</span>
                   <span className="flex gap-1">
-                    {r.release.tag === data.latest_stable && <span className="chip chip-win">latest stable</span>}
-                    {r.release.prerelease && <span className="chip chip-warn">pre</span>}
+                    {r.release.tag === data.latest_stable && <span className="chip chip-win">{tr("engines.gh.latestStable")}</span>}
+                    {r.release.prerelease && <span className="chip chip-warn">{tr("engines.gh.pre")}</span>}
                   </span>
                 </button>
               ))}
@@ -221,9 +221,9 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
             {cur && (
               <div className="flex flex-col gap-2 min-w-0">
                 <div className={`rounded-md px-3 py-2 text-[12.5px]`} style={{ background: cur.selection.flagged ? "var(--warn-bg)" : "var(--win-bg)", color: cur.selection.flagged ? "var(--warn)" : "var(--win)" }}>
-                  <b>Proposed:</b> {cur.selection.reason}
+                  <b>{tr("engines.gh.proposed")}</b> {cur.selection.reason}
                 </div>
-                {asset && asset !== cur.selection.chosen && <div className="text-[12px]" style={{ color: "var(--accent-2)" }}>You chose <span className="mono">{asset}</span> instead of the proposed build.</div>}
+                {asset && asset !== cur.selection.chosen && <div className="text-[12px]" style={{ color: "var(--accent-2)" }}>{tr("engines.gh.youChose1")}<span className="mono">{asset}</span>{tr("engines.gh.youChose2")}</div>}
                 <div className="panel overflow-auto max-h-[320px]">
                   <table className="tbl">
                     <tbody>
@@ -242,7 +242,7 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
                     </tbody>
                   </table>
                 </div>
-                {cur.selection.extra.length > 0 && <div className="text-[12px] muted">Networks shipped separately (downloaded too): {cur.selection.extra.join(", ")}</div>}
+                {cur.selection.extra.length > 0 && <div className="text-[12px] muted">{tr("engines.gh.networks", { list: cur.selection.extra.join(", ") })}</div>}
               </div>
             )}
           </div>
@@ -255,6 +255,7 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
 function EditDialog({ e, setE, onDone }: { e: EngineEntry | null; setE: (e: EngineEntry | null) => void; onDone: () => void }) {
   const [opts, setOpts] = useState<Record<string, string>>({});
   const [draft, setDraft] = useState<EngineEntry | null>(null);
+  const tr = useT();
   if (e && (!draft || draft.id !== e.id)) {
     setDraft(e);
     setOpts({ ...e.default_options });
@@ -263,7 +264,7 @@ function EditDialog({ e, setE, onDone }: { e: EngineEntry | null; setE: (e: Engi
   const save = async () => {
     try {
       await call("engine_save", { engine: { ...draft, default_options: opts } });
-      toast.success("Saved: new tournaments use these options (a tournament already created keeps its own: change them in its Configuration tab)");
+      toast.success(tr("engines.edit.saved"));
       onDone();
       setE(null);
     } catch (err) {
@@ -272,35 +273,35 @@ function EditDialog({ e, setE, onDone }: { e: EngineEntry | null; setE: (e: Engi
   };
   const set = (k: keyof EngineEntry, v: unknown) => setDraft({ ...draft, [k]: v } as EngineEntry);
   return (
-    <Modal open onOpenChange={(o) => !o && setE(null)} title={`Edit ${e.display_name}`} width={900} footer={<button className="btn btn-primary" onClick={save}>Save</button>}>
+    <Modal open onOpenChange={(o) => !o && setE(null)} title={tr("engines.edit.title", { name: e.display_name })} width={900} footer={<button className="btn btn-primary" onClick={save}>{tr("app.common.save")}</button>}>
       <div className="grid grid-cols-3 gap-3">
-        <Field label="Display name (CCRL style)" hint="<Engine> <version>">
+        <Field label={tr("engines.edit.displayName")} hint="<Engine> <version>">
           <input className="input" value={draft.display_name} onChange={(x) => set("display_name", x.target.value)} />
         </Field>
-        <Field label="Engine">
+        <Field label={tr("engines.page.engine")}>
           <input className="input" value={draft.engine} onChange={(x) => set("engine", x.target.value)} />
         </Field>
-        <Field label="Version">
+        <Field label={tr("engines.edit.version")}>
           <input className="input" value={draft.version} onChange={(x) => set("version", x.target.value)} />
         </Field>
-        <Field label="Executable" className="col-span-2">
+        <Field label={tr("engines.edit.executable")} className="col-span-2">
           <input className="input mono" value={draft.path} onChange={(x) => set("path", x.target.value)} />
         </Field>
-        <Field label="Working dir">
+        <Field label={tr("engines.edit.dir")}>
           <input className="input mono" value={draft.dir} onChange={(x) => set("dir", x.target.value)} />
         </Field>
-        <Field label="Arguments" className="col-span-3" hint="command-line arguments of the engine (most engines need none)">
+        <Field label={tr("engines.edit.args")} className="col-span-3" hint={tr("engines.edit.argsHint")}>
           <input className="input mono" value={draft.args} onChange={(x) => set("args", x.target.value)} placeholder="--weights=nets/my.pb.gz" />
         </Field>
-        <Field label="Notes" className="col-span-3">
+        <Field label={tr("engines.edit.notes")} className="col-span-3">
           <textarea className="textarea" rows={2} value={draft.notes} onChange={(x) => set("notes", x.target.value)} />
         </Field>
         <div className="col-span-3 flex flex-col gap-1">
-          <div className="kpi-label">UCI options sent in new tournaments (network file, contempt, …)</div>
+          <div className="kpi-label">{tr("engines.edit.options")}</div>
           <UciOptionsEditor key={draft.id ?? 0} options={draft.options} values={opts} onChange={setOpts} engineId={draft.id} dir={draft.dir} />
         </div>
         <div className="col-span-2 muted text-[12px]">
-          Export name: <span className="mono">{/\b64-bit$/i.test(draft.display_name.trim()) ? draft.display_name.trim() : `${draft.display_name.trim()} 64-bit`}</span> (+ <span className="mono">NCPU</span> when threads &gt; 1)
+          {tr("engines.edit.exportName")}<span className="mono">{/\b64-bit$/i.test(draft.display_name.trim()) ? draft.display_name.trim() : `${draft.display_name.trim()} 64-bit`}</span> (+ <span className="mono">NCPU</span>{tr("engines.edit.exportCpu")}
         </div>
       </div>
     </Modal>
@@ -319,6 +320,7 @@ function CuteChessDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o
   const [picked, setPicked] = useState<string[]>([]);
   const [busy, setBusy] = useState<"scan" | "import" | null>(null);
   const [error, setError] = useState<string>();
+  const tr = useT();
   const req = () => (paste ? { text } : { path });
   const scan = async (auto = false) => {
     setBusy("scan");
@@ -340,7 +342,7 @@ function CuteChessDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o
     setBusy("import");
     try {
       const r = await call<{ added: { name: string; status: string }[]; skipped: string[] }>("cutechess_import", { ...(paste ? { text } : { path: source }), names: picked });
-      toast.success(`${r.added.length} engines imported from Cute Chess${r.skipped.length ? `, ${r.skipped.length} skipped` : ""}`);
+      toast.success(tr("engines.cute.imported", { count: r.added.length }) + (r.skipped.length ? tr("engines.cute.skipped", { count: r.skipped.length }) : ""));
       if (r.skipped.length) toast.message(r.skipped.join(" · "));
       onDone();
       setOpen(false);
@@ -355,56 +357,55 @@ function CuteChessDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o
     <Modal
       open={open}
       onOpenChange={setOpen}
-      title="Import engines from Cute Chess"
+      title={tr("engines.cute.title")}
       width={1000}
       footer={
         <button className="btn btn-primary" onClick={run} disabled={!rows || !picked.length || busy != null} data-testid="cute-import">
-          {busy === "import" ? <Spinner size={12} /> : <PackagePlus size={14} />} Import {picked.length} engine{picked.length === 1 ? "" : "s"}
+          {busy === "import" ? <Spinner size={12} /> : <PackagePlus size={14} />} {tr("engines.cute.import", { count: picked.length })}
         </button>
       }
     >
       <div className="flex flex-col gap-3">
         <div className="muted text-[12.5px]">
-          Cute Chess keeps its engines in <span className="mono">engines.json</span>. Each engine is imported with its folder, arguments and the UCI options changed in Cute
-          Chess, then verified (uci → isready → go). Threads and Hash come from the tournament.
+          {tr("engines.cute.about1")}<span className="mono">engines.json</span>{tr("engines.cute.about2")}
         </div>
         {!paste ? (
           <div className="flex gap-2 items-end">
-            <Field label="engines.json (file or folder)" className="flex-1">
-              <PathInput kind="file" value={path} onChange={setPath} filters={[{ name: "Cute Chess engines", extensions: ["json"] }]} placeholder="C:\Users\you\AppData\Local\cutechess\engines.json" testid="cute-path" />
+            <Field label={tr("engines.cute.file")} className="flex-1">
+              <PathInput kind="file" value={path} onChange={setPath} filters={[{ name: tr("engines.cute.filter"), extensions: ["json"] }]} placeholder="C:\Users\you\AppData\Local\cutechess\engines.json" testid="cute-path" />
             </Field>
             <button className="btn" onClick={() => scan(true)} disabled={busy != null} data-testid="cute-find">
-              <Search size={13} /> Find it
+              <Search size={13} /> {tr("engines.cute.find")}
             </button>
             <button className="btn btn-primary" onClick={() => scan()} disabled={!path || busy != null} data-testid="cute-read">
-              {busy === "scan" ? <Spinner size={12} /> : <FileText size={13} />} Read
+              {busy === "scan" ? <Spinner size={12} /> : <FileText size={13} />} {tr("engines.cute.read")}
             </button>
           </div>
         ) : (
           <div className="flex gap-2 items-end">
-            <Field label="Content of engines.json" className="flex-1">
+            <Field label={tr("engines.cute.content")} className="flex-1">
               <textarea className="textarea mono" rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder='[{"name": "Stockfish 17", "command": "stockfish.exe", ...}]' />
             </Field>
             <button className="btn btn-primary" onClick={() => scan()} disabled={!text.trim() || busy != null}>
-              {busy === "scan" ? <Spinner size={12} /> : <FileText size={13} />} Read
+              {busy === "scan" ? <Spinner size={12} /> : <FileText size={13} />} {tr("engines.cute.read")}
             </button>
           </div>
         )}
         <button className="btn btn-ghost btn-sm self-start" onClick={() => setPaste(!paste)}>
-          {paste ? "Give the file instead" : "Or paste the content of the file"}
+          {paste ? tr("engines.cute.giveFile") : tr("engines.cute.paste")}
         </button>
         <ErrorBox error={error} />
         {rows && (
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2 text-[12px]">
               <span className="muted">
-                {rows.length} engines in <span className="mono">{source}</span>
+                {tr("engines.cute.found", { count: rows.length })}<span className="mono">{source}</span>
               </span>
               <button className="btn btn-sm ml-auto" onClick={() => setPicked(rows.filter((e) => e.protocol === "uci").map((e) => e.name))}>
-                All
+                {tr("engines.cute.all")}
               </button>
               <button className="btn btn-sm" onClick={() => setPicked([])}>
-                None
+                {tr("engines.cute.none")}
               </button>
             </div>
             <div className="overflow-auto" style={{ maxHeight: 380 }}>
@@ -412,10 +413,10 @@ function CuteChessDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o
                 <thead>
                   <tr>
                     <th />
-                    <th>Engine</th>
-                    <th>Executable</th>
-                    <th>Options from Cute Chess</th>
-                    <th>Status</th>
+                    <th>{tr("engines.page.engine")}</th>
+                    <th>{tr("engines.cute.exe")}</th>
+                    <th>{tr("engines.cute.options")}</th>
+                    <th>{tr("engines.cute.status")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -434,14 +435,14 @@ function CuteChessDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o
                       </td>
                       <td>
                         {e.in_library ? (
-                          <span className="chip">in the library</span>
+                          <span className="chip">{tr("engines.cute.inLibrary")}</span>
                         ) : e.protocol !== "uci" ? (
                           <span className="chip chip-loss" title={e.note}>{e.protocol}</span>
                         ) : e.exists ? (
-                          <span className="chip chip-win">found</span>
+                          <span className="chip chip-win">{tr("engines.cute.foundChip")}</span>
                         ) : (
-                          <Tip content={`${e.note}. It is added without verification: set the executable in Edit.`}>
-                            <span className="chip chip-warn">not found</span>
+                          <Tip content={tr("engines.cute.notFoundTip", { note: e.note })}>
+                            <span className="chip chip-warn">{tr("engines.cute.notFound")}</span>
                           </Tip>
                         )}
                       </td>
@@ -466,7 +467,7 @@ export function Engines() {
   useEffect(() => {
     const name = params.get("github");
     if (!name) return;
-    const id = toast.loading(`Looking for ${name}…`);
+    const id = toast.loading(t("engines.looking", { name }));
     call<GithubTarget>("ccrl_repo_for", { name, list: params.get("list") ?? "Blitz" })
       .then((t) => {
         toast.dismiss(id);
@@ -490,14 +491,43 @@ export function Engines() {
   const [busy, setBusy] = useState<number | null>(null);
   const engines = data ?? [];
   const { ratings, fetchedAt, refresh: refreshRatings } = useEngineRatings();
+  const t = useT();
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<["name" | RatingList, SortDir]>(["name", "asc"]);
+  // active engines first: the ones being tested; inactive ones stay in the library
+  const [group, setGroup] = useTabParam(["active", "inactive", "gpu", "all"] as const, "active");
+  const activeN = engines.filter((e) => !e.inactive).length;
+  const gpuN = engines.filter((e) => e.gpu).length;
+  const inGroup = (e: EngineEntry) => group === "all" || (group === "gpu" ? e.gpu : (group === "active") === !e.inactive);
+  const [cards, setCards] = useState<Gpu[]>();
+  useEffect(() => {
+    if (group === "gpu" && !cards) call<Gpu[]>("gpus").then(setCards).catch(() => setCards([]));
+  }, [group, cards]);
+  const setGpu = async (e: EngineEntry, gpu: boolean) => {
+    try {
+      await call<number>("engines_set_gpu", { ids: [e.id!], gpu });
+      refresh();
+      toast.success(t(gpu ? "engines.gpu.set" : "engines.gpu.unset", { name: e.display_name }), { action: { label: t("engines.undo"), onClick: () => call("engines_set_gpu", { ids: [e.id!], gpu: !gpu }).then(() => refresh()) } });
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  };
+  const setActive = async (ids: number[], active: boolean, name?: string) => {
+    try {
+      const n = await call<number>("engines_set_active", { ids, active });
+      refresh();
+      const msg = name ? t(active ? "engines.setActive" : "engines.setInactive", { name }) : t("engines.changed", { count: n });
+      toast.success(msg, { action: { label: t("engines.undo"), onClick: () => call("engines_set_active", { ids, active: !active }).then(() => refresh()) } });
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  };
   const [syncing, setSyncing] = useState(false);
   useEffect(() => {
     refreshRatings();
   }, [data, refreshRatings]);
   const shown = engines
-    .filter((e) => matchesEngine(e, q))
+    .filter((e) => inGroup(e) && matchesEngine(e, q))
     .sort((a, b) =>
       sort[0] === "name"
         ? (sort[1] === "asc" ? 1 : -1) * a.display_name.localeCompare(b.display_name, undefined, { numeric: true, sensitivity: "base" })
@@ -507,8 +537,8 @@ export function Engines() {
     setSyncing(true);
     try {
       const r = await call<{ done: unknown[]; failed: unknown[] }>("ccrl_fetch_all");
-      if (r.done.length) toast.success(`CCRL lists updated (${r.done.length})${r.failed.length ? `, ${r.failed.length} not reachable` : ""}`);
-      else toast.error("computerchess.org.uk is not reachable: the lists in CCRL lists stay in use (bundled or imported)");
+      if (r.done.length) toast.success(t("engines.page.listsUpdated", { count: r.done.length }) + (r.failed.length ? t("engines.page.notReachable", { count: r.failed.length }) : ""));
+      else toast.error(t("engines.page.offline"));
       refreshRatings();
     } catch (err) {
       toast.error((err as Error).message);
@@ -531,7 +561,7 @@ export function Engines() {
     }
   };
   const del = async (e: EngineEntry) => {
-    if (!confirm(`Remove ${e.display_name} from the library? Files are not deleted.`)) return;
+    if (!confirm(t("engines.page.confirmRemove", { name: e.display_name }))) return;
     await call("engine_delete", { id: e.id });
     refresh();
   };
@@ -549,7 +579,7 @@ export function Engines() {
     try {
       const base = impPath.replace(/[\\/]REPORT\.md$/i, "");
       const r = await call<{ added: number }>("engines_import_report", { report: `${base}/REPORT.md`, uci_dir: `${base}/uci_options` });
-      toast.success(`${r.added} engines added from REPORT.md (metadata only)`);
+      toast.success(t("engines.page.reportAdded", { count: r.added }));
       setImp(false);
       refresh();
     } catch (err) {
@@ -561,84 +591,130 @@ export function Engines() {
   return (
     <div className="flex flex-col gap-3 fade-in">
       <PageHeader help="engines"
-        title="Engines"
-        sub={`${engines.length} engines · ${verified} verified · ${flagged} flagged`}
+        title={t("engines.page.title")}
+        sub={t("engines.page.sub", { count: engines.length, verified, flagged })}
         actions={
           <>
             <button className="btn" onClick={() => call<string>("engines_report").then(setReport)}>
-              <FileText size={14} /> Report
+              <FileText size={14} /> {t("engines.page.report")}
             </button>
             <MenuButton
               primary
               testid="engines-add"
               label={
                 <>
-                  <PackagePlus size={14} /> Add engine
+                  <PackagePlus size={14} /> {t("engines.page.add")}
                 </>
               }
               items={[
-                { icon: <PackagePlus size={14} />, label: "From GitHub", hint: "official releases, CCRL build rules", onSelect: () => setGh(true), testid: "engines-github" },
-                { icon: <FolderOpen size={14} />, label: "Local file", hint: "an executable on this computer", onSelect: () => setLocal(true), testid: "engines-local" },
-                { icon: <FolderOpen size={14} />, label: "Import from Cute Chess", hint: "engines.json: folders, arguments, options", onSelect: () => setCute(true), testid: "engines-cutechess" },
+                { icon: <PackagePlus size={14} />, label: t("engines.page.fromGithub"), hint: t("engines.page.fromGithubHint"), onSelect: () => setGh(true), testid: "engines-github" },
+                { icon: <FolderOpen size={14} />, label: t("engines.page.local"), hint: t("engines.page.localHint"), onSelect: () => setLocal(true), testid: "engines-local" },
+                { icon: <FolderOpen size={14} />, label: t("engines.page.cute"), hint: t("engines.page.cuteHint"), onSelect: () => setCute(true), testid: "engines-cutechess" },
                 {
                   icon: <PackagePlus size={14} />,
-                  label: "Bundled engines",
+                  label: t("engines.page.bundled"),
                   hint: bundled.map((b) => `${b.engine} ${b.version}`).join(", "),
                   hidden: bundled.length === 0,
                   testid: "engines-bundled",
                   onSelect: () =>
                     call<{ added: string[] }>("bundled_install")
                       .then((r) => {
-                        toast.success(r.added.length ? `Added: ${r.added.join(", ")}` : "Already in the library");
+                        toast.success(r.added.length ? t("engines.page.added", { names: r.added.join(", ") }) : t("engines.page.already"));
                         refresh();
                       })
                       .catch((e) => toast.error(e.message)),
                 },
-                { icon: <FileText size={14} />, label: "Rebuild from REPORT.md", hint: "the engines report of the old scripts", onSelect: () => setImp(true), testid: "engines-report-import" },
+                { icon: <FileText size={14} />, label: t("engines.page.rebuild"), hint: t("engines.page.rebuildHint"), onSelect: () => setImp(true), testid: "engines-report-import" },
               ]}
             />
           </>
         }
       />
       <ErrorBox error={error} />
+      <PageTabs
+        tabs={[
+          { id: "active", label: t("engines.tabs.active"), badge: activeN },
+          { id: "inactive", label: t("engines.tabs.inactive"), badge: engines.length - activeN },
+          { id: "gpu", label: t("engines.tabs.gpu"), badge: gpuN },
+          { id: "all", label: t("engines.tabs.all"), badge: engines.length },
+        ]}
+        value={group}
+        onChange={setGroup}
+        testid="engines-group"
+      />
+      {group === "gpu" && (
+        <Panel title={t("engines.gpu.cards")}>
+          <div className="flex flex-col gap-1.5 text-[12.5px]" data-testid="gpu-cards">
+            {!cards ? (
+              <Spinner size={12} />
+            ) : cards.length === 0 ? (
+              <span className="muted">{t("engines.gpu.noCards")}</span>
+            ) : (
+              cards.map((c) => (
+                <div key={c.index} className="flex items-center gap-2">
+                  <span className="chip">{t("engines.gpu.card", { n: c.index })}</span>
+                  <span className="font-medium">{c.name}</span>
+                  {c.memory_mb > 0 && <span className="muted tnum">{(c.memory_mb / 1024).toFixed(c.memory_mb >= 10240 ? 0 : 1)} GB</span>}
+                </div>
+              ))
+            )}
+            <div className="muted text-[12px]">{t("engines.gpu.about")}</div>
+          </div>
+        </Panel>
+      )}
       <Panel
         noPad
-        title={q ? `${shown.length} of ${engines.length} engines` : "Library"}
+        title={q ? t("engines.page.shownOf", { shown: shown.length, total: engines.length }) : t("engines.page.library")}
         actions={
           <>
             <div className="relative">
               <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 muted" />
-              <input className="input" style={{ width: 240, paddingLeft: 26 }} placeholder="Search engines, authors, builds" value={q} onChange={(e) => setQ(e.target.value)} data-testid="engines-search" />
+              <input className="input" style={{ width: 240, paddingLeft: 26 }} placeholder={t("engines.page.search")} value={q} onChange={(e) => setQ(e.target.value)} data-testid="engines-search" />
             </div>
-            <Tip content={`CCRL ratings come from the lists in CCRL lists${fetchedAt ? ` (latest: ${fetchedAt.slice(0, 10)})` : ""}. Update downloads them again; ≈ means this version is not in the list yet and the latest listed version is shown.`}>
+            {(group === "active" || group === "inactive") && shown.length > 0 && (
+              <button className="btn btn-sm" onClick={() => setActive(shown.map((e) => e.id!), group === "inactive")} data-testid="engines-move-shown">
+                {t(group === "inactive" ? "engines.allActiveShown" : "engines.allInactiveShown")}
+              </button>
+            )}
+            <Tip content={t("engines.page.ratingsTip", { latest: fetchedAt ? t("engines.page.latest", { date: fetchedAt.slice(0, 10) }) : "" })}>
               <button className="btn btn-sm" onClick={syncCcrl} disabled={syncing} data-testid="engines-ccrl-sync">
-                {syncing ? <Spinner size={12} /> : <RefreshCw size={12} />} Update CCRL ratings
+                {syncing ? <Spinner size={12} /> : <RefreshCw size={12} />} {t("engines.page.updateRatings")}
               </button>
             </Tip>
           </>
         }
       >
         {engines.length === 0 ? (
-          <Empty>The library is empty. Add engines from their official GitHub releases, from a local file, or rebuild the library from an existing REPORT.md.</Empty>
+          <Empty>{t("engines.page.empty")}</Empty>
         ) : (
           <div className="overflow-auto">
             <table className="tbl" data-testid="engines-table">
               <thead>
                 <tr>
+                  <th style={{ width: 1 }}>
+                    <Tip content={t("engines.activeTip")}>
+                      <span>{t("engines.activeCol")}</span>
+                    </Tip>
+                  </th>
+                  <th style={{ width: 1 }}>
+                    <Tip content={t("engines.gpu.colTip")}>
+                      <span>GPU</span>
+                    </Tip>
+                  </th>
                   <SortTh k="name" sort={sort} setSort={setSort} first="asc">
-                    Engine
+                    {t("engines.page.engine")}
                   </SortTh>
                   {RATING_LISTS.map((l) => (
                     <SortTh key={l} k={l} sort={sort} setSort={setSort} right>
                       CCRL {l}
                     </SortTh>
                   ))}
-                  <th>Build</th>
-                  <th>id name</th>
-                  <th className="r">Threads max</th>
-                  <th>Syzygy</th>
-                  <th>Verified</th>
-                  <th>Flags</th>
+                  <th>{t("engines.page.build")}</th>
+                  <th>{t("engines.page.idName")}</th>
+                  <th className="r">{t("engines.page.threadsMax")}</th>
+                  <th>{t("engines.page.syzygy")}</th>
+                  <th>{t("engines.page.verified")}</th>
+                  <th>{t("engines.page.flags")}</th>
                   <th>SHA256</th>
                   <th />
                 </tr>
@@ -646,13 +722,19 @@ export function Engines() {
               <tbody>
                 {shown.length === 0 && (
                   <tr>
-                    <td colSpan={13} className="muted">
-                      No engine matches “{q}”.
+                    <td colSpan={15} className="muted" data-testid="engines-empty-group">
+                      {q ? t("engines.page.noMatch", { q }) : group === "active" ? t("engines.noneActive") : group === "gpu" ? t("engines.gpu.none") : t("engines.noneInactive")}
                     </td>
                   </tr>
                 )}
                 {shown.map((e) => (
-                  <tr key={e.id}>
+                  <tr key={e.id} style={e.inactive ? { opacity: 0.6 } : undefined}>
+                    <td className="text-center">
+                      <input type="checkbox" checked={!e.inactive} onChange={() => setActive([e.id!], !!e.inactive, e.display_name)} aria-label={`${t("engines.activeCol")}: ${e.display_name}`} data-testid={`engine-active-${e.id}`} />
+                    </td>
+                    <td className="text-center">
+                      <input type="checkbox" checked={!!e.gpu} onChange={() => setGpu(e, !e.gpu)} aria-label={`GPU: ${e.display_name}`} data-testid={`engine-gpu-${e.id}`} />
+                    </td>
                     <td className="font-medium">
                       {e.release_url ? (
                         <a href={e.release_url} target="_blank" rel="noreferrer" className="hover:underline">
@@ -662,8 +744,13 @@ export function Engines() {
                         e.display_name
                       )}
                       {e.chess960 && (
-                        <span className="chip chip-accent ml-1.5" title="declares UCI_Chess960: can play Fischer Random">
+                        <span className="chip chip-accent ml-1.5" title={t("engines.page.chess960Tip")}>
                           960
+                        </span>
+                      )}
+                      {e.gpu && (
+                        <span className="chip chip-warn ml-1.5" title={t("engines.gpu.chipTip")}>
+                          GPU
                         </span>
                       )}
                       <div className="mono muted text-[11px] truncate max-w-[260px]" title={e.asset}>
@@ -678,12 +765,12 @@ export function Engines() {
                     <td className="mono truncate max-w-[180px]" title={e.build}>{e.build || "—"}</td>
                     <td className="mono muted">{e.uci_id || "—"}</td>
                     <td className="r tnum">{e.threads_max ?? "—"}</td>
-                    <td>{e.has_syzygy ? "yes" : <span className="muted">no</span>}</td>
+                    <td>{e.has_syzygy ? t("app.common.yes") : <span className="muted">{t("app.common.no")}</span>}</td>
                     <td>
-                      <Tip content={e.verify_detail || "not verified yet"}>
+                      <Tip content={e.verify_detail || t("engines.page.notVerified")}>
                         <span className={`chip ${e.verify_status === "ok" ? "chip-win" : e.verify_status === "failed" ? "chip-loss" : ""}`}>
                           {e.verify_status === "ok" ? <CheckCircle2 size={11} /> : null}
-                          {e.verify_status || "unverified"}
+                          {e.verify_status || t("engines.page.unverified")}
                         </span>
                       </Tip>
                     </td>
@@ -701,13 +788,13 @@ export function Engines() {
                     </td>
                     <td className="r">
                       <div className="flex justify-end gap-1">
-                        <button className="btn btn-sm" onClick={() => verify(e)} disabled={!e.path || busy === e.id} title="uci → isready → go depth 12">
-                          {busy === e.id ? <Spinner size={12} /> : <RefreshCw size={12} />} Verify
+                        <button className="btn btn-sm" onClick={() => verify(e)} disabled={!e.path || busy === e.id} title={t("engines.page.verifyTip")}>
+                          {busy === e.id ? <Spinner size={12} /> : <RefreshCw size={12} />} {t("engines.page.verify")}
                         </button>
-                        <button className="btn btn-ghost btn-icon btn-sm" aria-label="Edit" onClick={() => setEdit(e)}>
+                        <button className="btn btn-ghost btn-icon btn-sm" aria-label={t("engines.page.edit")} onClick={() => setEdit(e)}>
                           <Pencil size={13} />
                         </button>
-                        <button className="btn btn-ghost btn-icon btn-sm" aria-label="Remove" onClick={() => del(e)}>
+                        <button className="btn btn-ghost btn-icon btn-sm" aria-label={t("engines.page.remove")} onClick={() => del(e)}>
                           <Trash2 size={13} />
                         </button>
                       </div>
@@ -730,24 +817,24 @@ export function Engines() {
       />
       <EditDialog e={edit} setE={setEdit} onDone={refresh} />
       <CuteChessDialog open={cute} setOpen={setCute} onDone={refresh} />
-      <Modal open={local} onOpenChange={setLocal} title="Add a local engine" footer={<button className="btn btn-primary" onClick={addLocal} disabled={!localPath}>Add &amp; verify</button>}>
-        <Field label="Executable path" hint="The engine is verified (uci → isready → go depth 12) and its options are recorded.">
+      <Modal open={local} onOpenChange={setLocal} title={t("engines.local.title")} footer={<button className="btn btn-primary" onClick={addLocal} disabled={!localPath}>{t("engines.local.add")}</button>}>
+        <Field label={t("engines.local.path")} hint={t("engines.local.pathHint")}>
           <PathInput kind="file" value={localPath} onChange={setLocalPath} filters={ENGINE_FILTERS} placeholder="C:\CCRL\engines\Engine_1.0\engine-avx2.exe" testid="local-path" />
         </Field>
       </Modal>
-      <Modal open={imp} onOpenChange={setImp} title="Rebuild the library from REPORT.md" footer={<button className="btn btn-primary" onClick={importReport} disabled={!impPath}>Import</button>}>
-        <Field label="engines folder containing REPORT.md and uci_options/" hint="Metadata only (release, asset, build, sha256, id name, UCI options, notes): point each entry to its binary afterwards, or reinstall it from GitHub.">
+      <Modal open={imp} onOpenChange={setImp} title={t("engines.rebuild.title")} footer={<button className="btn btn-primary" onClick={importReport} disabled={!impPath}>{t("engines.rebuild.import")}</button>}>
+        <Field label={t("engines.rebuild.folder")} hint={t("engines.rebuild.folderHint")}>
           <PathInput kind="folder" value={impPath} onChange={setImpPath} placeholder="…/CCRL_ScirptsTests/engines" />
         </Field>
       </Modal>
       <Modal
         open={report != null}
         onOpenChange={(o) => !o && setReport(null)}
-        title="Engine report (REPORT.md)"
+        title={t("engines.rebuild.reportTitle")}
         width={1000}
         footer={
-          <button className="btn btn-primary" onClick={() => navigator.clipboard.writeText(report ?? "").then(() => toast.success("Copied"))}>
-            <Copy size={13} /> Copy markdown
+          <button className="btn btn-primary" onClick={() => navigator.clipboard.writeText(report ?? "").then(() => toast.success(t("engines.rebuild.copied")))}>
+            <Copy size={13} /> {t("engines.rebuild.copy")}
           </button>
         }
       >

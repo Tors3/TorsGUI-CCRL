@@ -1,10 +1,13 @@
 import { CheckCircle2, Download, GitBranch, HardDrive, RotateCcw, Save, Server, XCircle } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import type { Gpu } from "../bindings/Gpu";
 import type { Housekeeping } from "../bindings/Housekeeping";
 import type { Settings } from "../bindings/Settings";
 import type { Topology } from "../bindings/Topology";
 import { BoardAppearance } from "../components/BoardSettings";
+import { LanguagePicker } from "../components/LanguagePicker";
+import { useT, type Key } from "../i18n";
 import { OpeningBooksPanel } from "../components/OpeningBooks";
 import { BroadcastSettings } from "../components/Broadcast";
 import { BOOK_FILTERS, PathInput } from "../components/PathInput";
@@ -13,7 +16,7 @@ import { call, usePoll } from "../lib/api";
 import { bytes } from "../lib/format";
 import type { AppInfo } from "../lib/types";
 import { FONTS, useFont } from "../lib/font";
-import { THEMES, useTheme } from "../lib/theme";
+import { THEMES, themeAbout, themeLabel, useTheme } from "../lib/theme";
 
 const SETTINGS_TABS = [
   { id: "general", label: "General" },
@@ -26,12 +29,52 @@ const SETTINGS_TABS = [
 ] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number]["id"];
 
+/** The graphics cards (for GPU engines), looked up again on request. */
+function GpuList() {
+  const t = useT();
+  const [cards, setCards] = useState<Gpu[]>();
+  const load = (refresh: boolean) => {
+    setCards(undefined);
+    call<Gpu[]>("gpus", { refresh }).then(setCards).catch(() => setCards([]));
+  };
+  useEffect(() => load(false), []);
+  return (
+    <Panel
+      title={t("engines.gpu.cards")}
+      actions={
+        <button className="btn btn-sm" onClick={() => load(true)} data-testid="gpus-refresh">
+          {t("settings.gpuRefresh")}
+        </button>
+      }
+    >
+      <div className="flex flex-col gap-1.5 text-[12.5px]" data-testid="settings-gpus">
+        {!cards ? (
+          <Spinner size={12} />
+        ) : cards.length === 0 ? (
+          <span className="muted">{t("engines.gpu.noCards")}</span>
+        ) : (
+          cards.map((c) => (
+            <div key={c.index} className="flex items-center gap-2">
+              <span className="chip">{t("engines.gpu.card", { n: c.index })}</span>
+              <span className="font-medium">{c.name}</span>
+              {c.memory_mb > 0 && <span className="muted tnum">{(c.memory_mb / 1024).toFixed(c.memory_mb >= 10240 ? 0 : 1)} GB</span>}
+              <span className="muted text-[11px]">{c.source}</span>
+            </div>
+          ))
+        )}
+      </div>
+    </Panel>
+  );
+}
+
 function TopologyView({ t }: { t: Topology }) {
+  const tr = useT();
+  const yn = (v: boolean) => tr(v ? "app.common.yes" : "app.common.no");
   return (
     <div className="flex flex-col gap-2">
       <div className="text-[12px]">
-        <b>{t.cpu_model}</b> · {t.sockets} socket(s) · {t.physical_cores} cores / {t.logical_cpus} threads · {t.groups} processor group(s) · AVX2 {t.has_avx2 ? "yes" : "no"} · AVX-512 {t.has_avx512 ? "yes (never for CCRL)" : "no"}
-        <span className="muted"> · source: {t.source}</span>
+        <b>{t.cpu_model}</b> · {tr("settings.topo.line", { sockets: t.sockets, cores: t.physical_cores, threads: t.logical_cpus, groups: t.groups, avx2: yn(t.has_avx2), avx512: yn(t.has_avx512) })}
+        <span className="muted">{tr("settings.topo.source", { source: t.source })}</span>
       </div>
       <div className="flex gap-3 flex-wrap">
         {t.nodes.map((n) => {
@@ -40,16 +83,16 @@ function TopologyView({ t }: { t: Topology }) {
           return (
             <div key={n.id} className="panel p-2" style={{ background: "var(--bg-2)" }} data-testid="numa-node">
               <div className="text-[12px] mb-1.5 flex justify-between gap-4">
-                <b>NUMA node {n.id}</b>
+                <b>{tr("settings.topo.node", { id: n.id })}</b>
                 <span className="muted">
-                  group {n.group} · {n.physical_cores}c/{n.logical_cpus}t{n.memory_mb ? ` · ${(n.memory_mb / 1024).toFixed(0)} GB` : ""}
+                  {tr("settings.topo.group", { group: n.group, cores: n.physical_cores, threads: n.logical_cpus })}{n.memory_mb ? ` · ${(n.memory_mb / 1024).toFixed(0)} GB` : ""}
                 </span>
               </div>
               <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(10, cores.length)}, 26px)` }}>
                 {cores.map((c) => {
                   const threads = cpus.filter((x) => x.core === c).sort((a, b) => a.smt - b.smt);
                   return (
-                    <div key={c} className="rounded flex flex-col overflow-hidden" style={{ border: "1px solid var(--border-strong)" }} title={`core ${c}: ${threads.map((x) => `cpu ${x.id} (bit ${x.number})`).join(", ")}`}>
+                    <div key={c} className="rounded flex flex-col overflow-hidden" style={{ border: "1px solid var(--border-strong)" }} title={tr("settings.topo.core", { core: c, list: threads.map((x) => `cpu ${x.id} (bit ${x.number})`).join(", ") })}>
                       {threads.map((x) => (
                         <div key={x.id} className="h-[11px] text-[8px] leading-[11px] text-center tnum" style={{ background: x.smt === 0 ? "var(--accent-bg)" : "transparent", color: x.smt === 0 ? "var(--accent-2)" : "var(--muted)" }}>
                           {x.number}
@@ -63,12 +106,13 @@ function TopologyView({ t }: { t: Topology }) {
           );
         })}
       </div>
-      <div className="muted text-[11.5px]">Highlighted: the first hardware thread of each physical core (the "one logical CPU per physical core" set used for games). Caches: {t.caches.map((c) => `L${c.level} ${c.kind} ${c.size_kb} KB`).join(" · ") || "—"}</div>
+      <div className="muted text-[11.5px]">{tr("settings.topo.about", { caches: t.caches.map((c) => `L${c.level} ${c.kind} ${c.size_kb} KB`).join(" · ") || "—" })}</div>
     </div>
   );
 }
 
 export function SettingsPage() {
+  const t = useT();
   const { data, refresh } = usePoll<Settings>("settings_get", {}, 0);
   const { data: info, refresh: refreshInfo } = usePoll<AppInfo>("app_info", {}, 0);
   const { data: topo } = usePoll<Topology>("topology", {}, 0);
@@ -77,7 +121,7 @@ export function SettingsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string>();
   const [gitMsg, setGitMsg] = useState("");
-  const [tab, setTab] = useTabParam(SETTINGS_TABS.map((t) => t.id), "general");
+  const [tab, setTab] = useTabParam(SETTINGS_TABS.map((x) => x.id), "general");
   useEffect(() => {
     if (data) setS(data);
   }, [data]);
@@ -86,7 +130,7 @@ export function SettingsPage() {
   const save = async () => {
     try {
       await call("settings_save", { settings: s });
-      toast.success("Settings saved");
+      toast.success(t("settings.saved"));
       refresh();
       refreshInfo();
     } catch (e) {
@@ -98,7 +142,7 @@ export function SettingsPage() {
     setErr(undefined);
     try {
       const r = await call(cmd, args);
-      toast.success(msg ? msg(r) : "Done");
+      toast.success(msg ? msg(r) : t("settings.done"));
       refreshInfo();
       refreshHk();
     } catch (e) {
@@ -120,56 +164,56 @@ export function SettingsPage() {
   const panes: Record<SettingsTab, ReactNode> = {
     general: (
       <div className="grid gap-3 cols-fit">
-        <Panel title="Tester">
+        <Panel title={t("settings.tester")}>
           <div className="grid grid-cols-2 gap-3">
-            {txt("tester_name", "Tester name", "used in the export file name", false)}
-            {txt("site", "Site", "your location (PGN Site tag)", false)}
-            <Field label="Hash per thread, Blitz (MB)" hint="CCRL Blitz: 256 (2048 at 8CPU)">
+            {txt("tester_name", t("settings.testerName"), t("settings.testerHint"), false)}
+            {txt("site", t("settings.site"), t("settings.siteHint"), false)}
+            <Field label={t("settings.hashBlitz")} hint={t("settings.hashBlitzHint")}>
               <input className="input tnum" type="number" value={s.hash_per_thread_blitz_mb} onChange={(e) => set("hash_per_thread_blitz_mb", +e.target.value)} data-testid="hash-blitz" />
             </Field>
-            <Field label="Hash per thread, other lists (MB)" hint="40/15 and the others: 512 (at least 2 × this: 1024 at 1CPU, 4096 at 8CPU)">
+            <Field label={t("settings.hashOther")} hint={t("settings.hashOtherHint")}>
               <input className="input tnum" type="number" value={s.hash_per_thread_mb} onChange={(e) => set("hash_per_thread_mb", +e.target.value)} />
             </Field>
-            <Field label="Default machine factor">
+            <Field label={t("settings.factor")}>
               <input className="input tnum" type="number" step={0.001} value={s.default_factor} onChange={(e) => set("default_factor", +e.target.value)} />
             </Field>
-            <Field label="Default 8CPU − 1CPU gap" hint="when neither the engine nor the list give one">
+            <Field label={t("settings.gap")} hint={t("settings.gapHint")}>
               <input className="input tnum" type="number" value={s.default_cpu_gap} onChange={(e) => set("default_cpu_gap", +e.target.value)} />
             </Field>
           </div>
         </Panel>
-        <Panel title="Default adjudication">
+        <Panel title={t("settings.adjudication")}>
           <div className="grid grid-cols-3 gap-2 text-[12.5px]">
             <label className="col-span-3 flex items-center gap-2">
-              <input type="checkbox" checked={s.adjudication.draw_enabled} onChange={(e) => set("adjudication", { ...s.adjudication, draw_enabled: e.target.checked })} /> Draw: from move / moves / |score| cp
+              <input type="checkbox" checked={s.adjudication.draw_enabled} onChange={(e) => set("adjudication", { ...s.adjudication, draw_enabled: e.target.checked })} /> {t("settings.draw")}
             </label>
             {(["draw_movenumber", "draw_movecount", "draw_score"] as const).map((k) => (
               <input key={k} className="input tnum" type="number" value={s.adjudication[k]} onChange={(e) => set("adjudication", { ...s.adjudication, [k]: +e.target.value })} aria-label={k} />
             ))}
             <label className="col-span-3 flex items-center gap-2">
-              <input type="checkbox" checked={s.adjudication.resign_enabled} onChange={(e) => set("adjudication", { ...s.adjudication, resign_enabled: e.target.checked })} /> Resign: moves / score cp / two-sided
+              <input type="checkbox" checked={s.adjudication.resign_enabled} onChange={(e) => set("adjudication", { ...s.adjudication, resign_enabled: e.target.checked })} /> {t("settings.resign")}
             </label>
             {(["resign_movecount", "resign_score"] as const).map((k) => (
               <input key={k} className="input tnum" type="number" value={s.adjudication[k]} onChange={(e) => set("adjudication", { ...s.adjudication, [k]: +e.target.value })} aria-label={k} />
             ))}
             <label className="flex items-center gap-1.5">
-              <input type="checkbox" checked={s.adjudication.resign_twosided} onChange={(e) => set("adjudication", { ...s.adjudication, resign_twosided: e.target.checked })} /> two-sided
+              <input type="checkbox" checked={s.adjudication.resign_twosided} onChange={(e) => set("adjudication", { ...s.adjudication, resign_twosided: e.target.checked })} /> {t("settings.twoSided")}
             </label>
           </div>
         </Panel>
-        <Panel title="Notifications and updates">
+        <Panel title={t("settings.notifications")}>
           <div className="flex flex-col gap-2 text-[12.5px]">
             <label className="flex items-center gap-2">
-              <input type="checkbox" checked={s.desktop_notifications} onChange={(e) => set("desktop_notifications", e.target.checked)} data-testid="desktop-notifications" /> Desktop notifications
+              <input type="checkbox" checked={s.desktop_notifications} onChange={(e) => set("desktop_notifications", e.target.checked)} data-testid="desktop-notifications" /> {t("settings.desktop")}
             </label>
-            <div className="muted text-[11.5px] -mt-1 ml-6">Tournament finished or ended with games missing, next tournament of the queue started, engine crashes (at most one a minute), bench, test suite and game analysis finished. Shown also while TorsGUI is in the tray.</div>
+            <div className="muted text-[11.5px] -mt-1 ml-6">{t("settings.desktopAbout")}</div>
             <label className="flex items-center gap-2">
-              <input type="checkbox" checked={s.check_updates} onChange={(e) => set("check_updates", e.target.checked)} data-testid="check-updates" /> Tell me when a new TorsGUI version is out
+              <input type="checkbox" checked={s.check_updates} onChange={(e) => set("check_updates", e.target.checked)} data-testid="check-updates" /> {t("settings.updates")}
             </label>
-            <div className="muted text-[11.5px] -mt-1 ml-6">At start, TorsGUI asks GitHub for the latest release (nothing is sent about you or your machine). <b>Update now</b> downloads it (size and SHA-256 checked) and installs it like this copy was installed; running tournaments keep running.</div>
+            <div className="muted text-[11.5px] -mt-1 ml-6">{t("settings.updatesAbout1")}<b>{t("settings.updatesAbout2")}</b>{t("settings.updatesAbout3")}</div>
             <div>
               <button className="btn btn-sm" onClick={() => window.dispatchEvent(new Event("torsgui-check-update"))} data-testid="check-update-now">
-                Check for updates now
+                {t("settings.checkNow")}
               </button>
             </div>
             {info?.os === "windows" && (
@@ -179,29 +223,29 @@ export function SettingsPage() {
                     className="btn btn-sm"
                     onClick={() =>
                       call<{ path: string }>("desktop_shortcut_create")
-                        .then((r) => toast.success(`Shortcut created: ${r.path}`))
+                        .then((r) => toast.success(t("settings.shortcutCreated", { path: r.path })))
                         .catch((e) => toast.error(e.message))
                     }
                     data-testid="desktop-shortcut"
                   >
-                    Create desktop shortcut
+                    {t("settings.shortcut")}
                   </button>
                 </div>
-                <div className="muted text-[11.5px]">A "TorsGUI" shortcut on the desktop that opens this copy. At every start TorsGUI also points the TorsGUI shortcuts of the desktop to itself when they open an older or missing copy (an earlier portable folder).</div>
+                <div className="muted text-[11.5px]">{t("settings.shortcutAbout")}</div>
               </div>
             )}
           </div>
         </Panel>
-        <Panel title="Engine builds">
+        <Panel title={t("settings.builds")}>
           <div className="flex flex-col gap-2.5 text-[12.5px]">
             <p className="muted">
-              CCRL tests <b>AVX2 or AVX-512</b> builds. Downloads take the AVX-512 build (VNNI first) when this CPU runs it, else the AVX2 one; an AVX-512 build is never taken on a CPU without AVX-512 (it would crash). In a tournament, engines that are neither AVX2 nor AVX-512 are pointed out.
+              {t("settings.buildsAbout1")}<b>{t("settings.buildsAbout2")}</b>{t("settings.buildsAbout3")}
             </p>
             <label className="flex items-center gap-2">
-              <input type="checkbox" checked={s.avx2_only} onChange={(e) => set("avx2_only", e.target.checked)} data-testid="avx2-only" /> AVX2 only (never the AVX-512 build)
+              <input type="checkbox" checked={s.avx2_only} onChange={(e) => set("avx2_only", e.target.checked)} data-testid="avx2-only" /> {t("settings.avx2Only")}
             </label>
             <div className="muted text-[11.5px]">
-              This CPU: AVX-512 {topo ? (topo.has_avx512 ? "yes" : "no") : "…"}. Default for new downloads; the <i>Add from GitHub</i> dialog can switch it per engine.
+              {t("settings.thisCpu1", { avx512: topo ? t(topo.has_avx512 ? "app.common.yes" : "app.common.no") : "…" })}<i>{t("settings.thisCpu2")}</i>{t("settings.thisCpu3")}
             </div>
           </div>
         </Panel>
@@ -209,63 +253,66 @@ export function SettingsPage() {
     ),
     appearance: (
       <div className="flex flex-col gap-3">
-        <Panel title="Colour theme" actions={<span className="muted text-[11.5px]">saved on this computer, applied immediately · shortcut t</span>}>
+        <Panel title={t("app.language")} actions={<span className="muted text-[11.5px]">{t("settings.savedHere")}</span>}>
+          <LanguagePicker />
+        </Panel>
+        <Panel title={t("settings.colourTheme")} actions={<span className="muted text-[11.5px]">{t("settings.savedHereT")}</span>}>
           <ThemePicker />
         </Panel>
-        <Panel title="Font" actions={<span className="muted text-[11.5px]">saved on this computer, applied immediately</span>}>
+        <Panel title={t("settings.font")} actions={<span className="muted text-[11.5px]">{t("settings.savedHere")}</span>}>
           <FontPicker />
         </Panel>
-        <Panel title="Board appearance" actions={<span className="muted text-[11.5px]">saved on this computer, applied immediately</span>}>
+        <Panel title={t("settings.board")} actions={<span className="muted text-[11.5px]">{t("settings.savedHere")}</span>}>
           <BoardAppearance />
         </Panel>
       </div>
     ),
     paths: (
       <div className="grid gap-3 cols-fit">
-        <Panel title="Paths">
+        <Panel title={t("settings.paths")}>
           <div className="grid grid-cols-1 gap-2.5">
-            {path("engines_dir", "Engines folder", "folder", "downloads go to <folder>/<Repo>_<tag>")}
-            {path("books_dir", "Books folder", "folder")}
-            {path("default_book", "Default opening book", "file")}
-            {path("syzygy_path", "Syzygy path passed to engines", "folder", "default of new tournaments: TorsGUI passes it to every engine with a SyzygyPath option (nothing to set per engine); fastchess adjudicates with it too")}
-            {path("gaviota_path", "Gaviota path passed to engines", "folder", "engines with a Gaviota path option (GaviotaTbPath…)")}
-            {path("nalimov_path", "Nalimov path passed to engines", "folder", "engines with a Nalimov path option (NalimovPath…)")}
-            {path("egbb_path", "Scorpio bitbases (egbb) passed to engines", "folder", "engines with an egbb path option (Scorpio: egbb_path, egbb_files_path)")}
-            {path("output_dir", "Export output folder", "folder")}
+            {path("engines_dir", t("settings.enginesDir"), "folder", t("settings.enginesDirHint"))}
+            {path("books_dir", t("settings.booksDir"), "folder")}
+            {path("default_book", t("settings.defaultBook"), "file")}
+            {path("syzygy_path", t("settings.syzygy"), "folder", t("settings.syzygyHint"))}
+            {path("gaviota_path", t("settings.gaviota"), "folder", t("settings.gaviotaHint"))}
+            {path("nalimov_path", t("settings.nalimov"), "folder", t("settings.nalimovHint"))}
+            {path("egbb_path", t("settings.egbb"), "folder", t("settings.egbbHint"))}
+            {path("output_dir", t("settings.output"), "folder")}
           </div>
         </Panel>
-        <Panel title="fastchess &amp; runners">
+        <Panel title={t("settings.fastchess")}>
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center gap-2 text-[12.5px]">
               {info?.fastchess_found ? <CheckCircle2 size={15} className="w" /> : <XCircle size={15} className="l" />}
-              <span className="mono break-all">{info?.fastchess_version ?? "fastchess not found"}</span>
+              <span className="mono break-all">{info?.fastchess_version ?? t("settings.notFound")}</span>
             </div>
             <div className="mono muted text-[11.5px] break-all">{info?.fastchess}</div>
             <div className="grid grid-cols-2 gap-2">
-              {txt("fastchess_version", "Pinned version")}
+              {txt("fastchess_version", t("settings.pinned"))}
               <div className="flex items-end">
-                <button className="btn w-full justify-center" onClick={() => act("fc", "fastchess_install", {}, (r) => `fastchess installed (${r.sha256.slice(0, 12)}…)`)} disabled={!!busy}>
-                  {busy === "fc" ? <Spinner /> : <Download size={13} />} Download
+                <button className="btn w-full justify-center" onClick={() => act("fc", "fastchess_install", {}, (r) => t("settings.installed", { sha: r.sha256.slice(0, 12) }))} disabled={!!busy}>
+                  {busy === "fc" ? <Spinner /> : <Download size={13} />} {t("settings.download")}
                 </button>
               </div>
             </div>
-            {txt("fastchess_path", "Custom fastchess binary", "empty = the managed download")}
-            {txt("github_token", "GitHub token (optional)", "raises the API rate limit")}
+            {txt("fastchess_path", t("settings.custom"), t("settings.customHint"))}
+            {txt("github_token", t("settings.token"), t("settings.tokenHint"))}
             <div className="flex items-center gap-2 text-[12.5px]">
-              {info?.runner_found ? <CheckCircle2 size={15} className="w" /> : <XCircle size={15} className="l" />} runner: <span className="mono muted break-all">{info?.runner}</span>
+              {info?.runner_found ? <CheckCircle2 size={15} className="w" /> : <XCircle size={15} className="l" />} {t("settings.runner")} <span className="mono muted break-all">{info?.runner}</span>
             </div>
             <label className="flex items-center gap-2">
-              <input type="checkbox" checked={s.use_task_scheduler} onChange={(e) => set("use_task_scheduler", e.target.checked)} /> Launch runners through the Windows Task Scheduler
+              <input type="checkbox" checked={s.use_task_scheduler} onChange={(e) => set("use_task_scheduler", e.target.checked)} /> {t("settings.scheduler")}
             </label>
             <label className="flex items-center gap-2">
-              <input type="checkbox" checked={s.auto_resume} onChange={(e) => set("auto_resume", e.target.checked)} /> Resume interrupted tournaments when TorsGUI starts
+              <input type="checkbox" checked={s.auto_resume} onChange={(e) => set("auto_resume", e.target.checked)} /> {t("settings.autoResume")}
             </label>
             <div className="flex gap-2">
-              <button className="btn btn-sm" onClick={() => act("resume", "resume_interrupted", {}, (r) => `${r.length} resumed`)}>
-                <RotateCcw size={12} /> Resume interrupted now
+              <button className="btn btn-sm" onClick={() => act("resume", "resume_interrupted", {}, (r) => t("settings.resumed", { count: r.length }))}>
+                <RotateCcw size={12} /> {t("settings.resumeNow")}
               </button>
               <button className="btn btn-sm" onClick={() => act("logon", "register_logon_resume", {}, (r) => String(r))}>
-                <Server size={12} /> Resume at logon / reboot
+                <Server size={12} /> {t("settings.logon")}
               </button>
             </div>
           </div>
@@ -273,19 +320,24 @@ export function SettingsPage() {
       </div>
     ),
     books: (
-      <Panel title="Opening books">
+      <Panel title={t("settings.books")}>
         <OpeningBooksPanel settings={s} onSettings={refresh} />
       </Panel>
     ),
     broadcast: (
-      <Panel title="Live broadcast" actions={<span className="muted text-[11.5px]">Lichess and ccrl.live · choose per tournament (tournament → Live broadcast)</span>}>
+      <Panel title={t("settings.broadcast")} actions={<span className="muted text-[11.5px]">{t("settings.broadcastAbout")}</span>}>
         <BroadcastSettings s={s} set={set} />
       </Panel>
     ),
-    hardware: <Panel title="CPU topology">{topo ? <TopologyView t={topo} /> : <Spinner />}</Panel>,
+    hardware: (
+      <div className="flex flex-col gap-3">
+        <Panel title={t("settings.topology")}>{topo ? <TopologyView t={topo} /> : <Spinner />}</Panel>
+        <GpuList />
+      </div>
+    ),
     maintenance: (
       <div className="grid gap-3 cols-fit">
-        <Panel title="Housekeeping" actions={<HardDrive size={14} className="muted" />}>
+        <Panel title={t("settings.housekeeping")} actions={<HardDrive size={14} className="muted" />}>
           {hk ? (
             <div className="flex flex-col gap-2 text-[12px]">
               <div className="max-h-[120px] overflow-auto">
@@ -297,20 +349,20 @@ export function SettingsPage() {
                 ))}
               </div>
               <div>
-                <b>Logs:</b> {hk.log_files} files, {bytes(hk.log_bytes)}
+                <b>{t("settings.logs")}</b>{t("settings.logFiles", { count: hk.log_files, size: bytes(hk.log_bytes) })}
               </div>
               <div>
-                <b>Unused engines:</b> {hk.unused_engines.join(", ") || "none"}
+                <b>{t("settings.unused")}</b> {hk.unused_engines.join(", ") || t("settings.none")}
               </div>
               <div>
-                <b>Superseded:</b> {hk.superseded_engines.map(([a, b]) => `${a} → ${b}`).join(", ") || "none"}
+                <b>{t("settings.superseded")}</b> {hk.superseded_engines.map(([a, b]) => `${a} → ${b}`).join(", ") || t("settings.none")}
               </div>
               <div className="flex gap-2 items-end">
-                <Field label="Keep game logs (days)">
+                <Field label={t("settings.keepLogs")}>
                   <input className="input tnum" type="number" value={s.log_retention_days} onChange={(e) => set("log_retention_days", +e.target.value)} />
                 </Field>
-                <button className="btn" onClick={() => act("rot", "rotate_logs", { days: s.log_retention_days }, (r) => `${r.files} log files removed (${bytes(r.bytes)})`)}>
-                  Rotate logs
+                <button className="btn" onClick={() => act("rot", "rotate_logs", { days: s.log_retention_days }, (r) => t("settings.rotated", { count: r.files, size: bytes(r.bytes) }))}>
+                  {t("settings.rotate")}
                 </button>
               </div>
             </div>
@@ -318,14 +370,14 @@ export function SettingsPage() {
             <Spinner />
           )}
         </Panel>
-        <Panel title="Git sync (optional)" actions={<GitBranch size={14} className="muted" />}>
+        <Panel title={t("settings.git")} actions={<GitBranch size={14} className="muted" />}>
           <div className="flex flex-col gap-2">
-            {txt("git_sync_dir", "Repository folder", "results and configurations are copied there (like sync_repo.py)")}
-            <Field label="Commit message (optional)">
+            {txt("git_sync_dir", t("settings.repo"), t("settings.repoHint"))}
+            <Field label={t("settings.commit")}>
               <input className="input" value={gitMsg} onChange={(e) => setGitMsg(e.target.value)} placeholder="Results 2026-09-28" />
             </Field>
-            <button className="btn" onClick={() => act("git", "git_sync", { dest: s.git_sync_dir, message: gitMsg || null }, (r) => `${r.length} files synced`)} disabled={!s.git_sync_dir}>
-              Sync now
+            <button className="btn" onClick={() => act("git", "git_sync", { dest: s.git_sync_dir, message: gitMsg || null }, (r) => t("settings.synced", { count: r.length }))} disabled={!s.git_sync_dir}>
+              {t("settings.sync")}
             </button>
           </div>
         </Panel>
@@ -336,16 +388,16 @@ export function SettingsPage() {
     <div className="flex flex-col gap-3 fade-in">
       <PageHeader
         help="new-machine"
-        title="Settings"
-        sub={info ? `TorsGUI ${info.version}${info.install ? ` (${info.install})` : ""}${info.exe ? ` · running from ${info.exe}` : ""} · workspace ${info.workspace} · ${info.os}` : ""}
+        title={t("settings.title")}
+        sub={info ? t("settings.sub", { version: info.version, install: info.install ? ` (${info.install})` : "", exe: info.exe ? t("settings.runningFrom", { exe: info.exe }) : "", workspace: info.workspace, os: info.os }) : ""}
         actions={
           <button className="btn btn-primary" onClick={save}>
-            <Save size={14} /> Save settings
+            <Save size={14} /> {t("settings.save")}
           </button>
         }
       />
       <ErrorBox error={err} />
-      <PageTabs tabs={[...SETTINGS_TABS]} value={tab} onChange={setTab} testid="settings-tab" />
+      <PageTabs tabs={SETTINGS_TABS.map((x) => ({ id: x.id, label: t(`settings.tabs.${x.id}` as Key) }))} value={tab} onChange={setTab} testid="settings-tab" />
       {panes[tab]}
     </div>
   );
@@ -354,6 +406,7 @@ export function SettingsPage() {
 /** The app's colour themes, with a preview of each palette. */
 function FontPicker() {
   const { font, setFont } = useFont();
+  const t = useT();
   return (
     <div className="flex flex-wrap gap-2" data-testid="font-picker">
       {FONTS.map((f) => (
@@ -362,19 +415,20 @@ function FontPicker() {
           className={`btn ${font === f.id ? "btn-primary" : ""}`}
           style={{ fontFamily: f.id === "retro" ? '"DotGothic16", Tahoma, sans-serif' : undefined }}
           onClick={() => setFont(f.id)}
-          title={f.about}
+          title={t(`settings.fonts.${f.id}` as Key)}
           data-testid={`font-${f.id}`}
         >
           {f.label}
         </button>
       ))}
-      <span className="muted text-[12px] self-center">{FONTS.find((f) => f.id === font)?.about}</span>
+      <span className="muted text-[12px] self-center">{t(`settings.fonts.${font}` as Key)}</span>
     </div>
   );
 }
 
 function ThemePicker() {
   const { theme, setTheme } = useTheme();
+  const tr = useT();
   return (
     <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))" }} data-testid="theme-picker">
       {THEMES.map((t) => {
@@ -386,8 +440,8 @@ function ThemePicker() {
                 <ThemeColors key={p} id={p} />
               ))}
             </div>
-            <div className="text-[12.5px] font-medium">{t.label}</div>
-            <div className="muted text-[11px] leading-snug">{t.about}</div>
+            <div className="text-[12.5px] font-medium">{themeLabel(t.id, tr)}</div>
+            <div className="muted text-[11px] leading-snug">{themeAbout(t.id, tr)}</div>
           </button>
         );
       })}

@@ -6,6 +6,7 @@ import { Maximize, Minimize, MoveDiagonal2 } from "lucide-react";
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { piecesClass, themeStyle, useBoardPrefs } from "../lib/boardPrefs";
 import { useBoardResize } from "./BoardColumn";
+import { useT } from "../i18n";
 
 export type Arrow = { uci: string; brush?: "green" | "blue" | "yellow" | "red" | "paleBlue" | "paleGreen" | "paleGrey" };
 
@@ -28,6 +29,7 @@ export function Board(props: {
   movable?: { color: "white" | "black"; dests: Map<Key, Key[]> } | null;
   onMove?: (orig: Key, dest: Key) => void;
 }) {
+  const t = useT();
   const prefs = useBoardPrefs();
   const resize = useBoardResize();
   const el = useRef<HTMLDivElement>(null);
@@ -46,7 +48,11 @@ export function Board(props: {
     [JSON.stringify(props.arrows), prefs.arrows],
   );
   const animation = { enabled: prefs.animation > 0, duration: props.mini ? Math.min(prefs.animation, 180) : prefs.animation };
-  const coordinates = !props.mini && prefs.coordinates;
+  const showCoords = !props.mini && prefs.coordinates;
+  // on the frame they are drawn here; inside the squares chessground draws them
+  const framed = showCoords && prefs.coordsStyle === "frame";
+  const coordinates = showCoords && !framed;
+  const flipped = (props.orientation ?? "white") === "black";
   const onMove = useRef(props.onMove);
   onMove.current = props.onMove;
   const movableCfg = props.movable
@@ -76,15 +82,16 @@ export function Board(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.fen, props.lastMove, props.orientation, props.check, shapes, prefs.animation, props.movable]);
   return (
-    <div className={`board-box board-theme-${prefs.theme} ${piecesClass(prefs.pieces)} ${props.mini ? "board-mini" : ""} ${props.className ?? ""}`} style={themeStyle(prefs) as CSSProperties}>
+    <div className={`board-box board-theme-${prefs.theme} ${piecesClass(prefs.pieces)} ${props.mini ? "board-mini" : ""} ${framed ? "board-framed" : ""} ${props.className ?? ""}`} style={themeStyle(prefs) as CSSProperties}>
       <div ref={el} className="w-full h-full" data-testid="board" />
+      {framed && <FrameCoords flipped={flipped} />}
       {resize && !props.mini && (
         <>
           <button
             className="board-corner-btn board-fullscreen"
             onClick={resize.toggleFullscreen}
-            aria-label={resize.fullscreen ? "Exit full screen" : "Full screen"}
-            title={resize.fullscreen ? "Exit full screen (Esc)" : "Full screen"}
+            aria-label={resize.fullscreen ? t("ui.board.exitFull") : t("ui.board.full")}
+            title={resize.fullscreen ? t("ui.board.exitFullTip") : t("ui.board.full")}
             data-testid="board-fullscreen"
           >
             {resize.fullscreen ? <Minimize size={13} /> : <Maximize size={13} />}
@@ -94,8 +101,8 @@ export function Board(props: {
               className="board-corner-btn board-grip"
               onPointerDown={resize.onGripDown}
               onDoubleClick={resize.reset}
-              aria-label="Resize the board"
-              title="Drag to resize the board · double-click: default size"
+              aria-label={t("ui.board.resize")}
+              title={t("ui.board.resizeTip")}
               data-testid="board-grip"
             >
               <MoveDiagonal2 size={13} />
@@ -104,6 +111,29 @@ export function Board(props: {
         </>
       )}
     </div>
+  );
+}
+
+const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
+const RANKS = ["8", "7", "6", "5", "4", "3", "2", "1"];
+
+/** Files under the board and ranks on its left, on the frame, one per square (following the orientation). */
+function FrameCoords({ flipped }: { flipped: boolean }) {
+  const files = flipped ? [...FILES].reverse() : FILES;
+  const ranks = flipped ? [...RANKS].reverse() : RANKS;
+  return (
+    <>
+      <div className="frame-coords frame-files" aria-hidden data-testid="frame-files">
+        {files.map((f) => (
+          <span key={f}>{f}</span>
+        ))}
+      </div>
+      <div className="frame-coords frame-ranks" aria-hidden data-testid="frame-ranks">
+        {ranks.map((r) => (
+          <span key={r}>{r}</span>
+        ))}
+      </div>
+    </>
   );
 }
 

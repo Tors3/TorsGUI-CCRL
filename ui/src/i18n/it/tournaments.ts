@@ -1,0 +1,41 @@
+import type { Shape } from "../types";
+import type { tournaments as en } from "../en/tournaments";
+
+export const tournaments: Shape<typeof en> = {
+  title: "Tornei",
+  sub: "Gauntlet, gauntlet a più seed, gironi all'italiana e match",
+  filter: { all: "Tutti", active: "Attivi", done: "Finiti" },
+  importOldTip: "Tornei giocati con i vecchi script (CCRL_ScirptsTests)",
+  importOld: "Importa vecchi tornei",
+  importFile: "Importa file",
+  newTournament: "Nuovo torneo",
+  empty: "Ancora nessun torneo qui. Creane uno con la procedura guidata o importa quelli esistenti.",
+  col: {
+    name: "Nome",
+    type: "Tipo",
+    state: "Stato",
+    progress: "Avanzamento",
+    seed: "Risultato del seed",
+    tc: "TC",
+    threads: "Thread",
+    eta: "Fine prevista",
+  },
+  imported: "importato",
+  deleteLabel: "Elimina",
+  confirmDelete: "Eliminare {name} da TorsGUI? I suoi file PGN restano sul disco.",
+  legacy: {
+    title: "Importa tornei dagli script CCRL",
+    about1: "Indica una cartella in stile ",
+    about2: ": ",
+    about3: ", ",
+    about4: " e i PGN in ",
+    about5: " oppure ",
+    about6: ". I tornei importati sono in sola lettura e servono a verificare che TorsGUI calcoli la stessa classifica e lo stesso export.",
+    folder: "Cartella",
+    scan: "Cerca",
+    withPgn: "config + PGN",
+    configOnly: "solo config (bozza)",
+    import: "Importa",
+    done: "{name}: {done}/{expected} partite ({state})",
+  },
+};

@@ -9,6 +9,7 @@ import type { WizardPreview } from "../bindings/WizardPreview";
 import { call } from "../lib/api";
 import { duration } from "../lib/format";
 import { ErrorBox, Modal, Spinner, Warn } from "./ui";
+import { useMsg, useT, type Key } from "../i18n";
 
 type Parsed = { import: FileImport; preview: WizardPreview };
 type InboxFile = { name: string; path: string; modified: string; text: string };
@@ -21,6 +22,8 @@ const HOW_TONE: Record<string, string> = { exact: "chip-win", "latest version": 
  */
 export function TournamentFileDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: boolean) => void; onDone?: () => void }) {
   const nav = useNavigate();
+  const tr = useT();
+  const tm = useMsg();
   const [text, setText] = useState("");
   const [parsed, setParsed] = useState<Parsed>();
   const [error, setError] = useState<string>();
@@ -61,7 +64,7 @@ export function TournamentFileDialog({ open, setOpen, onDone }: { open: boolean;
     setBusy(action);
     try {
       const r = await call<TournamentRecord>("tfile_import", { text, action });
-      toast.success(`${r.name}: ${action === "draft" ? "saved as draft" : action === "queue" ? "added to the queue" : "started"} (${r.expected_games} games)`);
+      toast.success(tr(action === "draft" ? "tfile.draftDone" : action === "queue" ? "tfile.queueDone" : "tfile.startDone", { name: r.name, games: r.expected_games }));
       setOpen(false);
       setText("");
       onDone?.();
@@ -76,8 +79,8 @@ export function TournamentFileDialog({ open, setOpen, onDone }: { open: boolean;
   const imp = parsed?.import;
   const pv = parsed?.preview;
   const c = imp?.config;
-  const errors = [...(imp?.errors ?? []), ...(pv?.errors ?? [])];
-  const warnings = [...(imp?.warnings ?? []), ...(pv?.warnings ?? [])];
+  const errors = [...(imp?.errors ?? []), ...(pv?.errors ?? []).map(tm)];
+  const warnings = [...(imp?.warnings ?? []), ...(pv?.warnings ?? []).map(tm)];
   const ok = !!c && errors.length === 0;
   const primary = imp?.after_import ?? "queue";
   return (
@@ -85,21 +88,21 @@ export function TournamentFileDialog({ open, setOpen, onDone }: { open: boolean;
       <Modal
         open={open}
         onOpenChange={setOpen}
-        title="Import a tournament file"
+        title={tr("tfile.title")}
         width={1180}
         footer={
           <>
             <button className="btn mr-auto" onClick={showTemplate} data-testid="tfile-template">
-              <FileCode2 size={14} /> Template for Claude
+              <FileCode2 size={14} /> {tr("tfile.template")}
             </button>
             <button className={`btn ${primary === "draft" ? "btn-primary" : ""}`} disabled={!ok || !!busy} onClick={() => run("draft")}>
-              {busy === "draft" ? <Spinner /> : <Save size={14} />} Save as draft
+              {busy === "draft" ? <Spinner /> : <Save size={14} />} {tr("tfile.saveDraft")}
             </button>
             <button className={`btn ${primary === "queue" ? "btn-primary" : ""}`} disabled={!ok || !!busy} onClick={() => run("queue")} data-testid="tfile-queue">
-              {busy === "queue" ? <Spinner /> : <ListPlus size={14} />} Add to queue
+              {busy === "queue" ? <Spinner /> : <ListPlus size={14} />} {tr("tfile.addQueue")}
             </button>
             <button className={`btn ${primary === "start" ? "btn-primary" : ""}`} disabled={!ok || !!busy} onClick={() => run("start")}>
-              {busy === "start" ? <Spinner /> : <Play size={14} />} Start now
+              {busy === "start" ? <Spinner /> : <Play size={14} />} {tr("tfile.startNow")}
             </button>
           </>
         }
@@ -109,7 +112,7 @@ export function TournamentFileDialog({ open, setOpen, onDone }: { open: boolean;
             {inbox && inbox.files.length > 0 && (
               <div className="panel p-2">
                 <div className="kpi-label mb-1 flex items-center gap-1">
-                  <Inbox size={11} /> Inbox <span className="mono normal-case tracking-normal">{inbox.dir}</span>
+                  <Inbox size={11} /> {tr("tfile.inbox")} <span className="mono normal-case tracking-normal">{inbox.dir}</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {inbox.files.map((f) => (
@@ -121,9 +124,9 @@ export function TournamentFileDialog({ open, setOpen, onDone }: { open: boolean;
               </div>
             )}
             <div className="flex gap-2">
-              <PathInput kind="file" className="flex-1" placeholder="Path of a .toml file (or paste it below)" value={path} onChange={setPath} onEnter={load} filters={[{ name: "Tournament files", extensions: ["toml"] }]} testid="tfile-path" />
+              <PathInput kind="file" className="flex-1" placeholder={tr("tfile.pathPlaceholder")} value={path} onChange={setPath} onEnter={load} filters={[{ name: tr("tfile.filterName"), extensions: ["toml"] }]} testid="tfile-path" />
               <button className="btn" onClick={load} disabled={!path}>
-                Load
+                {tr("tfile.load")}
               </button>
             </div>
             <textarea
@@ -136,12 +139,12 @@ export function TournamentFileDialog({ open, setOpen, onDone }: { open: boolean;
               data-testid="tfile-text"
             />
             <div className="muted text-[11.5px]">
-              Ask Claude for a tournament (&quot;a Blitz gauntlet of Triumviratus 7.0 8CPU against 15 engines of its level&quot;) and give it the <b>template</b>: it lists the rules and the engines of your library. Paste the answer here, or save it as a .toml file in the inbox folder.
+              {tr("tfile.ask1")}<b>{tr("tfile.ask2")}</b>{tr("tfile.ask3")}
             </div>
           </div>
           <div className="flex flex-col gap-2 min-w-0" data-testid="tfile-result">
             <ErrorBox error={error} />
-            {!parsed && !error && <div className="muted text-[12.5px] py-8 text-center">Paste or load a tournament file to see what TorsGUI understands.</div>}
+            {!parsed && !error && <div className="muted text-[12.5px] py-8 text-center">{tr("tfile.empty")}</div>}
             {c && (
               <>
                 <div className="panel p-3 flex flex-col gap-1.5">
@@ -149,36 +152,36 @@ export function TournamentFileDialog({ open, setOpen, onDone }: { open: boolean;
                   <div className="text-[12.5px] muted">{c.event}</div>
                   <div className="grid grid-cols-4 gap-2 text-[12.5px] mt-1 tnum">
                     <div>
-                      <div className="kpi-label">Games</div>
+                      <div className="kpi-label">{tr("tfile.games")}</div>
                       <span data-testid="tfile-total">{pv?.total_games ?? "—"}</span>
                     </div>
                     <div>
-                      <div className="kpi-label">TC</div>
+                      <div className="kpi-label">{tr("tfile.tc")}</div>
                       {c.tc}
                     </div>
                     <div>
-                      <div className="kpi-label">Threads / hash</div>
+                      <div className="kpi-label">{tr("tfile.threadsHash")}</div>
                       {c.threads} / {c.hash_mb} MB
                     </div>
                     <div>
-                      <div className="kpi-label">ETA</div>
+                      <div className="kpi-label">{tr("tfile.eta")}</div>
                       {pv ? duration(pv.eta_s) : "—"}
                     </div>
                     <div>
-                      <div className="kpi-label">Kind</div>
-                      {c.kind.replace("_", " ")}
+                      <div className="kpi-label">{tr("tfile.kind")}</div>
+                      {tr(`tournament.kind.${c.kind}` as Key)}
                       {c.variant === "chess960" && <span className="chip chip-accent ml-1">960</span>}
                     </div>
                     <div>
-                      <div className="kpi-label">Per opponent</div>
-                      {c.games_per_pairing} ({c.passes} pass{c.passes > 1 ? "es" : ""})
+                      <div className="kpi-label">{tr("tfile.perOpponent")}</div>
+                      {tr("tfile.passes", { games: c.games_per_pairing, count: c.passes })}
                     </div>
                     <div>
-                      <div className="kpi-label">Nodes × lanes</div>
+                      <div className="kpi-label">{tr("tfile.nodesLanes")}</div>
                       {c.nodes.length} × {c.lanes_per_node}
                     </div>
                     <div>
-                      <div className="kpi-label">Book</div>
+                      <div className="kpi-label">{tr("tfile.book")}</div>
                       <span className="truncate block" title={c.book}>
                         {c.book.split(/[\\/]/).pop() || "—"}
                       </span>
@@ -189,10 +192,10 @@ export function TournamentFileDialog({ open, setOpen, onDone }: { open: boolean;
                   <table className="tbl">
                     <thead>
                       <tr>
-                        <th>In the file</th>
-                        <th>Engine</th>
-                        <th>Match</th>
-                        <th className="r">Rating</th>
+                        <th>{tr("tfile.inFile")}</th>
+                        <th>{tr("tfile.engine")}</th>
+                        <th>{tr("tfile.match")}</th>
+                        <th className="r">{tr("tfile.rating")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -201,13 +204,13 @@ export function TournamentFileDialog({ open, setOpen, onDone }: { open: boolean;
                         return (
                           <tr key={e.input + e.role}>
                             <td className="mono">
-                              {e.input} {e.role === "seed" && <span className="chip chip-accent">seed</span>}
+                              {e.input} {e.role === "seed" && <span className="chip chip-accent">{tr("tfile.seed")}</span>}
                             </td>
-                            <td>{e.name ?? <span className="muted">{e.alternatives.length ? `did you mean ${e.alternatives.join(", ")}?` : "—"}</span>}</td>
+                            <td>{e.name ?? <span className="muted">{e.alternatives.length ? tr("tfile.didYouMean", { list: e.alternatives.join(", ") }) : "—"}</span>}</td>
                             <td>
-                              <span className={`chip ${HOW_TONE[e.how] ?? ""}`}>{e.how}</span>
+                              <span className={`chip ${HOW_TONE[e.how] ?? ""}`}>{e.how === "exact" ? tr("tfile.how.exact") : e.how === "latest version" ? tr("tfile.how.latest") : e.how === "approximate" ? tr("tfile.how.approximate") : e.how === "not found" ? tr("tfile.how.notFound") : e.how}</span>
                             </td>
-                            <td className="r tnum">{p?.rating != null ? `${Math.round(p.rating)}${p.rating_estimated ? " est." : ""}` : "—"}</td>
+                            <td className="r tnum">{p?.rating != null ? `${Math.round(p.rating)}${p.rating_estimated ? tr("tfile.est") : ""}` : "—"}</td>
                           </tr>
                         );
                       })}
@@ -233,11 +236,11 @@ export function TournamentFileDialog({ open, setOpen, onDone }: { open: boolean;
       <Modal
         open={template != null}
         onOpenChange={(o) => !o && setTemplate(null)}
-        title="Tournament file template"
+        title={tr("tfile.templateTitle")}
         width={880}
         footer={
-          <button className="btn btn-primary" onClick={() => navigator.clipboard.writeText(template ?? "").then(() => toast.success("Template copied: paste it to Claude with your request"))}>
-            <Copy size={13} /> Copy
+          <button className="btn btn-primary" onClick={() => navigator.clipboard.writeText(template ?? "").then(() => toast.success(tr("tfile.templateCopied")))}>
+            <Copy size={13} /> {tr("tfile.copy")}
           </button>
         }
       >
@@ -249,20 +252,21 @@ export function TournamentFileDialog({ open, setOpen, onDone }: { open: boolean;
 
 /** "Save as file" of an existing tournament. */
 export function ExportTournamentFile({ id }: { id: string }) {
+  const tr = useT();
   const [text, setText] = useState<string | null>(null);
   return (
     <>
-      <button className="btn" onClick={() => call<string>("tfile_export", { id }).then(setText)} title="The tournament as a TorsGUI tournament file (reuse it, or give it to Claude as an example)">
-        <FileCode2 size={14} /> As file
+      <button className="btn" onClick={() => call<string>("tfile_export", { id }).then(setText)} title={tr("tfile.asFileTip")}>
+        <FileCode2 size={14} /> {tr("tfile.asFile")}
       </button>
       <Modal
         open={text != null}
         onOpenChange={(o) => !o && setText(null)}
-        title="Tournament file"
+        title={tr("tfile.fileTitle")}
         width={760}
         footer={
-          <button className="btn btn-primary" onClick={() => navigator.clipboard.writeText(text ?? "").then(() => toast.success("Copied"))}>
-            <Copy size={13} /> Copy
+          <button className="btn btn-primary" onClick={() => navigator.clipboard.writeText(text ?? "").then(() => toast.success(tr("tfile.copied")))}>
+            <Copy size={13} /> {tr("tfile.copy")}
           </button>
         }
       >

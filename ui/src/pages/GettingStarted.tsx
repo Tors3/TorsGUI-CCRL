@@ -8,8 +8,9 @@ import { HelpLink } from "../components/HelpLink";
 import { InstallBooksButton } from "../components/OpeningBooks";
 import { ErrorBox, Field, PageHeader, Panel, ProgressBar, Spinner } from "../components/ui";
 import { call, usePoll } from "../lib/api";
+import { t, useT, type Key } from "../i18n";
 
-type StepDef = { id: string; title: string; why: string; help: string; body: (ctx: Ctx) => ReactNode };
+type StepDef = { id: string; help: string; body: (ctx: Ctx) => ReactNode };
 type Ctx = { settings?: Settings; refresh: () => void; nav: (to: string) => void; bundled: string[]; books: number };
 
 function BundledButton({ refresh, bundled, kind }: Ctx & { kind: "engines" | "bench" }) {
@@ -26,10 +27,10 @@ function BundledButton({ refresh, bundled, kind }: Ctx & { kind: "engines" | "be
         try {
           if (kind === "bench") {
             await call("bench_prepare");
-            toast.success("Stockfish 10 ready for the bench");
+            toast.success(t("start.sfReady"));
           } else {
             const r = await call<{ added: string[] }>("bundled_install");
-            toast.success(r.added.length ? `Added: ${r.added.join(", ")}` : "The bundled engines are already in the library");
+            toast.success(r.added.length ? t("start.added", { names: r.added.join(", ") }) : t("start.already"));
           }
           refresh();
         } catch (e) {
@@ -39,7 +40,7 @@ function BundledButton({ refresh, bundled, kind }: Ctx & { kind: "engines" | "be
         }
       }}
     >
-      {busy ? <Spinner /> : <PackagePlus size={13} />} {kind === "bench" ? "Use the bundled Stockfish 10" : `Add the bundled engines (${engines.join(", ")})`}
+      {busy ? <Spinner /> : <PackagePlus size={13} />} {kind === "bench" ? t("start.useSf") : t("start.addBundled", { names: engines.join(", ") })}
     </button>
   );
 }
@@ -54,19 +55,19 @@ function TesterForm({ settings, refresh }: Ctx) {
   const save = async () => {
     if (!settings) return;
     await call("settings_save", { settings: { ...settings, tester_name: name.trim(), site: site.trim() } });
-    toast.success("Saved");
+    toast.success(t("start.saved"));
     refresh();
   };
   return (
     <div className="flex items-end gap-2">
-      <Field label="Tester name">
+      <Field label={t("start.tester")}>
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Francesco Torsello" data-testid="start-tester" />
       </Field>
-      <Field label="Site (your location)">
+      <Field label={t("start.site")}>
         <input className="input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="Milan" data-testid="start-site" />
       </Field>
       <button className="btn btn-primary" onClick={save} disabled={!name.trim() || !site.trim()} data-testid="start-save-tester">
-        <Save size={13} /> Save
+        <Save size={13} /> {t("start.save")}
       </button>
     </div>
   );
@@ -86,7 +87,7 @@ function FastchessStep({ refresh }: Ctx) {
             setErr(undefined);
             try {
               await call("fastchess_install");
-              toast.success("fastchess installed");
+              toast.success(t("start.fcInstalled"));
               refresh();
             } catch (e) {
               setErr((e as Error).message);
@@ -95,10 +96,10 @@ function FastchessStep({ refresh }: Ctx) {
             }
           }}
         >
-          {busy ? <Spinner /> : <Download size={13} />} Download the pinned fastchess
+          {busy ? <Spinner /> : <Download size={13} />} {t("start.fcDownload")}
         </button>
         <Link className="btn" to="/settings">
-          <SettingsIcon size={13} /> or point to your own binary
+          <SettingsIcon size={13} /> {t("start.fcOwn")}
         </Link>
       </div>
       <ErrorBox error={err} />
@@ -106,64 +107,56 @@ function FastchessStep({ refresh }: Ctx) {
   );
 }
 
-const go = (to: string, label: string, icon: ReactNode) => (ctx: Ctx) => (
+const go = (to: string, label: Key, icon: ReactNode) => (ctx: Ctx) => (
   <button className="btn" onClick={() => ctx.nav(to)}>
-    {icon} {label}
+    {icon} {t(label)}
   </button>
 );
 
 const STEPS: StepDef[] = [
-  { id: "tester", title: "Who you are", why: "Your name and location go into the CCRL file name and the PGN Site tag.", help: "new-machine", body: (c) => <TesterForm {...c} /> },
-  { id: "fastchess", title: "Install fastchess", why: "fastchess plays the games: TorsGUI starts one fastchess process per game and places it on a NUMA node.", help: "new-machine", body: (c) => <FastchessStep {...c} /> },
+  { id: "tester", help: "new-machine", body: (c) => <TesterForm {...c} /> },
+  { id: "fastchess", help: "new-machine", body: (c) => <FastchessStep {...c} /> },
   {
     id: "folders",
-    title: "Folders and opening book",
-    why: "Where engines are downloaded, where books and tablebases are, and the default book every tournament starts from. The CCRL opening books (AVT 2026, GM 2700+, Low Draw…) come with TorsGUI.",
     help: "new-machine",
     body: (c) => (
       <div className="flex gap-2">
-        {c.books > 0 && <InstallBooksButton onDone={c.refresh} label={`Install the ${c.books} CCRL opening books`} />}
-        {go("/settings", "Open Settings → Paths", <SettingsIcon size={13} />)(c)}
+        {c.books > 0 && <InstallBooksButton onDone={c.refresh} label={t("start.installBooks", { count: c.books })} />}
+        {go("/settings", "start.openPaths", <SettingsIcon size={13} />)(c)}
       </div>
     ),
   },
   {
     id: "bench",
-    title: "Bench the machine",
-    why: "The Stockfish 10 bench measures this machine against the CCRL reference and turns CCRL time controls into local ones (e.g. Blitz 2'+1\" → 103+1). Stockfish 10 comes with TorsGUI: nothing to download.",
     help: "bench-and-time-control",
     body: (c) => (
       <div className="flex gap-2">
         <BundledButton {...c} kind="bench" />
-        {go("/bench", "Open Bench", <Gauge size={13} />)(c)}
+        {go("/bench", "start.openBench", <Gauge size={13} />)(c)}
       </div>
     ),
   },
   {
     id: "engines",
-    title: "Add engines",
-    why: "TorsGUI comes with Stockfish 10 and Triumviratus 7.0 (AVX2): add them with one click. For the others paste a GitHub repository: TorsGUI picks the CCRL build (AVX2), downloads, checks and verifies it.",
     help: "engines",
     body: (c) => (
       <div className="flex gap-2">
         <BundledButton {...c} kind="engines" />
-        {go("/engines", "Open Engines → Add from GitHub", <PackagePlus size={13} />)(c)}
+        {go("/engines", "start.openEngines", <PackagePlus size={13} />)(c)}
       </div>
     ),
   },
-  { id: "ccrl", title: "Import the CCRL list", why: "Ratings, the names CCRL uses, and opponent suggestions around your engine's level.", help: "ccrl-lists", body: go("/ccrl", "Open CCRL Lists", <ListOrdered size={13} />) },
+  { id: "ccrl", help: "ccrl-lists", body: go("/ccrl", "start.openCcrl", <ListOrdered size={13} />) },
   {
     id: "tournament",
-    title: "Your first tournament",
-    why: "The wizard computes games, openings, ETA and resources; or import a tournament file written by you or by Claude. Then follow it live and export it.",
     help: "create-a-gauntlet",
     body: (c) => (
       <div className="flex gap-2">
         <button className="btn btn-primary" onClick={() => c.nav("/tournaments/new")}>
-          <Trophy size={13} /> New tournament
+          <Trophy size={13} /> {t("start.newTournament")}
         </button>
         <button className="btn" onClick={() => c.nav("/tournaments")}>
-          <FileCode2 size={13} /> Import a tournament file
+          <FileCode2 size={13} /> {t("start.importFile")}
         </button>
       </div>
     ),
@@ -173,6 +166,7 @@ const STEPS: StepDef[] = [
 /** Guided setup: each step with its live status, why it matters and a button to do it. */
 export function GettingStarted() {
   const nav = useNavigate();
+  const tr = useT();
   const { data: st, refresh } = usePoll<SetupStatus>("setup_status", {}, 5000);
   const { data: settings, refresh: refreshSettings } = usePoll<Settings>("settings_get", {}, 0);
   const [open, setOpen] = useState<string | null>(null);
@@ -194,7 +188,7 @@ export function GettingStarted() {
     try {
       const r = await call<{ id: string; started: boolean }>("demo_create", { variant });
       setDemoId(r.id);
-      toast.success(r.started ? "Demo started: watch it in Live" : "Demo queued: it starts after the running tournament");
+      toast.success(r.started ? tr("start.demoStarted") : tr("start.demoQueued"));
       refresh();
     } catch (e) {
       setDemoErr((e as Error).message);
@@ -206,38 +200,38 @@ export function GettingStarted() {
   const ctx: Ctx = { settings, refresh: refreshAll, nav, bundled: st?.bundled ?? [], books: st?.bundled_books ?? 0 };
   return (
     <div className="flex flex-col gap-3 fade-in max-w-[1100px]">
-      <PageHeader title="Getting started" sub="Set up TorsGUI step by step, or watch a demo tournament first" help="getting-started" />
+      <PageHeader title={tr("start.title")} sub={tr("start.sub")} help="getting-started" />
       <Panel
         title={
           <span className="flex items-center gap-2">
-            <Rocket size={14} /> Try the demo
+            <Rocket size={14} /> {tr("start.tryDemo")}
           </span>
         }
       >
         <div className="flex flex-col gap-3 text-[12.5px]">
           <p className="text-[13px]">
-            A small gauntlet played for real by the runner and fastchess with three <b>TorsGUI demo engines</b> (tiny built-in engines: legal but weak chess, a quarter of a second per move). In about three minutes you see how everything works: games on the live boards, the standings filling up, the game viewer and the CCRL export with its checklist. Nothing to download except fastchess.
+            {tr("start.demoAbout1")}<b>{tr("start.demoAbout2")}</b>{tr("start.demoAbout3")}
           </p>
           <div className="flex items-center gap-2 flex-wrap">
             <button className="btn btn-primary" disabled={demoBusy || !st?.fastchess || !st?.demo_engine} onClick={() => demo("standard")} data-testid="demo-standard">
-              {demoBusy ? <Spinner /> : <Play size={13} />} Start the demo
+              {demoBusy ? <Spinner /> : <Play size={13} />} {tr("start.startDemo")}
             </button>
             <button className="btn" disabled={demoBusy || !st?.fastchess || !st?.demo_engine} onClick={() => demo("chess960")} data-testid="demo-960">
-              <Play size={13} /> Chess960 demo
+              <Play size={13} /> {tr("start.demo960")}
             </button>
-            {st && !st.fastchess && <span className="chip chip-warn">install fastchess first (step 2)</span>}
-            {st && !st.demo_engine && <span className="chip chip-loss">the demo engine is not part of this build</span>}
+            {st && !st.fastchess && <span className="chip chip-warn">{tr("start.needFc")}</span>}
+            {st && !st.demo_engine && <span className="chip chip-loss">{tr("start.noDemo")}</span>}
           </div>
           <ErrorBox error={demoErr} />
           {lastDemo && (
             <div className="panel p-3 flex flex-col gap-2" style={{ background: "var(--bg-2)" }} data-testid="demo-tour">
-              <div className="font-medium">What to look at while it plays</div>
+              <div className="font-medium">{tr("start.lookAt")}</div>
               <ol className="flex flex-col gap-1.5">
                 {[
-                  { to: "/live", icon: <Activity size={13} />, t: "Live", d: "a board per lane, ticking clocks, the engines' evaluations and best moves" },
-                  { to: `/tournaments/${encodeURIComponent(lastDemo)}`, icon: <Trophy size={13} />, t: "The tournament", d: "standings, lanes and NUMA placement, games, terminations; pause and resume" },
-                  { to: "/games", icon: <Crown size={13} />, t: "Games", d: "replay any game: evaluation bar, material, clocks, autoplay" },
-                  { to: `/export?id=${encodeURIComponent(lastDemo)}`, icon: <Download size={13} />, t: "Export", d: "the CCRL checklist (the demo breaks a few rules on purpose), the CCRL file and the forum post" },
+                  { to: "/live", icon: <Activity size={13} />, t: tr("start.tour.live.t"), d: tr("start.tour.live.d") },
+                  { to: `/tournaments/${encodeURIComponent(lastDemo)}`, icon: <Trophy size={13} />, t: tr("start.tour.tournament.t"), d: tr("start.tour.tournament.d") },
+                  { to: "/games", icon: <Crown size={13} />, t: tr("start.tour.games.t"), d: tr("start.tour.games.d") },
+                  { to: `/export?id=${encodeURIComponent(lastDemo)}`, icon: <Download size={13} />, t: tr("start.tour.export.t"), d: tr("start.tour.export.d") },
                 ].map((x, i) => (
                   <li key={x.to} className="flex items-center gap-2">
                     <span className="chip">{i + 1}</span>
@@ -248,7 +242,7 @@ export function GettingStarted() {
                   </li>
                 ))}
               </ol>
-              <div className="muted text-[11.5px]">Close TorsGUI while the demo plays and open it again: the tournament keeps running in its own process. Delete the demo from Tournaments when you are done.</div>
+              <div className="muted text-[11.5px]">{tr("start.closeAbout")}</div>
             </div>
           )}
         </div>
@@ -256,10 +250,10 @@ export function GettingStarted() {
       <Panel
         title={
           <span className="flex items-center gap-3">
-            Set up this machine
+            {tr("start.setup")}
             {st && (
               <span className="flex items-center gap-2 text-[12px] muted font-normal" data-testid="setup-progress">
-                {st.done}/{st.total} done
+                {tr("start.done", { done: st.done, total: st.total })}
                 <span className="inline-block w-[120px]">
                   <ProgressBar value={st.done} max={st.total} tone={st.done === st.total ? "win" : "accent"} />
                 </span>
@@ -283,17 +277,17 @@ export function GettingStarted() {
                   <button className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[var(--hover)]" onClick={() => setOpen(isOpen ? "" : s.id)}>
                     {state?.done ? <CheckCircle2 size={17} style={{ color: "var(--win)" }} /> : <Circle size={17} className="muted" />}
                     <span className="font-medium w-[190px]">
-                      {i + 1}. {s.title}
+                      {i + 1}. {tr(`start.steps.${s.id}.title` as Key)}
                     </span>
                     <span className="muted text-[12.5px] flex-1 truncate">{state?.detail}</span>
                     <ChevronRight size={15} className="muted transition-transform" style={{ transform: isOpen ? "rotate(90deg)" : undefined }} />
                   </button>
                   {isOpen && (
                     <div className="px-4 pb-4 pl-[46px] flex flex-col gap-2.5 fade-in">
-                      <p className="text-[12.5px] text-[var(--text-2)] max-w-[760px]">{s.why}</p>
+                      <p className="text-[12.5px] text-[var(--text-2)] max-w-[760px]">{tr(`start.steps.${s.id}.why` as Key)}</p>
                       <div className="flex items-center gap-3 flex-wrap">
                         {s.body(ctx)}
-                        <HelpLink section={s.help} label="Read more" />
+                        <HelpLink section={s.help} label={tr("start.readMore")} />
                       </div>
                     </div>
                   )}

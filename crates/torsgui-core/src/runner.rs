@@ -314,7 +314,7 @@ fn run_session(ws: &Workspace, store: &Store, id: &str, cfg: &TournamentConfig, 
             warnings.push(format!("NUMA node {n} does not exist on this machine: its lanes run without placement"));
         }
     }
-    let plans: Vec<LanePlan> = platform::plan_lanes(&topo, &phys_nodes, cfg.lanes_per_node, cfg.cores_per_lane(), cfg.placement);
+    let plans: Vec<LanePlan> = platform::plan_lanes(&topo, &phys_nodes, cfg.lanes_per_node, cfg.cores_per_lane(), cfg.placement, cfg.use_smt);
     let host = sysinfo::System::host_name().unwrap_or_default();
     let status = RunnerStatus {
         pid: std::process::id(),
@@ -452,9 +452,18 @@ fn lane_loop(
         );
         let log_file = tdir.join("logs").join("games").join(format!("{tag}.log"));
         let state_json = tdir.join("logs").join("games").join(format!("{tag}.json"));
-        let args = crate::fastchess::game_args(cfg, &pair, &job, &pgn_out, &log_file, &state_json);
+        let gpu = cfg.lane_gpu(li);
+        let args = crate::fastchess::game_args(cfg, &pair, &job, gpu, &pgn_out, &log_file, &state_json);
         let mut cmd = std::process::Command::new(fastchess);
         cmd.args(&args).current_dir(tdir).stdin(std::process::Stdio::null());
+        if let Some(g) = gpu.filter(|_| ea.gpu || eb.gpu) {
+            // CUDA numbers the cards as nvidia-smi does; an engine without a card option sees
+            // only its lane's card
+            cmd.env("CUDA_DEVICE_ORDER", "PCI_BUS_ID");
+            if (ea.gpu && ea.gpu_select.is_empty()) || (eb.gpu && eb.gpu_select.is_empty()) {
+                cmd.env("CUDA_VISIBLE_DEVICES", g.to_string());
+            }
+        }
         match std::fs::OpenOptions::new().create(true).append(true).open(&console) {
             Ok(f) => {
                 let e = f.try_clone().ok();

@@ -70,6 +70,29 @@ pub struct EngineEntry {
     pub extra_files: Vec<String>,
     pub selection_reason: String,
     pub added_at: String,
+    /// Set aside by the user (Engines → Inactive): kept in the library, but not offered first
+    /// when choosing the engines of a tournament. New engines are active.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub inactive: bool,
+    /// Plays on a graphics card (Lc0 and the like): found from its options when it is
+    /// verified, or set by the user (Engines → GPU).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub gpu: bool,
+}
+
+/// An engine that runs its network on a graphics card: Lc0 and its forks declare
+/// `WeightsFile` and `Backend`, Ceres declares `Device`/`GPU`… and the names say it.
+pub fn looks_gpu(opts: &[UciOption], uci_id: &str) -> bool {
+    let has = |n: &str| opts.iter().any(|o| o.name.eq_ignore_ascii_case(n));
+    let id = uci_id.to_lowercase();
+    (has("WeightsFile") && has("Backend")) || id.starts_with("lc0") || id.contains("leela") || id.starts_with("ceres")
+}
+
+impl EngineEntry {
+    /// The option that picks the graphics card: `BackendOptions` (Lc0: `gpu=N`), or empty.
+    pub fn gpu_select(&self) -> String {
+        if self.options.iter().any(|o| o.name == "BackendOptions") { "BackendOptions".into() } else { String::new() }
+    }
 }
 
 /// The engine's own Gaviota / Nalimov path options (names vary: `GaviotaTbPath`,
@@ -127,6 +150,10 @@ impl EngineEntry {
         self.threads_max = opts.iter().find(|o| o.name == "Threads").and_then(|o| o.max);
         self.has_syzygy = opts.iter().any(|o| o.name == "SyzygyPath");
         self.chess960 = opts.iter().any(|o| o.name.eq_ignore_ascii_case("UCI_Chess960"));
+        // found once; the user may untick it (Engines), a new verification does not tick it back
+        if self.options.is_empty() && looks_gpu(&opts, &self.uci_id) {
+            self.gpu = true;
+        }
         // the options set by the user stay; Ponder/OwnBook=false are added when missing
         for (k, v) in default_options(&opts) {
             self.default_options.entry(k).or_insert(v);

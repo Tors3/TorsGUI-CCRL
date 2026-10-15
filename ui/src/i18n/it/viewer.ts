@@ -1,0 +1,35 @@
+import type { Shape } from "../types";
+import type { viewer as en } from "../en/viewer";
+
+/** The game viewer (PGN tag names stay as they are). */
+export const viewer: Shape<typeof en> = {
+  vs: "contro",
+  book: "libro",
+  start: "Inizio",
+  previous: "Indietro",
+  pause: "Pausa",
+  play: "Riproduci",
+  playTip: "Riproduci / pausa (spazio)",
+  next: "Avanti",
+  end: "Fine",
+  speed: "Velocità di riproduzione",
+  flip: "Gira la scacchiera",
+  flipTip: "Gira (f)",
+  normal: "Dimensione normale",
+  theater: "Modalità cinema",
+  theaterTip: "Modalità cinema (t)",
+  analyseTip: "Analizza questa partita con un motore",
+  analyse: "Analizza",
+  eval: "Valutazione",
+  depth: "Profondità",
+  time: "Tempo",
+  left: "Rimasto",
+  nodes: "Nodi",
+  nps: "NPS",
+  evalTitle: "Valutazione (dal lato del Bianco, in pedoni) — clicca per saltare",
+  whiteEngine: "Motore col Bianco",
+  blackEngine: "Motore col Nero",
+  timeTitle: "Tempo per mossa (s)",
+  white: "Bianco",
+  black: "Nero",
+};

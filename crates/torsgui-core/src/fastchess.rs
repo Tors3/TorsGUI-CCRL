@@ -57,7 +57,8 @@ fn supports(p: &Participant, opt: &str) -> bool {
 }
 
 /// `-engine cmd=... name=... dir=... option.K=V...` (run_node.py `engine_args`).
-pub fn engine_args(p: &Participant, cfg: &TournamentConfig) -> Vec<String> {
+/// The engine's arguments; `gpu`: the card of this game's lane (GPU engines only).
+pub fn engine_args(p: &Participant, cfg: &TournamentConfig, gpu: Option<u32>) -> Vec<String> {
     let mut a = vec!["-engine".into(), format!("cmd={}", p.cmd), format!("name={}", p.name), format!("dir={}", p.dir)];
     if !p.args.is_empty() {
         a.push(format!("args={}", p.args));
@@ -68,8 +69,15 @@ pub fn engine_args(p: &Participant, cfg: &TournamentConfig) -> Vec<String> {
         if k == "SyzygyPath" && !own_syzygy {
             continue;
         }
-        let v = v.replace("${THREADS}", &cfg.threads_of(p).to_string()).replace("${HASH}", &cfg.hash_of(p).to_string());
+        let mut v = v.replace("${THREADS}", &cfg.threads_of(p).to_string()).replace("${HASH}", &cfg.hash_of(p).to_string());
+        if let Some(g) = gpu.filter(|_| p.gpu && *k == p.gpu_select && !v.contains("gpu=")) {
+            // the user's backend options keep theirs, the card is added
+            v = if is_unset(&v) { format!("gpu={g}") } else { format!("{v},gpu={g}") };
+        }
         a.push(format!("option.{k}={v}"));
+    }
+    if let Some(g) = gpu.filter(|_| p.gpu && !p.gpu_select.is_empty() && !p.options.contains_key(&p.gpu_select)) {
+        a.push(format!("option.{}=gpu={g}", p.gpu_select));
     }
     if !cfg.syzygy_path.is_empty() && supports(p, "SyzygyPath") && !own_syzygy {
         a.push(format!("option.SyzygyPath={}", cfg.syzygy_effective()));
@@ -84,11 +92,11 @@ fn is_unset(v: &str) -> bool {
 }
 
 /// Full argument list for one game.
-pub fn game_args(cfg: &TournamentConfig, pairing: &(Participant, Participant), job: &Job, pgn_out: &Path, log_file: &Path, state_json: &Path) -> Vec<String> {
+pub fn game_args(cfg: &TournamentConfig, pairing: &(Participant, Participant), job: &Job, gpu: Option<u32>, pgn_out: &Path, log_file: &Path, state_json: &Path) -> Vec<String> {
     let (ea, eb) = pairing;
     let mut a: Vec<String> = Vec::new();
-    a.extend(engine_args(ea, cfg));
-    a.extend(engine_args(eb, cfg));
+    a.extend(engine_args(ea, cfg, gpu));
+    a.extend(engine_args(eb, cfg, gpu));
     a.extend([
         "-each".into(),
         format!("tc={}", cfg.tc),
@@ -223,7 +231,7 @@ mod tests {
         let pairs = crate::scheduler::pairings(&c);
         let jobs = crate::scheduler::all_jobs(&c);
         let j = jobs.iter().find(|j| j.reversed).unwrap();
-        let a = game_args(&c, &pairs[0], j, Path::new("pgn/node0_lane0.pgn"), Path::new("l.log"), Path::new("s.json"));
+        let a = game_args(&c, &pairs[0], j, None, Path::new("pgn/node0_lane0.pgn"), Path::new("l.log"), Path::new("s.json"));
         let s = a.join(" ");
         assert!(s.starts_with("-engine cmd=/engines/Triumviratus 7.0 name=Triumviratus 7.0 dir=/engines option.Hash=4096 option.Threads=8 option.SyzygyPath=C:\\tb\\syzygy\\3-4-5 -engine cmd=/engines/Stockfish 19"));
         assert!(s.contains("-openings file=book.pgn format=pgn order=sequential start=1 -rounds 1 -games 1 -reverse -concurrency 1 -recover"));
@@ -234,7 +242,7 @@ mod tests {
         m.hash_mb = 512;
         m.participants[0].threads = Some(8);
         m.participants[0].hash_mb = Some(4096);
-        let s = game_args(&m, &(m.participants[0].clone(), m.participants[1].clone()), j, Path::new("p.pgn"), Path::new("l.log"), Path::new("s.json")).join(" ");
+        let s = game_args(&m, &(m.participants[0].clone(), m.participants[1].clone()), j, None, Path::new("p.pgn"), Path::new("l.log"), Path::new("s.json")).join(" ");
         assert!(s.contains("name=Triumviratus 7.0 dir=/engines option.Hash=4096 option.Threads=8"), "{s}");
         assert!(s.contains("name=Stockfish 19 dir=/engines option.Hash=512 option.Threads=1"), "{s}");
         assert_eq!(m.cores_per_lane(), 9);
@@ -244,11 +252,11 @@ mod tests {
         // an empty SyzygyPath of the engine (Cute Chess import, UCI default) takes the tournament's
         let mut e = c.clone();
         e.participants[0].options.insert("SyzygyPath".into(), "<empty>".into());
-        let s = game_args(&e, &crate::scheduler::pairings(&e)[0], j, Path::new("p.pgn"), Path::new("l.log"), Path::new("s.json")).join(" ");
+        let s = game_args(&e, &crate::scheduler::pairings(&e)[0], j, None, Path::new("p.pgn"), Path::new("l.log"), Path::new("s.json")).join(" ");
         assert!(s.contains("option.SyzygyPath=C:\\tb\\syzygy\\3-4-5 -engine"), "{s}");
         assert!(!s.contains("<empty>"), "{s}");
         e.participants[0].options.insert("SyzygyPath".into(), "D:\\tb".into());
-        let s = game_args(&e, &crate::scheduler::pairings(&e)[0], j, Path::new("p.pgn"), Path::new("l.log"), Path::new("s.json")).join(" ");
+        let s = game_args(&e, &crate::scheduler::pairings(&e)[0], j, None, Path::new("p.pgn"), Path::new("l.log"), Path::new("s.json")).join(" ");
         assert!(s.contains("option.SyzygyPath=D:\\tb ") && s.matches("SyzygyPath").count() == 1, "{s}");
         // one random opening per game: the same shuffle (seed) in every game
         let mut r = c.clone();
@@ -256,8 +264,26 @@ mod tests {
         r.opening_seed = 77;
         let rj = crate::scheduler::all_jobs(&r);
         let rj = rj.iter().find(|j| j.reversed).unwrap();
-        let s = game_args(&r, &pairs[0], rj, Path::new("p.pgn"), Path::new("l.log"), Path::new("s.json")).join(" ");
+        let s = game_args(&r, &pairs[0], rj, None, Path::new("p.pgn"), Path::new("l.log"), Path::new("s.json")).join(" ");
         assert!(s.contains("format=pgn order=random start=2 -rounds 1 -games 1 -srand 77 -reverse"), "{s}");
         assert_eq!(pick_asset(&["fastchess-windows-x86-64.zip".into(), "fastchess-linux-x86-64.tar".into(), "fastchess-macos-arm64.tar".into()]).is_some(), true);
+        // a GPU engine (Lc0) plays on its lane's card: BackendOptions gets gpu=N
+        let mut g = c.clone();
+        g.gpus = vec![0, 1];
+        g.participants[0].gpu = true;
+        g.participants[0].gpu_select = "BackendOptions".into();
+        assert_eq!((g.lane_gpu(0), g.lane_gpu(1), g.lane_gpu(2)), (Some(0), Some(1), Some(0)));
+        let pg = crate::scheduler::pairings(&g);
+        let s = game_args(&g, &pg[0], j, g.lane_gpu(1), Path::new("p.pgn"), Path::new("l.log"), Path::new("s.json")).join(" ");
+        assert!(s.contains("option.Threads=8 option.BackendOptions=gpu=1 "), "{s}");
+        assert_eq!(s.matches("gpu=").count(), 1, "only the GPU engine: {s}");
+        // the user's backend options keep theirs
+        g.participants[0].options.insert("BackendOptions".into(), "policy-head=vanilla".into());
+        let pg = crate::scheduler::pairings(&g);
+        let s = game_args(&g, &pg[0], j, g.lane_gpu(1), Path::new("p.pgn"), Path::new("l.log"), Path::new("s.json")).join(" ");
+        assert!(s.contains("option.BackendOptions=policy-head=vanilla,gpu=1") && s.matches("BackendOptions").count() == 1, "{s}");
+        // no card chosen: nothing is added
+        g.gpus.clear();
+        assert_eq!(g.lane_gpu(0), None);
     }
 }

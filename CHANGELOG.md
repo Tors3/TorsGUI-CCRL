@@ -1,5 +1,64 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Cores & games** (New tournament, the step that was *NUMA & lanes*), redone so that it says
+  what it does: choose **physical cores only** (one engine thread per core, as on the CCRL
+  machines) or **all threads (Hyper-Threading / SMT)**, which uses both threads of each core
+  (about twice the games at once, each engine a little slower; the CCRL checklist warns).
+  The games at the same time come with the threads they need and a *Use N* button; the three
+  placements are explained (on a NUMA machine: each game locked to its node, never moving to
+  the other socket); one line spells out games × threads = busy CPUs of the total, and a map
+  shows which CPUs each game uses. The NUMA nodes show only on machines that have several.
+  Tournament files take `smt = true`.
+- **Language of the interface** (Settings → Appearance): English and Italiano, the whole
+  interface, the user guide and the tournament-file guide (Help), the errors and warnings of the
+  New tournament summary and the CCRL checklist. The backend sends these as a code with its
+  parameters (`msg!`), and the list of codes is generated for the UI, so a missing translation
+  is a type error. Still in English: events, the logs, the forum post and the tournament files,
+  which are meant for CCRL.
+- **GPU engines** (Lc0 and the like): a **GPU** tab in Engines with the graphics cards of the
+  computer; engines with the options of a GPU engine are ticked when verified, and the *GPU*
+  column ticks any engine. In *Cores & games* the cards to use (all by default), one game per
+  card at a time (the suggested games follow the cards), a warning when games would share a
+  card; each game gets its lane's card (`BackendOptions=gpu=N` for Lc0, else
+  `CUDA_VISIBLE_DEVICES`, with CUDA numbering the cards as nvidia-smi). Settings → CPU topology
+  lists the cards; the CCRL checklist warns about GPU engines (the CCRL lists are for engines on
+  the CPU). Tournament files take `gpus = [0, 1]`.
+- **Board coordinates on a frame** around the board, as on a real board, for every theme (the
+  wooden frame of Szőts wood and the felt of Bastiii keep their look): files under the board,
+  ranks on its left, one per square, following the board when it is flipped. *Board appearance
+  → Coordinates* can still put them inside the edge squares, where the rank numbers now sit in
+  the corner of their own square.
+- **Active and inactive engines**: untick *Active* on an engine to set it aside without
+  removing it (Undo in the notice). Engines has three tabs, Active · Inactive · All, with a
+  button to move every engine shown; New tournament lists the active engines (tick *Inactive
+  too* for the others; the engines already chosen always show). Every engine is active after
+  the update.
+- **Games in progress next to Live** in the sidebar (on the icon when the sidebar shows icons
+  only); nothing when no game is being played.
+- **Unqueue**: a queued tournament can leave the queue and goes back to how it was (a draft, or
+  paused / stopped with its games, so it still shows *Resume*).
+- **Bastiii theme and Bastiii felt board**, made for Bastiii (Bastiball21): deep green
+  card-table felt with a brass trim.
+
+### Changed
+- ccrl.live: the "copy the message" button is greyed out for now.
+- User guide: the Cores & games panel, active engines, Unqueue, language and board
+  coordinates are described.
+
+### Fixed
+- **Random openings**: with "one random opening per game" the texts no longer speak of each
+  opening played with both colours. *Colour pairs* counts the pairs waiting for the
+  colour-reversed game, the CCRL checklist says "Every pair with both colours", the openings
+  table explains that openings are not played again, New tournament says how the openings go,
+  and the conditions under the tournament's name show the opening mode.
+- **CCRL lists downloaded from the site**: the top engines showed up three times (the results
+  and LOS matrices under the list were read as rows), engines on a tied rank ("6‑7") were
+  missing (about 200 in the 40/15 list) and the complete lists ("all versions") kept only the
+  best version of each engine. Download the lists again (CCRL Lists → Update) to replace them.
+
 ## [0.7.5] - 2026-10-10
 
 ### Fixed

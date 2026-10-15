@@ -9,6 +9,7 @@ import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, ProgressBar, Seg, Spi
 import { TournamentFileDialog } from "../components/TournamentFileDialog";
 import { call, usePoll } from "../lib/api";
 import { duration } from "../lib/format";
+import { useT, type Key } from "../i18n";
 
 type Importable = { name: string; dir: string; results: string | null; imported: boolean };
 
@@ -17,6 +18,7 @@ export function ImportDialog({ open, setOpen, onDone }: { open: boolean; setOpen
   const [items, setItems] = useState<Importable[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string>();
+  const tr = useT();
   const scan = async () => {
     setError(undefined);
     try {
@@ -30,7 +32,7 @@ export function ImportDialog({ open, setOpen, onDone }: { open: boolean; setOpen
     setBusy(it.name);
     try {
       const r = await call<{ name: string; done_games: number; expected_games: number; state: string }>("import_legacy", { dir: it.dir, results: it.results });
-      toast.success(`${r.name}: ${r.done_games}/${r.expected_games} games (${r.state})`);
+      toast.success(tr("tournaments.legacy.done", { name: r.name, done: r.done_games, expected: r.expected_games, state: r.state }));
       await scan();
       onDone();
     } catch (e) {
@@ -40,15 +42,15 @@ export function ImportDialog({ open, setOpen, onDone }: { open: boolean; setOpen
     }
   };
   return (
-    <Modal open={open} onOpenChange={setOpen} title="Import tournaments from the CCRL scripts" width={760}>
+    <Modal open={open} onOpenChange={setOpen} title={tr("tournaments.legacy.title")} width={760}>
       <div className="flex flex-col gap-3">
         <p className="muted text-[12.5px]">
-          Point to a <span className="mono">CCRL_ScirptsTests</span>-style folder: <span className="mono">tournaments/&lt;name&gt;/config</span>, <span className="mono">scripts/gauntlet.bat</span> and the PGNs in <span className="mono">pgn/</span> or <span className="mono">results/gauntlets/&lt;name&gt;/all_games.pgn</span>. Imported tournaments are read-only and verify that TorsGUI computes the same standings and export.
+          {tr("tournaments.legacy.about1")}<span className="mono">CCRL_ScirptsTests</span>{tr("tournaments.legacy.about2")}<span className="mono">tournaments/&lt;name&gt;/config</span>{tr("tournaments.legacy.about3")}<span className="mono">scripts/gauntlet.bat</span>{tr("tournaments.legacy.about4")}<span className="mono">pgn/</span>{tr("tournaments.legacy.about5")}<span className="mono">results/gauntlets/&lt;name&gt;/all_games.pgn</span>{tr("tournaments.legacy.about6")}
         </p>
         <div className="flex gap-2">
-          <input className="input" value={root} onChange={(e) => setRoot(e.target.value)} placeholder="C:\Users\...\CCRL_ScirptsTests" aria-label="Folder" />
+          <input className="input" value={root} onChange={(e) => setRoot(e.target.value)} placeholder="C:\Users\...\CCRL_ScirptsTests" aria-label={tr("tournaments.legacy.folder")} />
           <button className="btn" onClick={scan}>
-            Scan
+            {tr("tournaments.legacy.scan")}
           </button>
         </div>
         <ErrorBox error={error} />
@@ -57,13 +59,13 @@ export function ImportDialog({ open, setOpen, onDone }: { open: boolean; setOpen
             {items.map((it) => (
               <tr key={it.name}>
                 <td className="mono">{it.name}</td>
-                <td className="muted text-[12px]">{it.results ? "config + PGNs" : "config only (draft)"}</td>
+                <td className="muted text-[12px]">{it.results ? tr("tournaments.legacy.withPgn") : tr("tournaments.legacy.configOnly")}</td>
                 <td className="r">
                   {it.imported ? (
-                    <span className="chip chip-accent">imported</span>
+                    <span className="chip chip-accent">{tr("tournaments.imported")}</span>
                   ) : (
                     <button className="btn btn-sm" onClick={() => imp(it)} disabled={!!busy}>
-                      {busy === it.name ? <Spinner /> : <FolderInput size={13} />} Import
+                      {busy === it.name ? <Spinner /> : <FolderInput size={13} />} {tr("tournaments.legacy.import")}
                     </button>
                   )}
                 </td>
@@ -82,11 +84,12 @@ export function Tournaments() {
   const [filter, setFilter] = useState<"all" | "active" | "done">("all");
   const [imp, setImp] = useState(false);
   const [tfile, setTfile] = useState(false);
+  const tr = useT();
   const rows = (data ?? []).filter((t) =>
     filter === "all" ? true : filter === "active" ? ["running", "queued", "paused", "draft", "stopped"].includes(t.record.state) : ["completed", "incomplete", "failed"].includes(t.record.state),
   );
   const del = async (t: TournamentSummary) => {
-    if (!confirm(`Delete ${t.record.name} from TorsGUI? Its PGN files stay on disk.`)) return;
+    if (!confirm(tr("tournaments.confirmDelete", { name: t.record.name }))) return;
     try {
       await call("tournament_delete", { id: t.record.id });
       refresh();
@@ -97,19 +100,19 @@ export function Tournaments() {
   return (
     <div className="flex flex-col gap-3 fade-in">
       <PageHeader help="create-a-gauntlet"
-        title="Tournaments"
-        sub="Gauntlets, multi-seed gauntlets, round robins and matches"
+        title={tr("tournaments.title")}
+        sub={tr("tournaments.sub")}
         actions={
           <>
-            <Seg value={filter} onChange={setFilter} options={[{ value: "all", label: "All" }, { value: "active", label: "Active" }, { value: "done", label: "Finished" }]} />
-            <button className="btn" onClick={() => setImp(true)} title="Tournaments played with the old scripts (CCRL_ScirptsTests)">
-              <FolderInput size={14} /> Import old tournaments
+            <Seg value={filter} onChange={setFilter} options={[{ value: "all", label: tr("tournaments.filter.all") }, { value: "active", label: tr("tournaments.filter.active") }, { value: "done", label: tr("tournaments.filter.done") }]} />
+            <button className="btn" onClick={() => setImp(true)} title={tr("tournaments.importOldTip")}>
+              <FolderInput size={14} /> {tr("tournaments.importOld")}
             </button>
             <button className="btn" onClick={() => setTfile(true)} data-testid="tfile-open">
-              <FileCode2 size={14} /> Import file
+              <FileCode2 size={14} /> {tr("tournaments.importFile")}
             </button>
             <button className="btn btn-primary" onClick={() => nav("/tournaments/new")}>
-              <Plus size={14} /> New tournament
+              <Plus size={14} /> {tr("tournaments.newTournament")}
             </button>
           </>
         }
@@ -117,19 +120,19 @@ export function Tournaments() {
       <ErrorBox error={error} />
       <Panel noPad>
         {rows.length === 0 ? (
-          <Empty>No tournament here yet. Create one with the wizard or import the existing ones.</Empty>
+          <Empty>{tr("tournaments.empty")}</Empty>
         ) : (
           <table className="tbl" data-testid="tournaments-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>State</th>
-                <th style={{ width: 200 }}>Progress</th>
-                <th>Seed result</th>
-                <th>TC</th>
-                <th className="r">Threads</th>
-                <th className="r">ETA</th>
+                <th>{tr("tournaments.col.name")}</th>
+                <th>{tr("tournaments.col.type")}</th>
+                <th>{tr("tournaments.col.state")}</th>
+                <th style={{ width: 200 }}>{tr("tournaments.col.progress")}</th>
+                <th>{tr("tournaments.col.seed")}</th>
+                <th>{tr("tournaments.col.tc")}</th>
+                <th className="r">{tr("tournaments.col.threads")}</th>
+                <th className="r">{tr("tournaments.col.eta")}</th>
                 <th />
               </tr>
             </thead>
@@ -138,9 +141,9 @@ export function Tournaments() {
                 <tr key={t.record.id} className="clickable" onClick={() => nav(`/tournaments/${encodeURIComponent(t.record.id)}`)}>
                   <td className="font-medium max-w-[320px] truncate">
                     {t.record.name}
-                    {t.record.imported && <span className="chip ml-2">imported</span>}
+                    {t.record.imported && <span className="chip ml-2">{tr("tournaments.imported")}</span>}
                   </td>
-                  <td className="muted">{t.record.config.kind.replace("_", " ")}</td>
+                  <td className="muted">{tr(`tournament.kind.${t.record.config.kind}` as Key)}</td>
                   <td>
                     <StateChip state={t.record.state} alive={t.runner_alive} />
                   </td>
@@ -162,7 +165,7 @@ export function Tournaments() {
                     <div className="flex justify-end gap-1">
                       <TournamentActions t={t} onDone={refresh} compact />
                       {!(t.record.state === "running" && t.runner_alive) && (
-                        <button className="btn btn-ghost btn-icon btn-sm" aria-label="Delete" onClick={() => del(t)}>
+                        <button className="btn btn-ghost btn-icon btn-sm" aria-label={tr("tournaments.deleteLabel")} onClick={() => del(t)}>
                           <Trash2 size={13} />
                         </button>
                       )}

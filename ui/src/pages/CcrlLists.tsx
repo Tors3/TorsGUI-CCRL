@@ -12,6 +12,7 @@ import type { TournamentSummary } from "../bindings/TournamentSummary";
 import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, Seg, Spinner, PageTabs, useTabParam, Warn } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { num } from "../lib/format";
+import { useT } from "../i18n";
 
 const cpusOf = (n: string) => Number(/(\d+)\s*CPU/i.exec(n)?.[1] ?? 1);
 const norm = (s: string) =>
@@ -30,11 +31,12 @@ function ImportDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
   const [variant, setVariant] = useState("all");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const tr = useT();
   const go = async () => {
     setBusy(true);
     try {
       const r = await call<{ entries: number }>("ccrl_import_text", { list, variant, cpu: "mixed", text });
-      toast.success(`${r.entries} entries imported`);
+      toast.success(tr("ccrl.imp.imported", { count: r.entries }));
       setOpen(false);
       onDone();
     } catch (e) {
@@ -44,18 +46,18 @@ function ImportDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
     }
   };
   return (
-    <Modal open={open} onOpenChange={setOpen} title="Manual import" width={760} footer={<button className="btn btn-primary" onClick={go} disabled={!text || busy}>{busy && <Spinner />} Import</button>}>
+    <Modal open={open} onOpenChange={setOpen} title={tr("ccrl.imp.title")} width={760} footer={<button className="btn btn-primary" onClick={go} disabled={!text || busy}>{busy && <Spinner />} {tr("ccrl.imp.import")}</button>}>
       <div className="flex flex-col gap-3">
         <div className="flex gap-3">
-          <Field label="List">
+          <Field label={tr("ccrl.imp.list")}>
             <Seg value={list} onChange={setList} options={[{ value: "Blitz", label: "Blitz" }, { value: "40/15", label: "40/15" }, { value: "FRC", label: "FRC" }]} />
           </Field>
-          <Field label="Variant">
-            <Seg value={variant} onChange={setVariant} options={[{ value: "all", label: "All versions" }, { value: "best", label: "Best versions" }]} />
+          <Field label={tr("ccrl.imp.variant")}>
+            <Seg value={variant} onChange={setVariant} options={[{ value: "all", label: tr("ccrl.imp.allVersions") }, { value: "best", label: tr("ccrl.imp.bestVersions") }]} />
           </Field>
         </div>
         <label className="btn self-start">
-          <FileUp size={14} /> Open a saved page (.html, .txt, .csv)
+          <FileUp size={14} /> {tr("ccrl.imp.open")}
           <input
             type="file"
             accept=".html,.htm,.txt,.csv"
@@ -68,14 +70,14 @@ function ImportDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
               const n = f.name.toLowerCase();
               if (/frc|960/.test(n)) setList("FRC");
               else if (/4040|40.?15/.test(n)) setList("40/15");
-              toast.info(`${f.name} loaded: check list and variant, then Import`);
+              toast.info(tr("ccrl.imp.loaded", { name: f.name }));
             }}
           />
         </label>
         <p className="muted text-[12px] -mt-1">
-          In the browser: open the list on computerchess.org.uk, <b>Save page as… (HTML only)</b>, then open the file here.
+          {tr("ccrl.imp.browser1")}<b>{tr("ccrl.imp.browser2")}</b>{tr("ccrl.imp.browser3")}
         </p>
-        <Field label="Paste the table (copied from the CCRL page), HTML, or CSV (rank,name,rating or name,rating)" hint="CPU categories are read from the names (… 64-bit 8CPU); names without a CPU suffix are 1CPU.">
+        <Field label={tr("ccrl.imp.paste")} hint={tr("ccrl.imp.pasteHint")}>
           <textarea className="textarea" rows={14} value={text} onChange={(e) => setText(e.target.value)} placeholder={"1  Stockfish 17 64-bit 8CPU  3791  +14 −14  ...\n2  ..."} data-testid="ccrl-paste" />
         </Field>
       </div>
@@ -90,6 +92,7 @@ export function CcrlLists() {
   const { data: ts } = usePoll<TournamentSummary[]>("tournaments_list", {}, 0);
   const { data: aliases, refresh: refreshAliases } = usePoll<[string, string, string][]>("aliases_list", {}, 0);
   const nav = useNavigate();
+  const tr = useT();
   const [sel, setSel] = useState<number | null>(null);
   const [tab, setTab] = useTabParam(["lists", "suggest", "match", "threshold"] as const, "lists");
   const [cpu, setCpu] = useState("all");
@@ -124,7 +127,7 @@ export function CcrlLists() {
     setFetching(s.url);
     try {
       const r = await call<{ entries: number }>("ccrl_fetch", { source: s });
-      toast.success(`${s.list} ${s.variant}: ${r.entries} entries`);
+      toast.success(tr("ccrl.fetched", { list: s.list, variant: s.variant, count: r.entries }));
       refresh();
     } catch (e) {
       toast.error((e as Error).message, { duration: 12000 });
@@ -136,8 +139,8 @@ export function CcrlLists() {
     setFetching("all");
     try {
       const r = await call<{ done: { list: string; variant: string; entries: number }[]; failed: { list: string; variant: string; error: string }[] }>("ccrl_fetch_all");
-      if (r.done.length) toast.success(`Downloaded: ${r.done.map((d) => `${d.list} ${d.variant} (${d.entries})`).join(", ")}`);
-      if (r.failed.length) toast.error(`Not reachable: ${r.failed.map((d) => `${d.list} ${d.variant}`).join(", ")} — the bundled or previous lists stay in use`, { duration: 12000 });
+      if (r.done.length) toast.success(tr("ccrl.downloaded", { list: r.done.map((d) => `${d.list} ${d.variant} (${d.entries})`).join(", ") }));
+      if (r.failed.length) toast.error(tr("ccrl.notReachable", { list: r.failed.map((d) => `${d.list} ${d.variant}`).join(", ") }), { duration: 12000 });
       refresh();
     } catch (e) {
       toast.error((e as Error).message);
@@ -149,7 +152,7 @@ export function CcrlLists() {
   const match = async () => setCands(await call<MatchCandidate[]>("ccrl_match", { name: matchQ }));
   const saveAlias = async (canonical: string) => {
     await call("alias_set", { alias: matchQ, canonical });
-    toast.success(`"${matchQ}" ↔ "${canonical}" saved`);
+    toast.success(tr("ccrl.aliasSaved", { alias: matchQ, name: canonical }));
     refreshAliases();
   };
   const thresholds = async () => {
@@ -158,7 +161,7 @@ export function CcrlLists() {
     const d = await call<{ standings: { rows: { rating: number | null; games: number }[] } }>("tournament_get", { id: tid });
     const opps: [number, number][] = d.standings.rows.filter((r) => r.rating != null).map((r) => [r.rating!, r.games]);
     if (!opps.length) {
-      toast.error("The tournament's opponents have no ratings");
+      toast.error(tr("ccrl.noRatings"));
       return;
     }
     setThr(await call<Threshold[]>("ccrl_thresholds", { list: t.record.config.ccrl_list || "Blitz", cpus: t.record.config.threads, opponents: opps, ranks: ranks.split(",").map((x) => Number(x.trim())).filter(Boolean) }));
@@ -167,21 +170,21 @@ export function CcrlLists() {
   return (
     <div className="flex flex-col gap-3 fade-in">
       <PageHeader help="ccrl-lists"
-        title="CCRL Lists"
-        sub="Blitz and 40/15, 1CPU/4CPU/8CPU, all and best versions — fetched from computerchess.org.uk or imported by hand"
+        title={tr("ccrl.title")}
+        sub={tr("ccrl.sub")}
         actions={
           <button className="btn btn-primary" onClick={() => setImp(true)}>
-            <ClipboardPaste size={14} /> Manual import
+            <ClipboardPaste size={14} /> {tr("ccrl.manual")}
           </button>
         }
       />
       <ErrorBox error={error} />
       <PageTabs
         tabs={[
-          { id: "lists", label: "Lists" },
-          { id: "suggest", label: "Suggest opponents" },
-          { id: "match", label: "Name matching", badge: aliases?.length || undefined },
-          { id: "threshold", label: "Thresholds" },
+          { id: "lists", label: tr("ccrl.tabs.lists") },
+          { id: "suggest", label: tr("ccrl.tabs.suggest") },
+          { id: "match", label: tr("ccrl.tabs.match"), badge: aliases?.length || undefined },
+          { id: "threshold", label: tr("ccrl.tabs.threshold") },
         ]}
         value={tab}
         onChange={setTab}
@@ -189,14 +192,14 @@ export function CcrlLists() {
       />
       {tab === "lists" && twins.length > 0 && (
         <Warn>
-          These lists have exactly the same rows ({twins.join(", ")}): they were downloaded from the wrong page of the site. Press <b>Fetch all</b> again: TorsGUI now checks that every page is the list it asked for.
+          {tr("ccrl.twins1", { list: twins.join(", ") })}<b>{tr("ccrl.twins2")}</b>{tr("ccrl.twins3")}
         </Warn>
       )}
       {tab === "lists" && (
       <div className="grid gap-3 ccrl-grid">
         <div className="flex flex-col gap-3">
-          <Panel title="Lists" noPad>
-            {(lists ?? []).length === 0 && <Empty>No list yet.</Empty>}
+          <Panel title={tr("ccrl.lists")} noPad>
+            {(lists ?? []).length === 0 && <Empty>{tr("ccrl.noList")}</Empty>}
             {(lists ?? []).map((l) => (
               <button key={l.id} className="w-full text-left px-3 py-2 flex justify-between items-center" style={{ background: cur?.id === l.id ? "var(--accent-bg)" : undefined, borderBottom: "1px solid var(--border)" }} onClick={() => setSel(l.id)}>
                 <span>
@@ -204,13 +207,13 @@ export function CcrlLists() {
                     {l.list} · {l.variant}
                   </span>
                   <span className="block muted text-[11px]">
-                    {l.entries.length} engines · {l.source === "manual import" ? "manual" : l.source.startsWith("bundled") ? `bundled (${l.source.match(/\(([^)]+)\)/)?.[1] ?? ""})` : "site"} · {l.fetched_at.slice(0, 10)}
+                    {tr("ccrl.listLine", { count: l.entries.length, source: l.source === "manual import" ? tr("ccrl.manualSrc") : l.source.startsWith("bundled") ? tr("ccrl.bundledSrc", { date: l.source.match(/\(([^)]+)\)/)?.[1] ?? "" }) : tr("ccrl.siteSrc"), date: l.fetched_at.slice(0, 10) })}
                   </span>
                 </span>
                 <span
                   role="button"
                   className="btn btn-ghost btn-icon btn-sm"
-                  aria-label="Delete list"
+                  aria-label={tr("ccrl.deleteList")}
                   onClick={(e) => {
                     e.stopPropagation();
                     call("ccrl_delete_list", { id: l.id }).then(refresh);
@@ -221,22 +224,22 @@ export function CcrlLists() {
               </button>
             ))}
           </Panel>
-          <Panel title="Fetch from the site" noPad>
+          <Panel title={tr("ccrl.fetchTitle")} noPad>
             <div className="flex gap-2 px-3 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
               <button className="btn btn-sm btn-primary" disabled={!!fetching} onClick={fetchAll} data-testid="ccrl-fetch-all">
-                {fetching === "all" ? <Spinner size={12} /> : <CloudDownload size={13} />} Fetch all
+                {fetching === "all" ? <Spinner size={12} /> : <CloudDownload size={13} />} {tr("ccrl.fetchAll")}
               </button>
               <button
                 className="btn btn-sm"
-                title="Blitz, 40/15 and FRC (best versions) as bundled with TorsGUI"
+                title={tr("ccrl.bundledTip")}
                 onClick={async () => {
                   await call("ccrl_load_snapshot");
-                  toast.success("Bundled CCRL lists restored");
+                  toast.success(tr("ccrl.bundledRestored"));
                   refresh();
                 }}
                 data-testid="ccrl-snapshot"
               >
-                <PackageOpen size={13} /> Bundled lists
+                <PackageOpen size={13} /> {tr("ccrl.bundled")}
               </button>
             </div>
             {(sources ?? []).map((s) => (
@@ -244,42 +247,42 @@ export function CcrlLists() {
                 {fetching === s.url ? <Spinner size={12} /> : <CloudDownload size={13} />} {s.list} · {s.variant}
               </button>
             ))}
-            <div className="px-3 py-2 muted text-[11px]">Each list tries several addresses and the site's text export. If the site refuses the download, the bundled lists stay in use; a page saved from the browser can be opened with Manual import.</div>
+            <div className="px-3 py-2 muted text-[11px]">{tr("ccrl.fetchAbout")}</div>
           </Panel>
         </div>
         <Panel
-          title={cur ? `${cur.list} — ${cur.variant} versions` : "List"}
+          title={cur ? tr("ccrl.listTitle", { list: cur.list, variant: cur.variant }) : tr("ccrl.list")}
           noPad
           actions={
             <>
-              <input className="input" style={{ width: 160 }} placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
-              <Seg value={cpu} onChange={setCpu} options={[{ value: "1", label: "1CPU" }, { value: "4", label: "4CPU" }, { value: "8", label: "8CPU" }, { value: "all", label: "All" }]} />
+              <input className="input" style={{ width: 160 }} placeholder={tr("ccrl.search")} value={q} onChange={(e) => setQ(e.target.value)} />
+              <Seg value={cpu} onChange={setCpu} options={[{ value: "1", label: "1CPU" }, { value: "4", label: "4CPU" }, { value: "8", label: "8CPU" }, { value: "all", label: tr("ccrl.all") }]} />
             </>
           }
         >
           {cur && (
             <div className="px-3 py-1.5 muted text-[11.5px] truncate" style={{ borderBottom: "1px solid var(--border)" }} title={cur.source} data-testid="ccrl-source">
-              {cur.entries.length} engines · from {cur.source} · {cur.fetched_at.slice(0, 16).replace("T", " ")}
+              {tr("ccrl.source", { count: cur.entries.length, source: cur.source, date: cur.fetched_at.slice(0, 16).replace("T", " ") })}
             </div>
           )}
           <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 230px)" }}>
             <table className="tbl" data-testid="ccrl-table">
               <thead>
                 <tr>
-                  <th className="r">Rank</th>
-                  <th>Engine</th>
-                  <th className="r">Rating</th>
+                  <th className="r">{tr("ccrl.rank")}</th>
+                  <th>{tr("ccrl.engine")}</th>
+                  <th className="r">{tr("ccrl.rating")}</th>
                   <th className="r">±</th>
-                  <th className="r">Games</th>
-                  <th className="r">Score</th>
-                  <th>Library</th>
+                  <th className="r">{tr("ccrl.games")}</th>
+                  <th className="r">{tr("ccrl.score")}</th>
+                  <th>{tr("ccrl.library")}</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((e) => {
                   const inst = installed.get(norm(e.name)) ?? (aliasMap.get(norm(e.name)) ? installed.get(norm(aliasMap.get(norm(e.name))!)) : undefined);
                   return (
-                    <tr key={`${e.rank}-${e.name}`} className="clickable" onClick={() => nav(`/engines?github=${encodeURIComponent(e.name)}&list=${encodeURIComponent(cur?.list ?? "Blitz")}`)} title="Download this engine (Engines → Add from GitHub)">
+                    <tr key={`${e.rank}-${e.name}`} className="clickable" onClick={() => nav(`/engines?github=${encodeURIComponent(e.name)}&list=${encodeURIComponent(cur?.list ?? "Blitz")}`)} title={tr("ccrl.downloadTip")}>
                       <td className="r tnum muted">{e.rank}</td>
                       <td className="font-medium">{e.name}</td>
                       <td className="r tnum">{num(e.rating)}</td>
@@ -291,7 +294,7 @@ export function CcrlLists() {
                           <span className="chip chip-win">{inst.display_name}</span>
                         ) : (
                           <span className="inline-flex items-center gap-1 muted text-[11.5px] row-get">
-                            <Download size={12} /> get
+                            <Download size={12} /> {tr("ccrl.get")}
                           </span>
                         )}
                       </td>
@@ -301,7 +304,7 @@ export function CcrlLists() {
                 {rows.length === 0 && (
                   <tr>
                     <td colSpan={7} className="muted">
-                      No entry in this category.
+                      {tr("ccrl.noEntry")}
                     </td>
                   </tr>
                 )}
@@ -312,22 +315,22 @@ export function CcrlLists() {
         </div>
       )}
       {tab === "suggest" && (
-        <Panel title={cur ? `Suggest opponents · ${cur.list} ${cur.variant}` : "Suggest opponents"} className="max-w-[860px]">
+        <Panel title={cur ? `${tr("ccrl.suggestTitle")} · ${cur.list} ${cur.variant}` : tr("ccrl.suggestTitle")} className="max-w-[860px]">
           <div className="flex flex-col gap-2">
-              <p className="muted text-[12px]">Top N of the list, latest version that appears in it, filtered by what is installed and by thread support.</p>
+              <p className="muted text-[12px]">{tr("ccrl.suggestAbout")}</p>
               <div className="grid grid-cols-3 gap-2">
-                <Field label="Top N">
+                <Field label={tr("ccrl.topN")}>
                   <input className="input tnum" type="number" value={top} onChange={(e) => setTop(+e.target.value)} />
                 </Field>
-                <Field label="Threads">
+                <Field label={tr("ccrl.threads")}>
                   <input className="input tnum" type="number" value={threads} onChange={(e) => setThreads(+e.target.value)} />
                 </Field>
                 <label className="flex items-end gap-1.5 pb-1.5">
-                  <input type="checkbox" checked={onlyInst} onChange={(e) => setOnlyInst(e.target.checked)} /> installed
+                  <input type="checkbox" checked={onlyInst} onChange={(e) => setOnlyInst(e.target.checked)} /> {tr("ccrl.installedOnly")}
                 </label>
               </div>
               <button className="btn" onClick={suggest} disabled={!cur}>
-                Suggest ({cpu === "all" ? 1 : cpu}CPU)
+                {tr("ccrl.suggest", { cpu: cpu === "all" ? 1 : cpu })}
               </button>
               <div className="max-h-[560px] overflow-auto">
                 {sugg.map((s) => (
@@ -339,7 +342,7 @@ export function CcrlLists() {
                     </span>
                     <span className="flex gap-1.5 items-center shrink-0">
                       <span className="tnum">{num(s.rating)}</span>
-                      {s.installed_name ? <span className="chip chip-win">installed</span> : <span className="chip">missing</span>}
+                      {s.installed_name ? <span className="chip chip-win">{tr("ccrl.installed")}</span> : <span className="chip">{tr("ccrl.missing")}</span>}
                     </span>
                   </div>
                 ))}
@@ -348,13 +351,13 @@ export function CcrlLists() {
         </Panel>
       )}
       {tab === "match" && (
-        <Panel title={cur ? `Name matching · ${cur.list} ${cur.variant}` : "Name matching"} className="max-w-[860px]">
+        <Panel title={cur ? `${tr("ccrl.matchTitle")} · ${cur.list} ${cur.variant}` : tr("ccrl.matchTitle")} className="max-w-[860px]">
           <div className="flex flex-col gap-2">
-              <p className="muted text-[12px]">Fuzzy matching between list, library and PGN names (e.g. “Integral v8” ↔ “Integral 8”). Confirm a candidate to store the alias.</p>
+              <p className="muted text-[12px]">{tr("ccrl.matchAbout")}</p>
               <div className="flex gap-2">
-                <input className="input" value={matchQ} onChange={(e) => setMatchQ(e.target.value)} placeholder="Name as in the PGN / library" onKeyDown={(e) => e.key === "Enter" && match()} />
+                <input className="input" value={matchQ} onChange={(e) => setMatchQ(e.target.value)} placeholder={tr("ccrl.matchPlaceholder")} onKeyDown={(e) => e.key === "Enter" && match()} />
                 <button className="btn" onClick={match} disabled={!matchQ}>
-                  Match
+                  {tr("ccrl.match")}
                 </button>
               </div>
               {cands.map((c) => (
@@ -363,18 +366,18 @@ export function CcrlLists() {
                     {c.name} <span className="muted tnum">{(c.score * 100).toFixed(0)}%</span>
                   </span>
                   <button className="btn btn-sm" onClick={() => saveAlias(c.name)}>
-                    <Link2 size={12} /> Confirm
+                    <Link2 size={12} /> {tr("ccrl.confirm")}
                   </button>
                 </div>
               ))}
-              <div className="kpi-label mt-2">Aliases</div>
+              <div className="kpi-label mt-2">{tr("ccrl.aliases")}</div>
               <div className="max-h-[220px] overflow-auto">
                 {(aliases ?? []).map(([a, c]) => (
                   <div key={a} className="flex justify-between text-[12px] py-0.5">
                     <span className="truncate">
                       {a} ↔ {c}
                     </span>
-                    <button className="btn btn-ghost btn-icon btn-sm" aria-label="Delete alias" onClick={() => call("alias_delete", { alias: a }).then(refreshAliases)}>
+                    <button className="btn btn-ghost btn-icon btn-sm" aria-label={tr("ccrl.deleteAlias")} onClick={() => call("alias_delete", { alias: a }).then(refreshAliases)}>
                       <Trash2 size={12} />
                     </button>
                   </div>
@@ -384,10 +387,10 @@ export function CcrlLists() {
         </Panel>
       )}
       {tab === "threshold" && (
-        <Panel title={cur ? `Thresholds · ${cur.list} ${cur.variant}` : "Thresholds"} className="max-w-[860px]">
+        <Panel title={cur ? `${tr("ccrl.thresholdTitle")} · ${cur.list} ${cur.variant}` : tr("ccrl.thresholdTitle")} className="max-w-[860px]">
           <div className="flex flex-col gap-2">
-              <p className="muted text-[12px]">Score the seed needs, against its actual opponents, for its performance to pass rank k of its CPU category.</p>
-              <Field label="Tournament">
+              <p className="muted text-[12px]">{tr("ccrl.thresholdAbout")}</p>
+              <Field label={tr("ccrl.tournament")}>
                 <select className="select" value={tid} onChange={(e) => setTid(e.target.value)}>
                   <option value="">—</option>
                   {(ts ?? []).map((t) => (
@@ -397,24 +400,24 @@ export function CcrlLists() {
                   ))}
                 </select>
               </Field>
-              <Field label="Ranks">
+              <Field label={tr("ccrl.ranks")}>
                 <input className="input" value={ranks} onChange={(e) => setRanks(e.target.value)} />
               </Field>
               <button className="btn" onClick={thresholds} disabled={!tid}>
-                Compute
+                {tr("ccrl.compute")}
               </button>
               {thr.map((t) => (
                 <div key={t.rank} className="text-[12px] py-1" style={{ borderBottom: "1px solid var(--border)" }}>
                   <div className="flex justify-between">
                     <span>
-                      pass #{t.rank} {t.target_name} ({num(t.target_rating)})
+                      {tr("ccrl.pass", { rank: t.rank, name: t.target_name, rating: num(t.target_rating) })}
                     </span>
                     <span className="tnum font-semibold">
                       {t.points_needed}/{t.games}
                     </span>
                   </div>
                   <div className="muted tnum">
-                    {t.pct_needed.toFixed(1)}% {t.reachable ? "" : "· not reachable"}
+                    {t.pct_needed.toFixed(1)}% {t.reachable ? "" : tr("ccrl.notReachableShort")}
                   </div>
                 </div>
               ))}

@@ -41,7 +41,18 @@ tc: string, book: string, book_format: string, book_start: number,
  * One random opening per game (no colour-reversed pairs): fastchess `order=random`
  * with `-srand opening_seed`, so a game keeps its opening when the tournament resumes.
  */
-random_openings?: boolean, opening_seed: number, event: string, site: string, syzygy_path: string, adjudication: Adjudication, extra_args: Array<string>, placement: Placement, log_level: string, 
+random_openings?: boolean, opening_seed: number, event: string, site: string, syzygy_path: string, adjudication: Adjudication, extra_args: Array<string>, placement: Placement, 
+/**
+ * Count every hardware thread (SMT / Hyper-Threading) as a CPU: the lanes may use
+ * both threads of each core instead of one per physical core. Off by default, as on
+ * the CCRL machines; useful on desktop CPUs to run more games at once.
+ */
+use_smt?: boolean, 
+/**
+ * Graphics cards for the GPU engines (their numbers): lane i plays on `gpus[i % len]`.
+ * Empty: the engines use their default card.
+ */
+gpus?: Array<number>, log_level: string, 
 /**
  * CCRL list the tournament is meant for ("Blitz", "40/15").
  */

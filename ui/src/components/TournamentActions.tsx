@@ -1,12 +1,14 @@
-import { ListPlus, Pause, Play, Square } from "lucide-react";
+import { ListMinus, ListPlus, Pause, Play, Square } from "lucide-react";
 import { toast } from "sonner";
 import type { TournamentSummary } from "../bindings/TournamentSummary";
 import { call } from "../lib/api";
 import { Tip } from "./ui";
+import { useT } from "../i18n";
 
 /** Start / pause / stop / queue buttons with the state rules of the runner. */
 export function TournamentActions({ t, onDone, compact }: { t: TournamentSummary; onDone?: () => void; compact?: boolean }) {
   const r = t.record;
+  const tr = useT();
   const act = async (cmd: string, msg: string) => {
     try {
       await call(cmd, { id: r.id });
@@ -26,35 +28,42 @@ export function TournamentActions({ t, onDone, compact }: { t: TournamentSummary
         <Tip
           content={
             r.state === "draft" || r.state === "queued"
-              ? "Start now in a detached runner"
+              ? tr("ui.actions.startTip")
               : t.unfinished
-                ? "A tied match still needs tiebreaks: resume to play them (TorsGUI 0.7.4 and earlier gave it to the higher seed after 3)"
-                : "Resume where it stopped (games in progress when it stopped are replayed)"
+                ? tr("ui.actions.tiebreakTip")
+                : tr("ui.actions.resumeTip")
           }
         >
-          <button className={`btn btn-primary ${size}`} onClick={() => act("tournament_start", `${r.name}: runner launched`)} data-testid="btn-start">
-            <Play size={13} /> {r.state === "draft" || r.state === "queued" ? "Start" : "Resume"}
+          <button className={`btn btn-primary ${size}`} onClick={() => act("tournament_start", tr("ui.actions.launched", { name: r.name }))} data-testid="btn-start">
+            <Play size={13} /> {r.state === "draft" || r.state === "queued" ? tr("ui.actions.start") : tr("ui.actions.resume")}
           </button>
         </Tip>
       )}
       {running && (
         <>
-          <Tip content="Pause: the games in progress are played to the end, then the tournament pauses. Resume continues it. The queue does not advance.">
-            <button className={`btn ${size}`} onClick={() => act("tournament_pause", `Pausing ${r.name}: the games in progress finish first…`)}>
-              <Pause size={13} /> Pause
+          <Tip content={tr("ui.actions.pauseTip")}>
+            <button className={`btn ${size}`} onClick={() => act("tournament_pause", tr("ui.actions.pausing", { name: r.name }))}>
+              <Pause size={13} /> {tr("ui.actions.pause")}
             </button>
           </Tip>
-          <Tip content="Stop: right now. The games in progress are interrupted and replayed later (never counted twice). Resume continues it. The queue does not advance.">
-            <button className={`btn btn-danger ${size}`} onClick={() => act("tournament_stop", `Stopping ${r.name}…`)}>
-              <Square size={12} /> Stop
+          <Tip content={tr("ui.actions.stopTip")}>
+            <button className={`btn btn-danger ${size}`} onClick={() => act("tournament_stop", tr("ui.actions.stopping", { name: r.name }))}>
+              <Square size={12} /> {tr("ui.actions.stop")}
             </button>
           </Tip>
         </>
       )}
       {!r.imported && (r.state === "draft" || r.state === "paused" || r.state === "stopped") && (
-        <Tip content="Add to the queue: it starts automatically when the previous tournament has all its games and finished cleanly.">
-          <button className={`btn ${size}`} onClick={() => act("queue_add", `${r.name} queued`)}>
-            <ListPlus size={13} /> Queue
+        <Tip content={tr("ui.actions.queueTip")}>
+          <button className={`btn ${size}`} onClick={() => act("queue_add", tr("ui.actions.queued", { name: r.name }))}>
+            <ListPlus size={13} /> {tr("ui.actions.queue")}
+          </button>
+        </Tip>
+      )}
+      {!r.imported && r.state === "queued" && (
+        <Tip content={tr("tournament.unqueueTip")}>
+          <button className={`btn ${size}`} onClick={() => act("queue_remove", tr("tournament.unqueued", { name: r.name }))} data-testid="btn-unqueue">
+            <ListMinus size={13} /> {tr("tournament.unqueue")}
           </button>
         </Tip>
       )}

@@ -10,6 +10,8 @@ export type BoardPrefs = {
   /** Piece animation in ms (0 = off). */
   animation: number;
   coordinates: boolean;
+  /** Where the coordinates go: on a frame around the board, or inside the edge squares. */
+  coordsStyle: CoordsStyle;
   /** Move and game sounds (viewer, live board, play vs engine). */
   sound: boolean;
   soundSet: SoundSet;
@@ -22,7 +24,10 @@ export type BoardPrefs = {
   customDark: string;
 };
 
-export const BOARD_THEMES = ["minimal", "slate", "ocean", "tournament", "classic", "walnut", "maple", "szots", "marble", "custom"] as const;
+export const COORDS_STYLES = ["frame", "inside"] as const;
+export type CoordsStyle = (typeof COORDS_STYLES)[number];
+
+export const BOARD_THEMES = ["minimal", "slate", "ocean", "tournament", "classic", "walnut", "maple", "szots", "basti", "marble", "custom"] as const;
 export type BoardTheme = (typeof BOARD_THEMES)[number];
 export const THEME_LABEL: Record<BoardTheme, string> = {
   minimal: "Minimal",
@@ -30,6 +35,7 @@ export const THEME_LABEL: Record<BoardTheme, string> = {
   walnut: "Walnut",
   maple: "Maple",
   szots: "Szőts wood (for Gabor)",
+  basti: "Bastiii felt (for Bastiii)",
   marble: "Marble",
   tournament: "Tournament green",
   ocean: "Ocean",
@@ -81,6 +87,7 @@ export const DEFAULT_PREFS: BoardPrefs = {
   pieces: "cburnett",
   animation: 220,
   coordinates: true,
+  coordsStyle: "frame",
   sound: false,
   soundSet: "wood",
   soundVolume: 0.8,
@@ -105,6 +112,7 @@ function load(): BoardPrefs {
       const p = { ...DEFAULT_PREFS, ...JSON.parse(raw) } as BoardPrefs;
       if (!BOARD_THEMES.includes(p.theme)) p.theme = DEFAULT_PREFS.theme;
       if (!PIECE_SETS.includes(p.pieces) && !p.pieces.startsWith("user:")) p.pieces = DEFAULT_PREFS.pieces;
+      if (!COORDS_STYLES.includes(p.coordsStyle)) p.coordsStyle = DEFAULT_PREFS.coordsStyle;
       if (!SOUND_SETS.includes(p.soundSet)) p.soundSet = DEFAULT_PREFS.soundSet;
       if (!(p.soundVolume >= 0 && p.soundVolume <= 1)) p.soundVolume = DEFAULT_PREFS.soundVolume;
       return p;

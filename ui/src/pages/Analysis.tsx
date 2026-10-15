@@ -17,6 +17,7 @@ import { call, usePoll } from "../lib/api";
 import { isCheck } from "../lib/chess";
 import { evalText, nps, num } from "../lib/format";
 import { analysisPgn } from "../lib/pgnExport";
+import { useT, type Key } from "../i18n";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const TIMES = [100, 300, 1000, 3000, 10000];
@@ -46,6 +47,7 @@ export function AnalysisPage() {
   const [movetime, setMovetime] = useState(1000);
   const [review, setReview] = useState<GameAnalysisProgress>();
   const listRef = useRef<HTMLDivElement>(null);
+  const tr = useT();
 
   const usable = useMemo(() => (engines ?? []).filter((e) => e.id != null && e.path && e.verify_status !== "failed"), [engines]);
   useEffect(() => {
@@ -198,7 +200,7 @@ export function AnalysisPage() {
     const j = judgement(i);
     const pe = result?.positions[i + 1];
     return (
-      <button data-ply={i + 1} className={i + 1 === ply ? "active" : ""} onClick={() => setPly(i + 1)} title={j?.tag ? `${j.tag}: −${(j.loss_cp / 100).toFixed(2)}` : undefined}>
+      <button data-ply={i + 1} className={i + 1 === ply ? "active" : ""} onClick={() => setPly(i + 1)} title={j?.tag ? `${tr(`analysis.tag.${j.tag}` as Key)}: −${(j.loss_cp / 100).toFixed(2)}` : undefined}>
         <span>
           {plies[i].san}
           {j?.tag && <b className={`j-${j.tag}`}>{MARK[j.tag]}</b>}
@@ -211,15 +213,15 @@ export function AnalysisPage() {
   const copyPgn = async () => {
     try {
       await navigator.clipboard.writeText(pgnText());
-      toast.success("PGN copied");
+      toast.success(tr("analysis.pgnCopied"));
     } catch {
-      toast.error("The clipboard is not available: use Save PGN");
+      toast.error(tr("analysis.noClipboard"));
     }
   };
   const savePgn = async () => {
     try {
       const r = await call<{ path: string }>("pgn_save", { text: pgnText(), folder: "analysis", name: [h.White, h.Black].filter(Boolean).join(" - ") || "analysis" });
-      toast.success(`Saved: ${r.path}`);
+      toast.success(tr("analysis.saved", { path: r.path }));
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -229,21 +231,21 @@ export function AnalysisPage() {
 
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader title="Game analysis" sub="Analyse a game of the archive, a PGN or a position with an engine of the library: live lines, evaluation graph, inaccuracies, mistakes and blunders" />
+      <PageHeader title={tr("analysis.title")} sub={tr("analysis.sub")} />
       <div className="grid gap-3 cols-fit">
-        <Panel title="Game or position">
+        <Panel title={tr("analysis.gameOrPosition")}>
           <div className="flex flex-col gap-2">
             <textarea
               className="textarea"
               rows={3}
-              placeholder="Paste a PGN, moves (1. e4 e5 2. Nf3…) or a FEN. A game of the archive: Games → open it → Analyse."
+              placeholder={tr("analysis.placeholder")}
               value={text}
               onChange={(e) => setText(e.target.value)}
               data-testid="analysis-text"
             />
             <div className="flex gap-2 items-center">
               <button className="btn" onClick={load} disabled={!text.trim()} data-testid="analysis-load">
-                <Upload size={13} /> Load
+                <Upload size={13} /> {tr("analysis.load")}
               </button>
               <button
                 className="btn btn-ghost"
@@ -252,17 +254,17 @@ export function AnalysisPage() {
                   setPly(0);
                 }}
               >
-                Start position
+                {tr("analysis.startPosition")}
               </button>
             </div>
             <ErrorBox error={loadErr} />
           </div>
         </Panel>
-        <Panel title="Engine">
+        <Panel title={tr("analysis.engine")}>
           <div className="grid grid-cols-3 gap-2">
-            <Field label="Engine" className="col-span-3">
+            <Field label={tr("analysis.engine")} className="col-span-3">
               <select className="select" value={engineId ?? ""} onChange={(e) => setEngineId(Number(e.target.value))} data-testid="analysis-engine">
-                {usable.length === 0 && <option value="">No engine in the library</option>}
+                {usable.length === 0 && <option value="">{tr("analysis.noEngine")}</option>}
                 {usable.map((e) => (
                   <option key={e.id} value={e.id!}>
                     {e.display_name}
@@ -270,13 +272,13 @@ export function AnalysisPage() {
                 ))}
               </select>
             </Field>
-            <Field label="Threads">
+            <Field label={tr("analysis.threads")}>
               <input className="input tnum" type="number" min={1} value={threads} onChange={(e) => setThreads(Math.max(1, +e.target.value))} />
             </Field>
-            <Field label="Hash (MB)">
+            <Field label={tr("analysis.hash")}>
               <input className="input tnum" type="number" min={1} value={hash} onChange={(e) => setHash(Math.max(1, +e.target.value))} />
             </Field>
-            <Field label="Lines">
+            <Field label={tr("analysis.lines")}>
               <select className="select" value={multipv} onChange={(e) => setMultipv(+e.target.value)} aria-label="MultiPV">
                 {[1, 2, 3, 4, 5].map((x) => (
                   <option key={x}>{x}</option>
@@ -288,14 +290,14 @@ export function AnalysisPage() {
       </div>
       {!game ? (
         <Panel>
-          <Empty icon={<Microscope size={18} />}>Load a game or a position to analyse it.</Empty>
+          <Empty icon={<Microscope size={18} />}>{tr("analysis.empty")}</Empty>
         </Panel>
       ) : (
         <div className="grid gap-4 analysis-grid">
           <BoardColumn id="analysis" className="flex flex-col gap-2 min-w-0">
             {(h.White || h.Black) && (
               <div className="flex items-center gap-2 text-[13px] flex-wrap">
-                <b>{h.White ?? "?"}</b> <span className="muted">vs</span> <b>{h.Black ?? "?"}</b> <Result r={game.result} />
+                <b>{h.White ?? "?"}</b> <span className="muted">{tr("analysis.vs")}</span> <b>{h.Black ?? "?"}</b> <Result r={game.result} />
                 {h.Event && <span className="muted text-[12px]">· {h.Event}</span>}
               </div>
             )}
@@ -304,36 +306,36 @@ export function AnalysisPage() {
               <Board fen={fen} lastMove={cur?.uci} check={isCheck(cur?.san)} orientation={flip ? "black" : "white"} arrows={arrows} className="flex-1" />
             </div>
             <div className="flex items-center gap-1">
-              <button className="btn btn-icon" aria-label="Start" onClick={() => setPly(0)}>
+              <button className="btn btn-icon" aria-label={tr("analysis.start")} onClick={() => setPly(0)}>
                 <ChevronFirst size={15} />
               </button>
-              <button className="btn btn-icon" aria-label="Previous" onClick={() => setPly((p) => Math.max(0, p - 1))}>
+              <button className="btn btn-icon" aria-label={tr("analysis.previous")} onClick={() => setPly((p) => Math.max(0, p - 1))}>
                 <ChevronLeft size={15} />
               </button>
-              <button className="btn btn-icon" aria-label="Next" onClick={() => setPly((p) => Math.min(n, p + 1))}>
+              <button className="btn btn-icon" aria-label={tr("analysis.next")} onClick={() => setPly((p) => Math.min(n, p + 1))}>
                 <ChevronRight size={15} />
               </button>
-              <button className="btn btn-icon" aria-label="End" onClick={() => setPly(n)}>
+              <button className="btn btn-icon" aria-label={tr("analysis.end")} onClick={() => setPly(n)}>
                 <ChevronLast size={15} />
               </button>
-              <button className="btn btn-icon" aria-label="Flip board" title="Flip (f)" onClick={() => setFlip((f) => !f)}>
+              <button className="btn btn-icon" aria-label={tr("analysis.flip")} title={tr("analysis.flipTip")} onClick={() => setFlip((f) => !f)}>
                 <FlipVertical2 size={15} />
               </button>
               <span className="muted text-[12px] ml-2 tnum">
                 {ply}/{n}
               </span>
               <label className="ml-auto flex items-center gap-2 text-[12.5px]">
-                <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} disabled={engineId == null} data-testid="analysis-live" /> Live engine
+                <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} disabled={engineId == null} data-testid="analysis-live" /> {tr("analysis.live")}
               </label>
             </div>
             {curJ?.tag && (
               <div className="text-[12.5px]" data-testid="analysis-judgement">
                 <b className={`j-${curJ.tag}`}>
                   {cur?.san}
-                  {MARK[curJ.tag]} {curJ.tag}
+                  {MARK[curJ.tag]} {tr(`analysis.tag.${curJ.tag}` as Key)}
                 </b>{" "}
                 <span className="muted">
-                  (−{(curJ.loss_cp / 100).toFixed(2)}){before?.best_san ? ` · best was ${before.best_san}` : ""}
+                  (−{(curJ.loss_cp / 100).toFixed(2)}){before?.best_san ? tr("analysis.bestWas", { move: before.best_san }) : ""}
                   {before?.pv_san.length ? ` (${before.pv_san.slice(0, 6).join(" ")})` : ""}
                 </span>
               </div>
@@ -344,11 +346,10 @@ export function AnalysisPage() {
               <div className="panel p-2 flex flex-col gap-1 text-[12.5px]" data-testid="analysis-lines">
                 <div className="flex items-center gap-2 muted text-[11.5px]">
                   {liveState?.running && liveState.fen === fen ? <Spinner size={11} /> : null}
-                  {liveState?.engine || "starting…"}
+                  {liveState?.engine || tr("analysis.starting")}
                   {lines[0] && (
                     <span className="ml-auto tnum">
-                      depth {lines[0].depth}
-                      {lines[0].seldepth ? `/${lines[0].seldepth}` : ""} · {num(lines[0].nodes)} nodes · {nps(lines[0].nps)} nps
+                      {tr("analysis.depthLine", { depth: lines[0].depth, sel: lines[0].seldepth ? `/${lines[0].seldepth}` : "", nodes: num(lines[0].nodes), nps: nps(lines[0].nps) })}
                     </span>
                   )}
                 </div>
@@ -366,15 +367,15 @@ export function AnalysisPage() {
               </div>
             )}
             <Panel
-              title="Review"
+              title={tr("analysis.review")}
               actions={
                 review?.running ? (
                   <button className="btn btn-sm btn-danger" onClick={() => call("analysis_game_stop")} data-testid="review-stop">
-                    <Square size={12} /> Stop
+                    <Square size={12} /> {tr("analysis.stop")}
                   </button>
                 ) : (
                   <div className="flex items-center gap-1.5">
-                    <select className="select" style={{ height: 24, width: 90 }} value={movetime} onChange={(e) => setMovetime(+e.target.value)} aria-label="Time per move">
+                    <select className="select" style={{ height: 24, width: 90 }} value={movetime} onChange={(e) => setMovetime(+e.target.value)} aria-label={tr("analysis.timePerMove")}>
                       {TIMES.map((t) => (
                         <option key={t} value={t}>
                           {secs(t)}
@@ -382,7 +383,7 @@ export function AnalysisPage() {
                       ))}
                     </select>
                     <button className="btn btn-sm btn-primary" onClick={startReview} disabled={!n || engineId == null} data-testid="review-start">
-                      <Play size={12} /> Analyse the game
+                      <Play size={12} /> {tr("analysis.analyse")}
                     </button>
                   </div>
                 )
@@ -405,7 +406,7 @@ export function AnalysisPage() {
                     <thead>
                       <tr>
                         <th />
-                        <th className="r">Accuracy</th>
+                        <th className="r">{tr("analysis.accuracy")}</th>
                         <th className="r">ACPL</th>
                         <th className="r j-inaccuracy">?!</th>
                         <th className="r j-mistake">?</th>
@@ -416,7 +417,7 @@ export function AnalysisPage() {
                       {(["white", "black"] as const).map((side) => (
                         <tr key={side}>
                           <td className="truncate" style={{ maxWidth: 160 }}>
-                            {(side === "white" ? h.White : h.Black) ?? (side === "white" ? "White" : "Black")}
+                            {(side === "white" ? h.White : h.Black) ?? (side === "white" ? tr("analysis.white") : tr("analysis.black"))}
                           </td>
                           <td className="r">{result[side].accuracy.toFixed(1)}%</td>
                           <td className="r">{result[side].acpl.toFixed(0)}</td>
@@ -429,7 +430,7 @@ export function AnalysisPage() {
                   </table>
                   <LineChart
                     x={result.positions.map((_, i) => i)}
-                    series={[{ label: "Evaluation", color: "var(--accent)", values: result.positions.map((p) => pawns(p?.score)) }]}
+                    series={[{ label: tr("analysis.evaluation"), color: "var(--accent)", values: result.positions.map((p) => pawns(p?.score)) }]}
                     height={130}
                     zeroLine
                     yRange={[-8, 8]}
@@ -437,25 +438,25 @@ export function AnalysisPage() {
                     onClick={(i) => setPly(i)}
                   />
                   <div className="muted text-[11px]">
-                    {result.engine} · {secs(result.movetime_ms)} per position · White's view, pawns (mates at ±8) — click the graph to jump
+                    {tr("analysis.graphAbout", { engine: result.engine, time: secs(result.movetime_ms) })}
                   </div>
                   <div className="flex flex-wrap gap-2 items-center">
                     <button className="btn btn-sm" onClick={() => copyPgn()} data-testid="pgn-copy">
-                      <Copy size={12} /> Copy PGN
+                      <Copy size={12} /> {tr("analysis.copy")}
                     </button>
                     <button className="btn btn-sm" onClick={() => savePgn()} data-testid="pgn-save">
-                      <Save size={12} /> Save PGN
+                      <Save size={12} /> {tr("analysis.save")}
                     </button>
-                    <span className="muted text-[11px]">with evaluations, ?! ? ?? and the engine's lines; saved games appear in Games</span>
+                    <span className="muted text-[11px]">{tr("analysis.saveAbout")}</span>
                   </div>
                 </div>
               ) : (
-                !review?.running && <div className="muted text-[12px]">Every position is searched for the time chosen; moves that lose winning chances are marked ?! inaccuracy, ? mistake, ?? blunder.</div>
+                !review?.running && <div className="muted text-[12px]">{tr("analysis.reviewAbout")}</div>
               )}
             </Panel>
             <div ref={listRef} className="panel overflow-auto mono text-[12.5px]" style={{ maxHeight: 330 }} data-testid="analysis-moves">
               {n === 0 ? (
-                <div className="p-2 muted">A position without moves: use the live engine.</div>
+                <div className="p-2 muted">{tr("analysis.noMoves")}</div>
               ) : (
                 <div className="movelist">
                   {rows.map((r) => (

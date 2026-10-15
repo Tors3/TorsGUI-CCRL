@@ -6,6 +6,7 @@ import { AlertTriangle, ChevronDown, Loader2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { TState } from "../bindings/TState";
+import { useT, type Key } from "../i18n";
 
 export function Panel(props: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; bodyClass?: string; noPad?: boolean }) {
   return (
@@ -47,11 +48,12 @@ const STATE_TONE: Record<TState, string> = {
 };
 
 export function StateChip({ state, alive }: { state: TState; alive?: boolean }) {
+  const t = useT();
   return (
     <span className={`chip ${STATE_TONE[state]}`} data-testid="state-chip">
       {state === "running" && <span className={`dot ${alive === false ? "" : "dot-pulse"}`} />}
-      {state}
-      {state === "running" && alive === false && " · no runner"}
+      {t(`ui.state.${state}` as Key)}
+      {state === "running" && alive === false && t("ui.state.noRunner")}
     </span>
   );
 }
@@ -101,6 +103,7 @@ export function Field(props: { label: string; children: ReactNode; hint?: ReactN
 }
 
 export function Modal(props: { open: boolean; onOpenChange: (o: boolean) => void; title: ReactNode; children: ReactNode; width?: number; footer?: ReactNode }) {
+  const t = useT();
   return (
     <Dialog.Root open={props.open} onOpenChange={props.onOpenChange}>
       <Dialog.Portal>
@@ -108,7 +111,7 @@ export function Modal(props: { open: boolean; onOpenChange: (o: boolean) => void
         <Dialog.Content className="dialog fade-in" style={{ width: `min(${props.width ?? 640}px, 96vw)` }} aria-describedby={undefined}>
           <div className="panel-head sticky top-0 z-10" style={{ background: "var(--panel)" }}>
             <Dialog.Title className="text-[14px] font-semibold">{props.title}</Dialog.Title>
-            <Dialog.Close className="btn btn-ghost btn-icon" aria-label="Close">
+            <Dialog.Close className="btn btn-ghost btn-icon" aria-label={t("ui.close")}>
               <X size={15} />
             </Dialog.Close>
           </div>
@@ -198,6 +201,34 @@ export function Seg<T extends string>(props: { value: T; options: { value: T; la
           {o.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+/** One choice among a few, each with a sentence that says what it does (radio cards). */
+export function Choices<T extends string>(props: {
+  value: T;
+  options: { value: T; label: ReactNode; about?: ReactNode; badge?: ReactNode; disabled?: boolean }[];
+  onChange: (v: T) => void;
+  name: string;
+  columns?: number;
+}) {
+  return (
+    <div role="radiogroup" className="choices" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${props.columns ? Math.floor(640 / props.columns) : 200}px, 1fr))` }}>
+      {props.options.map((o) => {
+        const on = o.value === props.value;
+        return (
+          <label key={o.value} className={`choice ${on ? "choice-on" : ""} ${o.disabled ? "choice-off" : ""}`} data-testid={`${props.name}-${o.value}`}>
+            <input type="radio" name={props.name} value={o.value} checked={on} disabled={o.disabled} onChange={() => props.onChange(o.value)} />
+            <span className="choice-head">
+              <span className="choice-dot" aria-hidden />
+              <span className="font-medium">{o.label}</span>
+              {o.badge && <span className="chip ml-auto">{o.badge}</span>}
+            </span>
+            {o.about && <span className="choice-about">{o.about}</span>}
+          </label>
+        );
+      })}
     </div>
   );
 }

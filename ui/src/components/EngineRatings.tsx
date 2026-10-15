@@ -5,6 +5,7 @@ import type { EngineListRating } from "../bindings/EngineListRating";
 import { usePoll } from "../lib/api";
 import { num } from "../lib/format";
 import { Tip } from "./ui";
+import { useT } from "../i18n";
 
 export const RATING_LISTS = ["Blitz", "40/15", "FRC"] as const;
 export type RatingList = (typeof RATING_LISTS)[number];
@@ -33,13 +34,14 @@ export function matchesEngine(e: EngineEntry, q: string) {
 
 /** Rating with rank, CPU category and games in the tooltip; "≈" when this version is not in the list. */
 export function EloCell({ r }: { r?: EngineListRating }) {
+  const t = useT();
   if (!r) return <span className="muted">—</span>;
   return (
     <Tip
       content={
         r.exact
-          ? `${r.ccrl_name} · rank ${r.rank}${r.games != null ? ` · ${r.games} games` : ""}`
-          : `This version is not in the list: ${r.ccrl_name} (rank ${r.rank}) is the latest version listed`
+          ? t("ui.rating.exact", { name: r.ccrl_name, rank: r.rank }) + (r.games != null ? t("ui.rating.games", { count: r.games }) : "")
+          : t("ui.rating.latest", { name: r.ccrl_name, rank: r.rank })
       }
     >
       <span className={`tnum ${r.exact ? "" : "muted"}`}>

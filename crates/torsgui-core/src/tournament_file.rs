@@ -116,6 +116,12 @@ pub struct TournamentFile {
     pub lanes_per_node: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub placement: Option<Placement>,
+    /// Use both hardware threads of each core (SMT / Hyper-Threading). Default: false.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub smt: Option<bool>,
+    /// Graphics cards for the GPU engines. Default: every card found.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gpus: Option<Vec<u32>>,
     /// Opening book (absolute, or relative to the books folder). Default: the settings'.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub book: Option<String>,
@@ -197,8 +203,10 @@ pub fn parse(text: &str) -> Result<TournamentFile> {
 pub struct Env<'a> {
     pub engines: &'a [EngineEntry],
     pub settings: &'a Settings,
-    /// (node id, physical cores)
-    pub nodes: Vec<(u32, u32)>,
+    /// (node id, physical cores, logical CPUs)
+    pub nodes: Vec<(u32, u32, u32)>,
+    /// The numbers of the graphics cards found.
+    pub gpus: Vec<u32>,
     /// rating lookup (name, threads) → (rating, estimated)
     pub rating: &'a dyn Fn(&str, u32) -> (Option<f64>, bool),
 }
@@ -353,6 +361,8 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
                     threads: own_threads,
                     hash_mb: own_hash,
                     withdrawn: false,
+                    gpu: e.gpu,
+                    gpu_select: if e.gpu { e.gpu_select() } else { String::new() },
                     rating,
                     rating_estimated: est,
                 });
@@ -404,8 +414,17 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
             vec![1]
         }
     };
-    let cores = env.nodes.iter().find(|n| n.0 == nodes[0]).map(|n| n.1).unwrap_or(2);
-    let lanes = f.lanes_per_node.unwrap_or_else(|| (cores / (2 * threads)).max(1));
+    let use_smt = f.smt.unwrap_or(false);
+    // the CPUs of the first node the lanes share: physical cores, or every hardware thread
+    let cores = env.nodes.iter().find(|n| n.0 == nodes[0]).map(|n| if use_smt { n.2 } else { n.1 }).unwrap_or(2);
+    let has_gpu = participants.iter().any(|p| p.gpu);
+    let gpus: Vec<u32> = if has_gpu { f.gpus.clone().unwrap_or_else(|| env.gpus.clone()) } else { Vec::new() };
+    // GPU engines: one game per card at a time
+    let gpu_lanes = (gpus.len().max(1) as u32 / nodes.len().max(1) as u32).max(1);
+    let lanes = f.lanes_per_node.unwrap_or_else(|| {
+        let l = (cores / (2 * threads)).max(1);
+        if has_gpu { l.min(gpu_lanes) } else { l }
+    });
     let book = match f.book.as_deref().filter(|b| !b.trim().is_empty()) {
         Some(b) => {
             let p = std::path::Path::new(b);
@@ -470,6 +489,8 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
         adjudication,
         extra_args: f.extra_args.clone(),
         placement: f.placement.unwrap_or(Placement::Node),
+        use_smt,
+        gpus,
         log_level: "info".into(),
         ccrl_list: list,
         max_retries: 2,
@@ -503,6 +524,8 @@ pub fn from_config(c: &TournamentConfig) -> TournamentFile {
         nodes: Some(c.nodes.clone()),
         lanes_per_node: Some(c.lanes_per_node),
         placement: Some(c.placement),
+        smt: c.use_smt.then_some(true),
+        gpus: (!c.gpus.is_empty()).then(|| c.gpus.clone()),
         book: if c.book.is_empty() { None } else { Some(c.book.clone()) },
         book_start: Some(c.book_start),
         random_openings: c.random_openings.then_some(true),
@@ -562,6 +585,8 @@ games_per_opponent = 30      # even
 # hash_mb = 512              # default: {hash} MB x threads
 # nodes = [0, 1]             # default: all NUMA nodes
 # lanes_per_node = 2         # default: physical cores / (2 x threads)
+# smt = true                 # use both threads of each core (Hyper-Threading / SMT): more games at once
+# gpus = [0, 1]              # graphics cards for GPU engines (Lc0…), one game per card; default: all
 # book = "avt-book-2026.pgn" # default: {book} (Chess960: all 960 start positions, generated)
 # book_start = 1
 # random_openings = true     # one random opening per game (default: each opening twice, colours reversed)
@@ -601,7 +626,7 @@ mod tests {
         vec![mk(1, "Triumviratus", "7.0", None), mk(2, "Stockfish", "17", None), mk(3, "Stockfish", "19", None), mk(4, "Obsidian", "16.0", None), mk(5, "Berserk", "14", Some(4)), mk(6, "Caissa", "2.0", None)]
     }
     fn env<'a>(engines: &'a [EngineEntry], s: &'a Settings) -> Env<'a> {
-        Env { engines, settings: s, nodes: vec![(0, 20), (1, 20)], rating: &|n: &str, _t: u32| (if n.starts_with("Stockfish") { Some(3650.0) } else { None }, false) }
+        Env { engines, settings: s, nodes: vec![(0, 20, 40), (1, 20, 40)], gpus: vec![], rating: &|n: &str, _t: u32| (if n.starts_with("Stockfish") { Some(3650.0) } else { None }, false) }
     }
 
     #[test]

@@ -1,0 +1,33 @@
+import { app } from "./app";
+import { cores } from "./cores";
+import { engines } from "./engines";
+import { tournament } from "./tournament";
+import { themes } from "./themes";
+import { ui } from "./ui";
+import { dashboard } from "./dashboard";
+import { tournaments } from "./tournaments";
+import { wizard } from "./wizard";
+import { detail } from "./detail";
+import { live } from "./live";
+import { games } from "./games";
+import { exportPage } from "./exportPage";
+import { ccrl } from "./ccrl";
+import { bench } from "./bench";
+import { suites } from "./suites";
+import { analysis } from "./analysis";
+import { play } from "./play";
+import { settings } from "./settings";
+import { logs } from "./logs";
+import { start } from "./start";
+import { help } from "./help";
+import { viewer } from "./viewer";
+import { tfile } from "./tfile";
+import { board } from "./board";
+import { broadcast } from "./broadcast";
+import { insights } from "./insights";
+import { uci } from "./uci";
+import { backend } from "./backend";
+
+/** English, the source of every text: one file per area of the app. */
+export const en = { app, cores, engines, tournament, themes, ui, dashboard, tournaments, wizard, detail, live, games, exportPage, ccrl, bench, suites, analysis, play, settings, logs, start, help, viewer, tfile, board, broadcast, insights, uci, backend };
+export type Messages = typeof en;

@@ -1,0 +1,107 @@
+import type { Shape } from "../types";
+import type { app as en } from "../en/app";
+
+export const app: Shape<typeof en> = {
+  ago: "{time} fa",
+  liveGames: { one: "{count} partita in corso", other: "{count} partite in corso" },
+  language: "Lingua",
+  languageAbout: "Lingua dell'interfaccia. Le traduzioni arrivano una pagina alla volta: quello che non è ancora tradotto resta in inglese.",
+
+  group: {
+    testing: "Test",
+    engines: "Motori",
+    analysis: "Analisi",
+    app: "App",
+  },
+  nav: {
+    dashboard: "Pannello",
+    tournaments: "Tornei",
+    live: "Live",
+    games: "Partite",
+    export: "Esporta",
+    engines: "Motori",
+    ccrl: "Liste CCRL",
+    bench: "Bench",
+    analysis: "Analisi partita",
+    suites: "Test suite",
+    play: "Gioca col motore",
+    settings: "Impostazioni",
+    logs: "Log",
+    start: "Per iniziare",
+    help: "Aiuto",
+  },
+
+  sidebar: {
+    tagline: "per i tester CCRL",
+    nextTheme: "Tema successivo (t)",
+    themeTip: "Tema dei colori (altri in Impostazioni → Aspetto)",
+    theme: "Tema",
+    expand: "Espandi la barra laterale",
+    collapse: "Riduci la barra laterale",
+    iconsOnly: "Solo icone",
+  },
+
+  status: {
+    healthy: "tutto a posto",
+    line: "{alive}/{expected} runner · {fastchess} fastchess · {free} GB liberi",
+    alerts: { one: " · {count} avviso", other: " · {count} avvisi" },
+  },
+
+  header: {
+    commandsTip: "Comandi e ricerca",
+    commands: "Comandi",
+  },
+
+  palette: {
+    label: "Palette dei comandi",
+    placeholder: "Scrivi un comando o cerca…",
+    empty: "Nessun risultato.",
+    goTo: "Vai a",
+    actions: "Azioni",
+    newTournament: "Nuovo torneo",
+    startQueue: "Avvia la coda",
+    queueStarted: "Coda avviata",
+    nextTheme: "Tema dei colori successivo",
+    analyse: "Analizza una partita o una posizione",
+    tournaments: "Tornei",
+    pause: "Metti in pausa {name}",
+    pausing: "Messa in pausa di {name}",
+  },
+
+  update: {
+    latest: "TorsGUI {version} è l'ultima versione",
+    available: "TorsGUI {latest}",
+    isAvailable: "è disponibile",
+    youHave: "(hai la {current})",
+    downloading: "download {done} / {total} MB",
+    installing: "installazione… i tornei continuano a girare",
+    releasePage: "pagina della release",
+    assetTip: "{name} ({size} MB) per questo {kind}",
+    now: "Aggiorna ora",
+    whatsNew: "Novità",
+    download: "Scarica",
+    notNow: "Non ora",
+  },
+
+  common: {
+    cancel: "Annulla",
+    close: "Chiudi",
+    save: "Salva",
+    delete: "Elimina",
+    remove: "Rimuovi",
+    edit: "Modifica",
+    open: "Apri",
+    copy: "Copia",
+    copied: "Copiato",
+    refresh: "Aggiorna",
+    search: "Cerca",
+    loading: "Caricamento…",
+    none: "nessuno",
+    yes: "sì",
+    no: "no",
+    all: "Tutti",
+    browse: "Sfoglia…",
+    back: "← Indietro",
+    next: "Avanti →",
+  },
+};

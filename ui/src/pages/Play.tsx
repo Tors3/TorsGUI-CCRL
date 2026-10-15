@@ -13,6 +13,7 @@ import { Empty, Field, Modal, PageHeader, Panel, Seg } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { playGameSound, playMoveSound, useBoardPrefs } from "../lib/boardPrefs";
 import { evalText } from "../lib/format";
+import { useT } from "../i18n";
 
 type Tc = { id: string; label: string; base: number; inc: number; movetime: number };
 const TCS: Tc[] = [
@@ -46,6 +47,7 @@ function strengthOf(e?: EngineEntry) {
 /** A game against an engine of the library. */
 export function PlayPage() {
   const nav = useNavigate();
+  const tr = useT();
   const prefs = useBoardPrefs();
   const { data: engines } = usePoll<EngineEntry[]>("engines_list", {}, 0);
   const usable = useMemo(() => (engines ?? []).filter((e) => e.id != null && e.path && e.verify_status !== "failed"), [engines]);
@@ -150,7 +152,7 @@ export function PlayPage() {
     try {
       const text = await pgn();
       const r = await call<{ path: string }>("pgn_save", { text, folder: "play", name: `${st?.player ?? "Human"} vs ${st?.engine ?? "engine"}` });
-      toast.success(`Saved: ${r.path}`);
+      toast.success(tr("play.saved", { path: r.path }));
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -168,7 +170,7 @@ export function PlayPage() {
   const started = !!st && (st.active || st.result !== "*" || st.moves.length > 0);
   const humanWhite = st?.human_white ?? true;
   const bar = (white: boolean) => {
-    const name = white === humanWhite ? st?.player || "You" : st?.engine;
+    const name = white === humanWhite ? st?.player || tr("play.you") : st?.engine;
     const ms = white ? st?.white_ms : st?.black_ms;
     const toMove = !!st?.active && (st.fen.split(" ")[1] === "w") === white;
     return (
@@ -176,7 +178,7 @@ export function PlayPage() {
         <span className={`inline-block w-3 h-3 rounded-full`} style={{ background: white ? "#f2f2f2" : "#222", border: "1px solid var(--border-strong)" }} />
         <span className="font-medium truncate">{name}</span>
         {st && <Material fen={st.fen || "8/8/8/8/8/8/8/8 w - - 0 1"} side={white ? "w" : "b"} />}
-        {white !== humanWhite && st?.thinking && <span className="muted text-[11.5px]">thinking…</span>}
+        {white !== humanWhite && st?.thinking && <span className="muted text-[11.5px]">{tr("play.thinking")}</span>}
         <span className={`clock ml-auto ${toMove ? "running" : ""}`}>{st && (st.base_ms > 0 ? clock(ms) : white === humanWhite ? "—" : `${st.movetime_ms / 1000}s`)}</span>
       </div>
     );
@@ -197,7 +199,7 @@ export function PlayPage() {
 
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader title="Play against an engine" sub="A game against any engine of the library, with a clock, take-backs and an engine strength you choose" />
+      <PageHeader title={tr("play.title")} sub={tr("play.sub")} />
       <div className="grid gap-4 analysis-grid">
         <BoardColumn id="play" className="flex flex-col gap-2 min-w-0">
           {bar(flip)}
@@ -218,17 +220,17 @@ export function PlayPage() {
           {bar(!flip)}
           <div className="flex items-center gap-1 flex-wrap">
             <button className="btn btn-sm" onClick={() => act("play_undo")} disabled={!st || st.moves.length === 0} data-testid="play-undo">
-              <Undo2 size={13} /> Take back
+              <Undo2 size={13} /> {tr("play.takeBack")}
             </button>
             <button className="btn btn-sm btn-danger" onClick={() => act("play_resign")} disabled={!st?.active} data-testid="play-resign">
-              <Flag size={13} /> Resign
+              <Flag size={13} /> {tr("play.resign")}
             </button>
-            <button className="btn btn-sm btn-icon" aria-label="Flip board" onClick={() => setFlip((f) => !f)}>
+            <button className="btn btn-sm btn-icon" aria-label={tr("play.flip")} onClick={() => setFlip((f) => !f)}>
               <FlipVertical2 size={14} />
             </button>
             <BoardSettingsButton />
             <label className="ml-auto flex items-center gap-1.5 text-[12.5px]">
-              <input type="checkbox" checked={showEval} onChange={(e) => setShowEval(e.target.checked)} data-testid="play-show-eval" /> Show the engine's evaluation
+              <input type="checkbox" checked={showEval} onChange={(e) => setShowEval(e.target.checked)} data-testid="play-show-eval" /> {tr("play.showEval")}
             </label>
           </div>
         </BoardColumn>
@@ -241,11 +243,11 @@ export function PlayPage() {
             </div>
           )}
           {(!st?.active || !started) && (
-            <Panel title={started ? "New game" : "Game"}>
+            <Panel title={started ? tr("play.newGame") : tr("play.game")}>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Engine" className="col-span-2">
+                <Field label={tr("play.engine")} className="col-span-2">
                   <select className="select" value={engineId ?? ""} onChange={(e) => setEngineId(Number(e.target.value))} data-testid="play-engine">
-                    {usable.length === 0 && <option value="">No engine in the library</option>}
+                    {usable.length === 0 && <option value="">{tr("play.noEngine")}</option>}
                     {usable.map((e) => (
                       <option key={e.id} value={e.id!}>
                         {e.display_name}
@@ -253,35 +255,35 @@ export function PlayPage() {
                     ))}
                   </select>
                 </Field>
-                <Field label="You play">
-                  <Seg value={color} onChange={setColor} options={[{ value: "white", label: "White" }, { value: "black", label: "Black" }, { value: "random", label: "Random" }]} />
+                <Field label={tr("play.youPlay")}>
+                  <Seg value={color} onChange={setColor} options={[{ value: "white", label: tr("play.white") }, { value: "black", label: tr("play.black") }, { value: "random", label: tr("play.random") }]} />
                 </Field>
-                <Field label="Time control (minutes + seconds per move)">
+                <Field label={tr("play.tc")}>
                   <select className="select" value={tc} onChange={(e) => setTc(e.target.value)} data-testid="play-tc">
                     {TCS.map((t) => (
                       <option key={t.id} value={t.id}>
-                        {t.label}
+                        {t.id === "move1" ? tr("play.engineMove1") : t.id === "move5" ? tr("play.engineMove5") : t.label}
                       </option>
                     ))}
                   </select>
                 </Field>
-                <Field label="Strength" className="col-span-2" hint={str ? undefined : "this engine has no strength setting (UCI_Elo or Skill Level): it plays at full strength"}>
+                <Field label={tr("play.strength")} className="col-span-2" hint={str ? undefined : tr("play.noStrength")}>
                   {str ? (
                     <div className="flex items-center gap-2">
-                      <input type="checkbox" checked={limit} onChange={(e) => setLimit(e.target.checked)} aria-label="Limit the strength" />
-                      <input type="range" className="flex-1" min={str.min} max={str.max} step={str.kind === "elo" ? 50 : 1} value={strength} disabled={!limit} onChange={(e) => setStrength(+e.target.value)} aria-label="Strength" />
-                      <span className="tnum w-24 text-right">{limit ? (str.kind === "elo" ? `${strength} Elo` : `level ${strength}`) : "full strength"}</span>
+                      <input type="checkbox" checked={limit} onChange={(e) => setLimit(e.target.checked)} aria-label={tr("play.limit")} />
+                      <input type="range" className="flex-1" min={str.min} max={str.max} step={str.kind === "elo" ? 50 : 1} value={strength} disabled={!limit} onChange={(e) => setStrength(+e.target.value)} aria-label={tr("play.strength")} />
+                      <span className="tnum w-24 text-right">{limit ? (str.kind === "elo" ? tr("play.elo", { n: strength }) : tr("play.level", { n: strength })) : tr("play.full")}</span>
                     </div>
                   ) : (
-                    <span className="muted text-[12.5px]">Full strength</span>
+                    <span className="muted text-[12.5px]">{tr("play.fullCap")}</span>
                   )}
                 </Field>
-                <Field label="Start position (FEN, empty = the usual start)" className="col-span-2">
+                <Field label={tr("play.fen")} className="col-span-2">
                   <input className="input mono" value={fen} onChange={(e) => setFen(e.target.value)} placeholder="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" data-testid="play-fen" />
                 </Field>
               </div>
               <button className="btn btn-primary mt-3 w-full justify-center" onClick={start} disabled={engineId == null} data-testid="play-start">
-                <PlayIcon size={14} /> Start the game
+                <PlayIcon size={14} /> {tr("play.start")}
               </button>
             </Panel>
           )}
@@ -296,7 +298,7 @@ export function PlayPage() {
               )}
               <div ref={listRef} className="panel overflow-auto mono text-[12.5px]" style={{ maxHeight: 360, maxWidth: 360 }} data-testid="play-moves">
                 {rows.length === 0 ? (
-                  <div className="p-2 muted">{st?.human_to_move ? "Your move." : "The engine is thinking…"}</div>
+                  <div className="p-2 muted">{st?.human_to_move ? tr("play.yourMove") : tr("play.engineThinking")}</div>
                 ) : (
                   <div className="movelist">
                     {rows.map((r) => (
@@ -318,35 +320,35 @@ export function PlayPage() {
               </div>
               <div className="flex gap-2 flex-wrap">
                 <button className="btn btn-sm" onClick={save} disabled={!st?.moves.length} data-testid="play-save">
-                  <Save size={12} /> Save PGN
+                  <Save size={12} /> {tr("play.save")}
                 </button>
                 <button
                   className="btn btn-sm"
                   onClick={async () => {
                     try {
                       await navigator.clipboard.writeText(await pgn());
-                      toast.success("PGN copied");
+                      toast.success(tr("play.copied"));
                     } catch {
-                      toast.error("The clipboard is not available: use Save PGN");
+                      toast.error(tr("play.noClipboard"));
                     }
                   }}
                   disabled={!st?.moves.length}
                 >
-                  <Copy size={12} /> Copy PGN
+                  <Copy size={12} /> {tr("play.copy")}
                 </button>
                 <button className="btn btn-sm" onClick={analyse} disabled={!st?.moves.length || !!st?.active} data-testid="play-analyse">
-                  <Microscope size={12} /> Analyse the game
+                  <Microscope size={12} /> {tr("play.analyse")}
                 </button>
               </div>
             </>
           ) : (
             <Panel>
-              <Empty icon={<Gamepad2 size={18} />}>Choose an engine, your colour and the time control, then start. Drag or click the pieces to move; you can take back moves.</Empty>
+              <Empty icon={<Gamepad2 size={18} />}>{tr("play.empty")}</Empty>
             </Panel>
           )}
         </div>
       </div>
-      <Modal open={!!promo} onOpenChange={(o) => !o && setPromo(null)} title="Promote to" width={320}>
+      <Modal open={!!promo} onOpenChange={(o) => !o && setPromo(null)} title={tr("play.promote")} width={320}>
         <div className="grid grid-cols-4 gap-2" data-testid="play-promotion">
           {(["q", "r", "b", "n"] as const).map((p) => (
             <button
@@ -357,7 +359,7 @@ export function PlayPage() {
                 setPromo(null);
                 act("play_move", { uci: u });
               }}
-              aria-label={`promote to ${p}`}
+              aria-label={tr("play.promoteTo", { piece: p })}
             >
               {{ q: humanWhite ? "♕" : "♛", r: humanWhite ? "♖" : "♜", b: humanWhite ? "♗" : "♝", n: humanWhite ? "♘" : "♞" }[p]}
             </button>

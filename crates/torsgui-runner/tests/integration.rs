@@ -85,6 +85,8 @@ fn part(name: &str, role: Role, args: &str) -> Participant {
         threads: None,
         hash_mb: None,
         withdrawn: false,
+            gpu: false,
+            gpu_select: String::new(),
     }
 }
 
@@ -139,6 +141,8 @@ fn config(e: &Env, name: &str, opps: &[(&str, &str)], games: u32, lanes: u32, mo
         adjudication: Adjudication::default(),
         extra_args: vec!["-maxmoves".into(), "80".into()],
         placement: Placement::Node,
+        use_smt: false,
+        gpus: vec![],
         log_level: "info".into(),
         ccrl_list: "Blitz".into(),
         max_retries: 1,

@@ -423,6 +423,20 @@ CREATE TABLE IF NOT EXISTS bench_runs (
 );
 "#;
 
+/// Columns added after a release (the database of an older TorsGUI gets them on open).
+fn migrate(conn: &Connection) -> Result<()> {
+    let has = |table: &str, col: &str| -> Result<bool> {
+        let mut st = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+        let cols: Vec<String> = st.query_map([], |r| r.get::<_, String>(1))?.collect::<std::result::Result<_, _>>()?;
+        Ok(cols.iter().any(|c| c == col))
+    };
+    // the state a tournament had when it was queued, given back when it leaves the queue
+    if !has("tournaments", "queued_from")? {
+        conn.execute("ALTER TABLE tournaments ADD COLUMN queued_from TEXT", [])?;
+    }
+    Ok(())
+}
+
 impl Store {
     pub fn open(path: &Path) -> Result<Store> {
         let conn = Connection::open(path).with_context(|| format!("opening {}", path.display()))?;
@@ -431,12 +445,14 @@ impl Store {
         conn.pragma_update(None, "foreign_keys", "ON")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.execute_batch(SCHEMA)?;
+        migrate(&conn)?;
         Ok(Store { conn })
     }
 
     pub fn in_memory() -> Result<Store> {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch(SCHEMA)?;
+        migrate(&conn)?;
         Ok(Store { conn })
     }
 
@@ -635,10 +651,30 @@ impl Store {
     pub fn enqueue(&self, id: &str) -> Result<()> {
         let pos: i64 = self.conn.query_row("SELECT COALESCE(MAX(queue_pos),0)+1 FROM tournaments", [], |r| r.get(0))?;
         self.conn.execute(
-            "UPDATE tournaments SET state='queued', desired='run', queue_pos=?2 WHERE id=?1",
+            "UPDATE tournaments SET queued_from=CASE WHEN state='queued' THEN queued_from ELSE state END, \
+             state='queued', desired='run', queue_pos=?2 WHERE id=?1",
             params![id, pos],
         )?;
         Ok(())
+    }
+    /// Takes a tournament out of the queue, back to the state it had when it was queued
+    /// (draft, paused or stopped: one that already has games keeps its Resume). Queued by an
+    /// older TorsGUI: stopped when it has games, else draft.
+    pub fn unqueue(&self, id: &str) -> Result<TState> {
+        let (from, done): (Option<String>, i64) =
+            self.conn.query_row("SELECT queued_from, COALESCE(done_games,0) FROM tournaments WHERE id=?1", [id], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        let (state, desired) = match from.as_deref() {
+            Some("paused") => (TState::Paused, Desired::Pause),
+            Some("stopped") => (TState::Stopped, Desired::Stop),
+            Some("draft") => (TState::Draft, Desired::Run),
+            _ if done > 0 => (TState::Stopped, Desired::Stop),
+            _ => (TState::Draft, Desired::Run),
+        };
+        self.conn.execute(
+            "UPDATE tournaments SET state=?2, desired=?3, queue_pos=NULL, queued_from=NULL WHERE id=?1 AND state='queued'",
+            params![id, state.as_str(), desired.as_str()],
+        )?;
+        Ok(state)
     }
     pub fn queue(&self) -> Result<Vec<TournamentRecord>> {
         let mut st = self.conn.prepare(&format!(
@@ -894,5 +930,42 @@ mod portable_tests {
         std::fs::write(shared.join("later.txt"), b"x").unwrap();
         assert_eq!(Workspace::portable_root(&app, &shared), app.join("data"));
         assert!(!root.join("later.txt").exists());
+    }
+}
+
+#[cfg(test)]
+mod queue_tests {
+    use super::*;
+
+    #[test]
+    fn unqueue_gives_back_the_previous_state() {
+        let st = Store::in_memory().unwrap();
+        let add = |id: &str, state: TState| {
+            let rec = TournamentRecord { id: id.into(), state, ..Default::default() };
+            st.insert_tournament(&rec).unwrap();
+            st.set_state(id, state).unwrap();
+        };
+        let state = |id: &str| st.tournament(id).unwrap().unwrap().state;
+        // a paused tournament keeps its Resume after leaving the queue
+        add("p", TState::Paused);
+        st.set_desired("p", Desired::Pause).unwrap();
+        st.enqueue("p").unwrap();
+        st.enqueue("p").unwrap(); // queued twice: still comes back paused
+        assert_eq!(state("p"), TState::Queued);
+        assert_eq!(st.unqueue("p").unwrap(), TState::Paused);
+        assert_eq!((state("p"), st.desired("p").unwrap()), (TState::Paused, Desired::Pause));
+        assert!(st.queue().unwrap().is_empty());
+        // a draft goes back to draft
+        add("d", TState::Draft);
+        st.enqueue("d").unwrap();
+        assert_eq!(st.unqueue("d").unwrap(), TState::Draft);
+        // queued by an older TorsGUI (no queued_from): stopped when it has games
+        add("o", TState::Queued);
+        st.conn.execute("UPDATE tournaments SET done_games=12 WHERE id='o'", []).unwrap();
+        assert_eq!(st.unqueue("o").unwrap(), TState::Stopped);
+        // a tournament that is not queued is left alone
+        add("r", TState::Running);
+        st.unqueue("r").unwrap();
+        assert_eq!(state("r"), TState::Running);
     }
 }

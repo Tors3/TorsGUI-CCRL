@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import type { Key } from "../i18n";
 
 /** Colour themes of the app (the board has its own themes in Settings → Board appearance). */
 export const THEMES = [
@@ -12,9 +13,14 @@ export const THEMES = [
   { id: "forest", label: "Forest", scheme: "dark", about: "Dark green, easy on the eyes for long sessions" },
   { id: "coffee", label: "Coffee", scheme: "dark", about: "Espresso browns, crema text and a caramel accent" },
   { id: "szots", label: "Szőts", scheme: "light", about: "Made for Gabor Szőts, who tested TorsGUI release after release and reported everything useful or missing. Thank you, Gabor! Warm cream and amber like his favourite Arena look; pairs with the Szőts wood board" },
+  { id: "basti", label: "Bastiii", scheme: "dark", about: "Made for Bastiii (Bastiball21), who tests TorsGUI and runs tournaments with it, and sent the ideas for many of its improvements. Thank you, Bastiii! Deep green card-table felt with a brass trim; pairs with the Bastiii felt board" },
   { id: "contrast", label: "High contrast", scheme: "dark", about: "Black and white with strong borders" },
 ] as const;
 export type ThemeId = (typeof THEMES)[number]["id"];
+
+/** The name and the description of a theme in the interface language (i18n area "themes"). */
+export const themeLabel = (id: ThemeId, t: (k: Key) => string) => t(`themes.${id}.label` as Key);
+export const themeAbout = (id: ThemeId, t: (k: Key) => string) => t(`themes.${id}.about` as Key);
 
 const KEY = "torsgui-theme";
 const KEY_CHOSEN = "torsgui-theme-chosen";

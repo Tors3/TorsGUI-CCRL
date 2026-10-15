@@ -104,10 +104,40 @@ pub fn candidate_urls(src: &ListSource) -> Vec<String> {
     v
 }
 
+/// The HTML entities of the CCRL pages decoded: numeric ones (`&#8722;` minus, `&#8209;` the
+/// non-breaking hyphen of tied ranks "6‑7") and the named ones they use.
+fn decode_entities(s: &str) -> String {
+    static ENT: Lazy<Regex> = Lazy::new(|| Regex::new(r"&(#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z]+);").unwrap());
+    ENT.replace_all(s, |c: &regex::Captures| {
+        let e = &c[1];
+        let ch = if let Some(h) = e.strip_prefix("#x").or_else(|| e.strip_prefix("#X")) {
+            u32::from_str_radix(h, 16).ok().and_then(char::from_u32)
+        } else if let Some(d) = e.strip_prefix('#') {
+            d.parse::<u32>().ok().and_then(char::from_u32)
+        } else {
+            match e {
+                "amp" => Some('&'),
+                "lt" => Some('<'),
+                "gt" => Some('>'),
+                "quot" => Some('"'),
+                "apos" => Some('\''),
+                "nbsp" => Some(' '),
+                "mdash" => Some('\u{2014}'),
+                "ndash" => Some('\u{2013}'),
+                "minus" => Some('\u{2212}'),
+                "plusmn" => Some('±'),
+                _ => None,
+            }
+        };
+        ch.map(|c| c.to_string()).unwrap_or_else(|| c[0].to_string())
+    })
+    .into_owned()
+}
+
 fn strip_tags(s: &str) -> String {
     static TAG: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?s)<[^>]*>").unwrap());
-    let t = TAG.replace_all(s, " ");
-    t.replace("&nbsp;", " ")
+    let t = decode_entities(&TAG.replace_all(s, " "));
+    t.replace('\u{a0}', " ")
         .replace("&amp;", "&")
         .replace("&plusmn;", "±")
         .replace("&minus;", "-")
@@ -122,7 +152,9 @@ fn num(s: &str) -> Option<f64> {
     t.trim_start_matches('+').parse().ok()
 }
 
-/// Parses rows of an HTML page (any table with Rank/Name/Rating-like headers).
+/// Parses rows of an HTML page (any table with Rank/Name/Rating-like headers). Only the
+/// first rating table counts: a CCRL page goes on with the results and LOS matrices of the
+/// top engines, whose rows would repeat them; a name is kept once.
 pub fn parse_html(html: &str) -> Vec<CcrlEntry> {
     static TR: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)<tr[^>]*>(.*?)</tr>").unwrap());
     static TD: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)<t[dh]([^>]*)>(.*?)</t[dh]>").unwrap());
@@ -136,6 +168,10 @@ pub fn parse_html(html: &str) -> Vec<CcrlEntry> {
         }
         let lower: Vec<String> = cells.iter().map(|c| c.to_lowercase()).collect();
         if lower.iter().any(|c| c == "rank" || c == "#") && lower.iter().any(|c| c.contains("name") || c.contains("engine")) {
+            if !out.is_empty() {
+                // the header of a second table: the list is complete
+                break;
+            }
             // CCRL: "Rating" spans three columns (Elo, +, -) in a second header row:
             // expand every header cell by its colspan so the columns line up with the data
             let mut h = Vec::new();
@@ -149,8 +185,13 @@ pub fn parse_html(html: &str) -> Vec<CcrlEntry> {
             header = Some(h);
             continue;
         }
-        if let Some(e) = row_to_entry(&cells, header.as_deref()) {
-            out.push(e);
+        if let Some(mut e) = row_to_entry(&cells, header.as_deref()) {
+            if e.rank == 0 {
+                e.rank = out.last().map(|x: &CcrlEntry| x.rank).unwrap_or(1);
+            }
+            if !out.iter().any(|x: &CcrlEntry| x.name == e.name) {
+                out.push(e);
+            }
         }
     }
     if out.is_empty() {
@@ -175,8 +216,11 @@ fn row_to_entry(cells: &[String], header: Option<&[String]>) -> Option<CcrlEntry
             (r, n, t)
         }
     };
-    // tied ranks are written "14-15"
-    let rank: i64 = cells.get(ri)?.trim().split(['-', '\u{2013}', '.', ' ']).next()?.parse().ok()?;
+    // tied ranks are written "14-15" (on the CCRL site with a non-breaking hyphen, U+2011);
+    // in the complete lists only the best version of an engine has a rank: the others have
+    // none (0 here, the caller gives them the rank of the row above)
+    let rank_cell = cells.get(ri)?.trim();
+    let rank: i64 = if rank_cell.is_empty() && header.is_some() { 0 } else { rank_cell.split(['-', '\u{2010}', '\u{2011}', '\u{2013}', '.', ' ']).next()?.parse().ok()? };
     let name = cells.get(ni)?.trim().to_string();
     let rating = num(cells.get(rti)?)?;
     if name.is_empty() || !(500.0..6000.0).contains(&rating) {
@@ -781,6 +825,35 @@ mod tests {
     }
 
     #[test]
+    fn ccrl_page_tied_ranks_entities_and_matrices() {
+        // the CCRL 40/15 page (October 2026): tied ranks "6&#8209;7", minus as &#8722;, a LOS
+        // row after each engine, then the results matrix of the top engines (its rows must
+        // not add the engines again)
+        let row = |rank: &str, name: &str, elo: u32, games: u32| {
+            format!(r#"<tr class="odd"><td rowspan=2 class="number"><b>{rank}</b></td><td rowspan=2 class="name"><span class="oss"><b><a href="x">{name}</a></b></span></td><td rowspan=2 class="number_left"><b>{elo}</b></td><td rowspan=2 class=number_2><b>+17</b></td><td rowspan=2 class=number_2><b>&#8722;17</b></td><td rowspan=2 class=number><b>53.6%</b></td><td rowspan=2 class=number><b>&#8722;21.9</b></td><td rowspan=2 class=number><b>92.6%</b></td><td rowspan=2 class=number><a href="g.7z"><b>{games}</b></a></td></tr>
+<tr><td rowspan=2 class="los"><div><b>72.5%</b></div></td></tr>"#)
+        };
+        let html = format!(
+            r#"<table class=rating_table><tr><td rowspan=2 class=header>Rank</td><td rowspan=2 class=header>Name</td><td colspan=3 class=header>Rating</td><td rowspan=2 class=header>Score</td><td rowspan=2 class=header>Average<br>Opponent</td><td rowspan=2 class=header>Draws</td><td rowspan=2 class=header>Games</td><td rowspan=2 class=header>LOS</td></tr>
+<tr><td class=header>Elo</td><td class=header>+</td><td class=header>&#8722;</td></tr>{}{}{}</table>
+<p>Results matrix</p><table class=crosstable><tr><td>#</td><td>Engine</td><td>Rating</td><td>1</td></tr>
+<tr><td>1</td><td>Stockfish 19 64-bit 4CPU</td><td>3650</td><td>x</td></tr></table>
+<table class=crosstable><tr><td>1</td><td>Stockfish 19 64-bit 4CPU</td><td>3650</td></tr></table>"#,
+            row("1", "Stockfish 19 64-bit 4CPU", 3650, 698),
+            row("6&#8209;7", "Coda 0.9.4 64-bit 4CPU", 3638, 600),
+            row("6&#8209;7", "Integral v8 64-bit 4CPU", 3638, 630),
+        );
+        // the complete list: older versions have no rank (&nbsp;)
+        let html = html.replacen("</table>", &format!("{}</table>", row("&nbsp;", "Integral v7 64-bit 4CPU", 3600, 900)), 1);
+        let e = parse_html(&html);
+        let names: Vec<&str> = e.iter().map(|x| x.name.as_str()).collect();
+        assert_eq!(names, ["Stockfish 19 64-bit 4CPU", "Coda 0.9.4 64-bit 4CPU", "Integral v8 64-bit 4CPU", "Integral v7 64-bit 4CPU"]);
+        assert_eq!((e[1].rank, e[2].rank, e[3].rank), (6, 6, 6));
+        assert_eq!((e[0].games, e[1].err_minus), (Some(698), Some(17.0)));
+        assert_eq!(strip_tags("CCRL 40/15 Rating List &mdash; All"), "CCRL 40/15 Rating List \u{2014} All");
+    }
+
+    #[test]
     fn bundled_snapshots() {
         let l = snapshot_lists();
         assert_eq!(l.len(), 3);
@@ -983,3 +1056,4 @@ mod tests {
         assert_eq!(list_spelling(&lists, "Blitz", &al, "Integral-dev").unwrap().0, "Integral 8");
     }
 }
+

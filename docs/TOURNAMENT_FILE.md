@@ -61,7 +61,9 @@ Contempt = "0"
 | `passes` | 1 | split the openings into passes: stopping after a pass stays balanced; in a Swiss, the number of rounds |
 | `nodes` | all | NUMA nodes (opening partitions); a short match uses fewer when there are fewer openings |
 | `lanes_per_node` | cores / (2 × threads) | concurrent games per node |
-| `placement` | `node` | `node`, `lane` or `none` |
+| `placement` | `node` | `node` (locked to the NUMA node, or shared on a one-node machine), `lane` (fixed CPUs per game) or `none` (no limits) |
+| `smt` | `false` | `true`: the lanes use both hardware threads of each core (SMT / Hyper-Threading), so the default lanes count logical CPUs; CCRL machines run one engine thread per physical core |
+| `gpus` | all cards | graphics cards for GPU engines (Lc0…), e.g. `[0, 1]`: one game per card at a time, lane i on card i; with GPU engines the default lanes are one per card |
 | `book` | settings | opening book, absolute or relative to the books folder |
 | `book_start` | 1 | first opening of the book |
 | `syzygy` | settings | Syzygy path passed to engines |

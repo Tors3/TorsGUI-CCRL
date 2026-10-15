@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from "react";
+import { t } from "../i18n";
 
 /** Keeps one broken screen from blanking the whole app; resets when the route changes. */
 export class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: string }, { error: Error | null }> {
@@ -13,13 +14,13 @@ export class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: s
     if (!this.state.error) return this.props.children;
     return (
       <div className="panel p-4 flex flex-col gap-2" role="alert">
-        <b>This screen hit an error</b>
+        <b>{t("ui.error.title")}</b>
         <pre className="mono text-[12px] whitespace-pre-wrap" style={{ color: "var(--loss)" }}>
           {String(this.state.error.stack ?? this.state.error)}
         </pre>
         <div>
           <button className="btn" onClick={() => this.setState({ error: null })}>
-            Try again
+            {t("ui.error.retry")}
           </button>
         </div>
       </div>

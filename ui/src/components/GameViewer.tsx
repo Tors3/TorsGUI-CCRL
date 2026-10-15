@@ -12,6 +12,7 @@ import { BoardColumn } from "./BoardColumn";
 import { BoardSettingsButton } from "./BoardSettings";
 import { LineChart } from "./Chart";
 import { ErrorBox, Modal, Result, Spinner } from "./ui";
+import { useT } from "../i18n";
 
 export type GameRef = { source: string; index: number; title?: string };
 
@@ -67,6 +68,7 @@ function PlayerBar({ name, engine, fen, side, clock, active }: { name?: string; 
 }
 
 export function GameViewer({ game, onClose }: { game: GameRef | null; onClose: () => void }) {
+  const tr = useT();
   const prefs = useBoardPrefs();
   const navigate = useNavigate();
   const [data, setData] = useState<ViewerGame>();
@@ -174,7 +176,7 @@ export function GameViewer({ game, onClose }: { game: GameRef | null; onClose: (
     if (i == null) return <span />;
     const p = plies[i];
     return (
-      <button data-ply={i + 1} className={i + 1 === ply ? "active" : ""} onClick={() => setPly(i + 1)} title={p.info.book ? "book" : `${evalText(p.eval_cp)} d${p.info.depth ?? "?"} ${p.info.time_s ?? "?"}s`}>
+      <button data-ply={i + 1} className={i + 1 === ply ? "active" : ""} onClick={() => setPly(i + 1)} title={p.info.book ? tr("viewer.book") : `${evalText(p.eval_cp)} d${p.info.depth ?? "?"} ${p.info.time_s ?? "?"}s`}>
         <span className={p.info.book ? "book" : ""}>{p.san}</span>
         <span className="ev">{p.info.book ? "" : p.info.mate ? `M${p.info.mate}` : p.info.eval != null ? p.info.eval.toFixed(2) : ""}</span>
       </button>
@@ -187,7 +189,7 @@ export function GameViewer({ game, onClose }: { game: GameRef | null; onClose: (
       width={theater ? 1900 : 1200}
       title={
         <span className="flex items-center gap-2">
-          {h.White ?? "…"} <span className="muted">vs</span> {h.Black ?? "…"} {data && <Result r={data.result} />}
+          {h.White ?? "…"} <span className="muted">{tr("viewer.vs")}</span> {h.Black ?? "…"} {data && <Result r={data.result} />}
         </span>
       }
     >
@@ -207,16 +209,16 @@ export function GameViewer({ game, onClose }: { game: GameRef | null; onClose: (
             </div>
             <PlayerBar {...player(bottomSide)} fen={fen} side={bottomSide} />
             <div className="flex justify-center items-center gap-1 mt-1">
-              <button className="btn btn-icon" aria-label="Start" onClick={() => setPly(0)}>
+              <button className="btn btn-icon" aria-label={tr("viewer.start")} onClick={() => setPly(0)}>
                 <ChevronFirst size={15} />
               </button>
-              <button className="btn btn-icon" aria-label="Previous" onClick={() => setPly((p) => Math.max(0, p - 1))}>
+              <button className="btn btn-icon" aria-label={tr("viewer.previous")} onClick={() => setPly((p) => Math.max(0, p - 1))}>
                 <ChevronLeft size={15} />
               </button>
               <button
                 className="btn btn-primary btn-icon"
-                aria-label={playing ? "Pause" : "Play"}
-                title="Play / pause (space)"
+                aria-label={playing ? tr("viewer.pause") : tr("viewer.play")}
+                title={tr("viewer.playTip")}
                 onClick={() => {
                   if (ply >= n) setPly(0);
                   setPlaying((p) => !p || ply >= n);
@@ -225,13 +227,13 @@ export function GameViewer({ game, onClose }: { game: GameRef | null; onClose: (
               >
                 {playing ? <Pause size={15} /> : <Play size={15} />}
               </button>
-              <button className="btn btn-icon" aria-label="Next" onClick={() => setPly((p) => Math.min(n, p + 1))}>
+              <button className="btn btn-icon" aria-label={tr("viewer.next")} onClick={() => setPly((p) => Math.min(n, p + 1))}>
                 <ChevronRight size={15} />
               </button>
-              <button className="btn btn-icon" aria-label="End" onClick={() => setPly(n)}>
+              <button className="btn btn-icon" aria-label={tr("viewer.end")} onClick={() => setPly(n)}>
                 <ChevronLast size={15} />
               </button>
-              <select className="select !w-auto !h-[30px] text-[12px]" value={speed} onChange={(e) => setSpeed(Number(e.target.value))} aria-label="Autoplay speed">
+              <select className="select !w-auto !h-[30px] text-[12px]" value={speed} onChange={(e) => setSpeed(Number(e.target.value))} aria-label={tr("viewer.speed")}>
                 {SPEEDS.map((s) => (
                   <option key={s} value={s}>
                     {s}×
@@ -239,16 +241,16 @@ export function GameViewer({ game, onClose }: { game: GameRef | null; onClose: (
                 ))}
               </select>
               <span className="w-2" />
-              <button className="btn btn-icon" aria-label="Flip board" title="Flip (f)" onClick={() => setFlip((f) => !f)}>
+              <button className="btn btn-icon" aria-label={tr("viewer.flip")} title={tr("viewer.flipTip")} onClick={() => setFlip((f) => !f)}>
                 <FlipVertical2 size={15} />
               </button>
-              <button className="btn btn-icon" aria-label={theater ? "Normal size" : "Theater mode"} title="Theater mode (t)" onClick={() => setTheater((t) => !t)}>
+              <button className="btn btn-icon" aria-label={theater ? tr("viewer.normal") : tr("viewer.theater")} title={tr("viewer.theaterTip")} onClick={() => setTheater((t) => !t)}>
                 {theater ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
               </button>
               <BoardSettingsButton />
               <button
                 className="btn btn-sm ml-1"
-                title="Analyse this game with an engine"
+                title={tr("viewer.analyseTip")}
                 onClick={() => {
                   if (!game) return;
                   onClose();
@@ -256,32 +258,32 @@ export function GameViewer({ game, onClose }: { game: GameRef | null; onClose: (
                 }}
                 data-testid="viewer-analyse"
               >
-                <Microscope size={13} /> Analyse
+                <Microscope size={13} /> {tr("viewer.analyse")}
               </button>
             </div>
             <div className="panel p-2 grid grid-cols-3 gap-2 text-[12px] tnum">
               <div>
-                <div className="kpi-label">Eval</div>
-                <span className="eval-value">{cur?.info.book ? "book" : evalText(cur?.eval_cp)}</span>
+                <div className="kpi-label">{tr("viewer.eval")}</div>
+                <span className="eval-value">{cur?.info.book ? tr("viewer.book") : evalText(cur?.eval_cp)}</span>
               </div>
               <div>
-                <div className="kpi-label">Depth</div>
+                <div className="kpi-label">{tr("viewer.depth")}</div>
                 {cur?.info.depth ?? "—"}/{cur?.info.seldepth ?? "—"}
               </div>
               <div>
-                <div className="kpi-label">Time</div>
+                <div className="kpi-label">{tr("viewer.time")}</div>
                 {cur?.info.time_s != null ? `${cur.info.time_s.toFixed(2)}s` : "—"}
               </div>
               <div>
-                <div className="kpi-label">Left</div>
+                <div className="kpi-label">{tr("viewer.left")}</div>
                 {cur?.info.time_left_s != null ? `${cur.info.time_left_s.toFixed(1)}s` : "—"}
               </div>
               <div>
-                <div className="kpi-label">Nodes</div>
+                <div className="kpi-label">{tr("viewer.nodes")}</div>
                 {num(cur?.info.nodes)}
               </div>
               <div>
-                <div className="kpi-label">NPS</div>
+                <div className="kpi-label">{tr("viewer.nps")}</div>
                 {nps(cur?.info.nps)}
               </div>
             </div>
@@ -299,12 +301,12 @@ export function GameViewer({ game, onClose }: { game: GameRef | null; onClose: (
               ))}
             </div>
             <div>
-              <div className="kpi-label mb-1">Evaluation (White's view, pawns) — click to jump</div>
+              <div className="kpi-label mb-1">{tr("viewer.evalTitle")}</div>
               <LineChart
                 x={xs}
                 series={[
-                  { label: "White engine", color: "var(--text)", values: series.we },
-                  { label: "Black engine", color: "#e3b341", values: series.be },
+                  { label: tr("viewer.whiteEngine"), color: "var(--text)", values: series.we },
+                  { label: tr("viewer.blackEngine"), color: "#e3b341", values: series.be },
                 ]}
                 height={theater ? 190 : 150}
                 zeroLine
@@ -313,12 +315,12 @@ export function GameViewer({ game, onClose }: { game: GameRef | null; onClose: (
               />
             </div>
             <div>
-              <div className="kpi-label mb-1">Time per move (s)</div>
+              <div className="kpi-label mb-1">{tr("viewer.timeTitle")}</div>
               <LineChart
                 x={xs}
                 series={[
-                  { label: "White", color: "var(--text)", values: series.wt },
-                  { label: "Black", color: "#e3b341", values: series.bt },
+                  { label: tr("viewer.white"), color: "var(--text)", values: series.wt },
+                  { label: tr("viewer.black"), color: "#e3b341", values: series.bt },
                 ]}
                 height={90}
                 marker={ply || undefined}

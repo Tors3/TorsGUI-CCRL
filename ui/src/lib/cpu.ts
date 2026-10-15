@@ -18,15 +18,21 @@ export function cpuLabel(participants: P[], threads: number): string {
   return `${join(seeds)} vs ${join(opps)}`;
 }
 
-/** Physical cores one lane needs: the two engines of the heaviest pairing (mirrors `model::cores_per_lane`). */
-export function coresPerLane(kind: TournamentKind, participants: P[], threads: number): number {
+/** Threads of the two engines of the heaviest game: [seed, opponent] in a gauntlet, else the two largest. */
+export function heaviestPair(kind: TournamentKind, participants: P[], threads: number): [number, number] {
   const t = (p: P) => threadsOf(p, threads);
   const gauntlet = kind === "gauntlet" || kind === "multi_gauntlet";
   const seeds = participants.filter((p) => p.role === "seed").map(t);
   const opps = participants.filter((p) => p.role === "opponent").map(t);
-  if (gauntlet && seeds.length && opps.length) return Math.max(2, Math.max(...seeds) + Math.max(...opps));
+  if (gauntlet && seeds.length && opps.length) return [Math.max(...seeds), Math.max(...opps)];
   const all = participants.map(t).sort((a, b) => b - a);
-  if (all.length === 0) return 2 * Math.max(1, threads);
-  if (all.length === 1) return 2 * all[0];
-  return Math.max(2, all[0] + all[1]);
+  if (all.length === 0) return [Math.max(1, threads), Math.max(1, threads)];
+  if (all.length === 1) return [all[0], all[0]];
+  return [all[0], all[1]];
+}
+
+/** CPUs one lane needs: the two engines of the heaviest pairing (mirrors `model::cores_per_lane`). */
+export function coresPerLane(kind: TournamentKind, participants: P[], threads: number): number {
+  const [a, b] = heaviestPair(kind, participants, threads);
+  return Math.max(2, a + b);
 }

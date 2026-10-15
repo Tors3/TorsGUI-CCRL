@@ -11,6 +11,7 @@ import type { TournamentSummary } from "../bindings/TournamentSummary";
 import { ErrorBox, Field, PageHeader, Panel, Seg, Spinner } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { HelpLink } from "../components/HelpLink";
+import { useMsg, useT, type Key } from "../i18n";
 
 const CHECK_ICON = {
   ok: <CheckCircle2 size={14} style={{ color: "var(--win)" }} />,
@@ -23,6 +24,8 @@ const CHECK_ICON = {
 function CcrlChecklist({ id, stamp }: { id: string; stamp: number }) {
   const [c, setC] = useState<Checklist>();
   const [err, setErr] = useState<string>();
+  const t = useT();
+  const tm = useMsg();
   useEffect(() => {
     setC(undefined);
     if (id) call<Checklist>("export_checklist", { id }).then(setC).catch((e) => setErr((e as Error).message));
@@ -33,15 +36,15 @@ function CcrlChecklist({ id, stamp }: { id: string; stamp: number }) {
     <Panel
       title={
         <span className="flex items-center gap-2">
-          CCRL checklist
+          {t("exportPage.checklist")}
           {c && (
             <span className={`chip ${fails ? "chip-loss" : warns ? "chip-warn" : "chip-win"}`} data-testid="checklist-status">
-              {fails ? `${fails} to fix` : warns ? `ready · ${warns} to check` : "ready to submit"}
+              {fails ? t("exportPage.toFix", { count: fails }) : warns ? t("exportPage.toCheck", { count: warns }) : t("exportPage.ready")}
             </span>
           )}
         </span>
       }
-      actions={<HelpLink section="ccrl-submission-checklist" label="What each check means" />}
+      actions={<HelpLink section="ccrl-submission-checklist" label={t("exportPage.checksHelp")} />}
     >
       <ErrorBox error={err} />
       {!c ? (
@@ -52,7 +55,7 @@ function CcrlChecklist({ id, stamp }: { id: string; stamp: number }) {
             <div key={i.id} className="flex gap-2 items-start min-w-0" data-status={i.status}>
               <span className="mt-0.5 shrink-0">{CHECK_ICON[i.status]}</span>
               <span className="min-w-0">
-                <span className="font-medium">{i.label}</span> <span className="muted">— {i.detail}</span>
+                <span className="font-medium">{tm(i.label)}</span> <span className="muted">— {tm(i.detail)}</span>
               </span>
             </div>
           ))}
@@ -78,6 +81,7 @@ export function ExportPage() {
   const [tpl, setTpl] = useState("");
   const [post, setPost] = useState("");
   const [stamp, setStamp] = useState(0);
+  const tr = useT();
 
   useEffect(() => {
     if (!id && ts?.length) setSp({ id: ts.find((t) => t.record.state === "completed")?.record.id ?? ts[0].record.id });
@@ -109,7 +113,7 @@ export function ExportPage() {
     try {
       const r = await call<ExportResult>("export_run", { id, options: opts, copy_to_output: copyOut });
       setRes(r);
-      toast.success(`${r.games} games exported`);
+      toast.success(tr("exportPage.exported", { count: r.games }));
       setStamp((x) => x + 1);
     } catch (e) {
       setErr((e as Error).message);
@@ -121,7 +125,7 @@ export function ExportPage() {
     if (!settings) return;
     const key = kind === "finished" ? "post_template_finished" : kind === "announcement" ? "post_template_announcement" : "post_template_progress";
     await call("settings_save", { settings: { ...settings, [key]: tpl } });
-    toast.success("Template saved");
+    toast.success(tr("exportPage.templateSaved"));
     refreshSettings();
   };
   const set = <K extends keyof ExportOptions>(k: K, v: ExportOptions[K]) => opts && setOpts({ ...opts, [k]: v });
@@ -135,13 +139,13 @@ export function ExportPage() {
   return (
     <div className="flex flex-col gap-3 fade-in">
       <PageHeader help="export-and-post"
-        title="Export & forum post"
-        sub="CCRL submission (Gabor Szots' convention) and a short BBCode post"
+        title={tr("exportPage.title")}
+        sub={tr("exportPage.sub")}
         actions={
-          <select className="select" style={{ width: 360 }} value={id} onChange={(e) => setSp({ id: e.target.value })} aria-label="Tournament">
+          <select className="select" style={{ width: 360 }} value={id} onChange={(e) => setSp({ id: e.target.value })} aria-label={tr("exportPage.tournament")}>
             {(ts ?? []).map((t) => (
               <option key={t.record.id} value={t.record.id}>
-                {t.record.name} ({t.record.state}, {t.record.done_games} games)
+                {tr("exportPage.option", { name: t.record.name, state: tr(`ui.state.${t.record.state}` as Key), games: t.record.done_games })}
               </option>
             ))}
           </select>
@@ -149,57 +153,57 @@ export function ExportPage() {
       />
       {id && <CcrlChecklist id={id} stamp={stamp} />}
       <div className="grid grid-cols-2 gap-3">
-        <Panel title="CCRL export">
+        <Panel title={tr("exportPage.ccrl")}>
           {!opts ? (
             <Spinner />
           ) : (
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-3 gap-3">
-                <Field label="Tester name">
+                <Field label={tr("exportPage.tester")}>
                   <input className="input" value={opts.tester} onChange={(e) => set("tester", e.target.value)} placeholder="Francesco Torsello" />
                 </Field>
-                <Field label="Site (your location)">
+                <Field label={tr("exportPage.site")}>
                   <input className="input" value={opts.site} onChange={(e) => set("site", e.target.value)} placeholder="Milan" />
                 </Field>
-                <Field label="Submission date">
+                <Field label={tr("exportPage.date")}>
                   <input className="input mono" value={opts.date} onChange={(e) => set("date", e.target.value)} />
                 </Field>
-                <Field label="Seed (as in the PGN)">
+                <Field label={tr("exportPage.seed")}>
                   <input className="input" value={opts.seed} onChange={(e) => set("seed", e.target.value)} />
                 </Field>
-                <Field label="Threads (NCPU suffix)">
+                <Field label={tr("exportPage.threads")}>
                   <input className="input tnum" type="number" value={opts.threads} onChange={(e) => set("threads", +e.target.value)} />
                 </Field>
-                <Field label="Hash (MB)">
+                <Field label={tr("exportPage.hash")}>
                   <input className="input tnum" type="number" value={opts.hash_mb} onChange={(e) => set("hash_mb", +e.target.value)} />
                 </Field>
-                <Field label="Book name">
+                <Field label={tr("exportPage.book")}>
                   <input className="input" value={opts.book} onChange={(e) => set("book", e.target.value)} />
                 </Field>
-                <Field label="EGTB pieces">
+                <Field label={tr("exportPage.egtb")}>
                   <input className="input tnum" type="number" value={opts.egtb} onChange={(e) => set("egtb", +e.target.value)} />
                 </Field>
                 <div className="flex flex-col justify-end gap-1 text-[12px]">
                   <label className="flex items-center gap-1.5">
-                    <input type="checkbox" checked={opts.make_zip} onChange={(e) => set("make_zip", e.target.checked)} /> zip
+                    <input type="checkbox" checked={opts.make_zip} onChange={(e) => set("make_zip", e.target.checked)} /> {tr("exportPage.zip")}
                   </label>
                   <label className="flex items-center gap-1.5">
-                    <input type="checkbox" checked={copyOut} onChange={(e) => setCopyOut(e.target.checked)} /> copy to the output folder
+                    <input type="checkbox" checked={copyOut} onChange={(e) => setCopyOut(e.target.checked)} /> {tr("exportPage.copyOut")}
                   </label>
-                  <label className="flex items-center gap-1.5" title="games fastchess ended as abandoned: an engine crashed or stopped answering">
-                    <input type="checkbox" checked={opts.skip_abandoned} onChange={(e) => set("skip_abandoned", e.target.checked)} data-testid="skip-abandoned" /> leave out abandoned games
+                  <label className="flex items-center gap-1.5" title={tr("exportPage.abandonedTip")}>
+                    <input type="checkbox" checked={opts.skip_abandoned} onChange={(e) => set("skip_abandoned", e.target.checked)} data-testid="skip-abandoned" /> {tr("exportPage.abandoned")}
                   </label>
                 </div>
               </div>
               <div className="flex flex-col gap-1">
-                <div className="kpi-label">Names in the PGN (as CCRL writes them in its list)</div>
+                <div className="kpi-label">{tr("exportPage.names")}</div>
                 <table className="tbl" data-testid="export-names">
                   <thead>
                     <tr>
-                      <th>Played as</th>
-                      <th>CCRL name</th>
-                      <th>In the export</th>
-                      <th title="leave this engine's games out of the export (a withdrawn engine, by default)">Leave out</th>
+                      <th>{tr("exportPage.playedAs")}</th>
+                      <th>{tr("exportPage.ccrlName")}</th>
+                      <th>{tr("exportPage.inExport")}</th>
+                      <th title={tr("exportPage.leaveOutTip")}>{tr("exportPage.leaveOut")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -214,13 +218,13 @@ export function ExportPage() {
                               style={{ minWidth: 180 }}
                               value={opts.ccrl_names[p] ?? p}
                               onChange={(e) => set("ccrl_names", { ...opts.ccrl_names, [p]: e.target.value })}
-                              aria-label={`CCRL name of ${p}`}
+                              aria-label={tr("exportPage.ccrlNameOf", { name: p })}
                             />
                             <div className="muted text-[11px]">{opts.name_sources[p] ?? ""}</div>
                           </td>
                           <td className="mono text-[12px]">
                             {exportName(p)}
-                            {changed && <span className="chip chip-accent ml-1.5">renamed</span>}
+                            {changed && <span className="chip chip-accent ml-1.5">{tr("exportPage.renamed")}</span>}
                           </td>
                           <td>
                             <input
@@ -228,7 +232,7 @@ export function ExportPage() {
                               checked={opts.exclude_players.includes(p)}
                               disabled={p === opts.seed}
                               onChange={(e) => set("exclude_players", e.target.checked ? [...opts.exclude_players, p] : opts.exclude_players.filter((x) => x !== p))}
-                              aria-label={`leave out the games of ${p}`}
+                              aria-label={tr("exportPage.leaveOutOf", { name: p })}
                             />
                           </td>
                         </tr>
@@ -239,36 +243,36 @@ export function ExportPage() {
               </div>
               <div className="panel p-2.5 flex flex-col gap-1 text-[12px]" style={{ background: "var(--bg-2)" }}>
                 <div>
-                  <span className="kpi-label mr-2">File</span>
+                  <span className="kpi-label mr-2">{tr("exportPage.file")}</span>
                   <span className="mono break-all">{base}.pgn</span>
                 </div>
                 {opts.make_zip && (
                   <div>
-                    <span className="kpi-label mr-2">Zip</span>
+                    <span className="kpi-label mr-2">{tr("exportPage.zipLabel")}</span>
                     <span className="mono break-all">{zipName(base)}</span>
                   </div>
                 )}
                 <div className="muted">
-                  Every finished game once (duplicates dropped, first by GameEndTime), sorted by end time; only Event, Site, player names and Round change. TimeControl and all other tags stay as played.
+                  {tr("exportPage.about")}
                 </div>
               </div>
               <ErrorBox error={err} />
               <div className="flex justify-end">
                 <button className="btn btn-primary" onClick={run} disabled={busy || !opts.tester} data-testid="export-run">
-                  {busy ? <Spinner /> : <FileArchive size={14} />} Build export
+                  {busy ? <Spinner /> : <FileArchive size={14} />} {tr("exportPage.build")}
                 </button>
               </div>
               {res && (
                 <div className="flex flex-col gap-1 text-[12.5px]" data-testid="export-result">
                   <div>
-                    <b>{res.games}</b> games · {res.duplicates_dropped} duplicates dropped{res.left_out > 0 && <> · {res.left_out} left out</>} · Event <span className="mono">{res.event}</span>
+                    {tr("exportPage.result", { games: res.games, dups: res.duplicates_dropped })}{res.left_out > 0 && tr("exportPage.leftOut", { count: res.left_out })}{tr("exportPage.event")}<span className="mono">{res.event}</span>
                   </div>
                   <div className="mono text-[11.5px] break-all">{res.pgn_path}</div>
                   {res.zip_path && <div className="mono text-[11.5px] break-all">{res.zip_path}</div>}
-                  <div className="muted">Players: {res.players.join(", ")}</div>
+                  <div className="muted">{tr("exportPage.players", { list: res.players.join(", ") })}</div>
                   <div>
                     <button className="btn btn-sm" data-testid="export-open-folder" onClick={() => call("open_folder", { path: res.zip_path ?? res.pgn_path }).catch((e) => toast.error((e as Error).message))}>
-                      <FolderOpen size={13} /> Open folder
+                      <FolderOpen size={13} /> {tr("exportPage.openFolder")}
                     </button>
                   </div>
                 </div>
@@ -277,21 +281,21 @@ export function ExportPage() {
           )}
         </Panel>
         <Panel
-          title="Forum post (BBCode)"
+          title={tr("exportPage.post")}
           actions={
             <Seg
               value={kind}
               onChange={setKind}
               options={[
-                { value: "finished", label: "Finished" },
-                { value: "announcement", label: "Announcement" },
-                { value: "progress", label: "Progress" },
+                { value: "finished", label: tr("exportPage.finished") },
+                { value: "announcement", label: tr("exportPage.announcement") },
+                { value: "progress", label: tr("exportPage.progress") },
               ]}
             />
           }
         >
           <div className="flex flex-col gap-2">
-            <Field label="Template" hint="{seed} {kind} {conditions} {result} {table} {closing} {games} {done} {opponents} {per_opp} {threads} {hash} {tc} {list} {book} {egtb} {engines} {eta} {openings}">
+            <Field label={tr("exportPage.template")} hint="{seed} {kind} {conditions} {result} {table} {closing} {games} {done} {opponents} {per_opp} {threads} {hash} {tc} {list} {book} {egtb} {engines} {eta} {openings}">
               <textarea className="textarea" rows={6} value={tpl} onChange={(e) => setTpl(e.target.value)} />
             </Field>
             <div className="flex gap-2 justify-end">
@@ -302,20 +306,20 @@ export function ExportPage() {
                     .then(() => setTpl(""))
                     .then(() => refreshSettings())
                 }
-                title="Reload the saved template"
+                title={tr("exportPage.reloadTip")}
               >
-                <RotateCcw size={12} /> Reload
+                <RotateCcw size={12} /> {tr("exportPage.reload")}
               </button>
               <button className="btn btn-sm" onClick={saveTpl}>
-                <Save size={12} /> Save as default
+                <Save size={12} /> {tr("exportPage.saveDefault")}
               </button>
             </div>
             <pre className="panel p-3 mono text-[12px] whitespace-pre-wrap min-h-[260px]" style={{ background: "var(--bg-2)" }} data-testid="forum-post">
               {post}
             </pre>
             <div className="flex justify-end">
-              <button className="btn btn-primary" onClick={() => navigator.clipboard.writeText(post).then(() => toast.success("Post copied"))}>
-                <Copy size={13} /> Copy
+              <button className="btn btn-primary" onClick={() => navigator.clipboard.writeText(post).then(() => toast.success(tr("exportPage.copied")))}>
+                <Copy size={13} /> {tr("exportPage.copy")}
               </button>
             </div>
           </div>

@@ -121,6 +121,8 @@ pub fn tournament(engine: &Path, ids: &[Option<i64>], variant: Variant, book: &P
             threads: None,
             hash_mb: None,
             withdrawn: false,
+            gpu: false,
+            gpu_select: String::new(),
         })
         .collect();
     let frc = variant == Variant::Chess960;
@@ -151,6 +153,8 @@ pub fn tournament(engine: &Path, ids: &[Option<i64>], variant: Variant, book: &P
         adjudication: Adjudication::default(),
         extra_args: vec!["-maxmoves".into(), "150".into()],
         placement: Placement::Node,
+        use_smt: false,
+        gpus: vec![],
         log_level: "info".into(),
         ccrl_list: list.into(),
         max_retries: 1,

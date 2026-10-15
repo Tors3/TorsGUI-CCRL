@@ -175,6 +175,19 @@ folder; a tournament file can name a book by file name (`book = "GM2700+.pgn"`).
 - **Options of a tournament already created**: the tournament's *Configuration* tab, **Engine
   options in this tournament**, changes them while it is paused or stopped (used from the next
   game; for CCRL every game must use the same settings).
+- **Active and inactive**: every engine has an *Active* tick (on by default). The library has
+  three tabs, **Active**, **Inactive** and **All**, and the wizard offers only the active
+  engines (*show inactive* lists the others too). Untick the engines you do not test any more:
+  nothing is deleted, and each tester keeps their own list.
+- **GPU engines** (Lc0 and the like): the **GPU** tab lists them with the graphics cards of this
+  computer (NVIDIA cards from `nvidia-smi`, the others from the system). An engine whose options
+  are those of a GPU engine (`WeightsFile` and `Backend`, or an `id name` such as Lc0) is ticked
+  when it is verified; the *GPU* column ticks or unticks any engine. In a tournament each card
+  plays one game at a time (two games on one card slow each other down): *Cores & games* shows
+  the cards to use and suggests as many games as cards, and every game gets its lane's card —
+  Lc0 through `BackendOptions=gpu=N` (added to your own backend options), other engines through
+  `CUDA_VISIBLE_DEVICES`. The CPU threads of a GPU engine still come from the tournament (Lc0
+  needs few). The CCRL lists are for engines on the CPU, so the CCRL checklist warns.
 - **Report** produces the Markdown equivalent of `engines/REPORT.md`.
 - To rename a player *inside a tournament* (PGN White/Black tags and configuration, never
   `EngineWhiteName`), use the tournament's **Configuration → Rename an engine** (the
@@ -242,10 +255,23 @@ is remembered for the next time.
    *8CPU vs 1CPU* (a 1-thread engine has no suffix, as in the lists), and the lanes are sized
    on the two engines of the heaviest pairing (8 + 1 = 9 cores). In a tournament file:
    `[threads_of] "Engine 1.0" = 8` (and `[hash_of]`).
-4. *NUMA placement*: nodes, lanes per node (suggested: physical cores per node / the cores of
-   the two engines of a lane)
-   and the placement mode: *Node* (every lane uses the node's one-thread-per-core set, like the
-   old scripts), *Disjoint cores per lane*, or *None*.
+4. *Cores*: the panel says, in plain words, how the tournament uses the CPU.
+   - **Physical cores only** (the CCRL way: one thread per core) or **All threads (SMT /
+     Hyper-Threading)**, which doubles the threads but makes the two engines of a core share it,
+     so they search slower than on a core of their own: fine for your own tests, not for CCRL (the
+     checklist warns).
+   - **NUMA nodes** (only on machines with more than one): the nodes to use.
+   - **Games at the same time** per node, with the suggested number (*Use N*: cores of the node
+     ÷ the threads of the two engines of a game).
+   - **How the games are placed on the CPUs**: *Locked to its NUMA node* (on machines with
+     several nodes: a game never crosses to the other socket, so its memory stays close),
+     *Shared* (on machines with one node: all the games share the chosen CPUs), *Fixed CPUs per
+     game* (each game gets its own CPUs; works on every machine, NUMA or not), or *No limits*
+     (only for checking a problem: on a NUMA machine a game could move between sockets, and the
+     panel says so in red).
+   - **Graphics cards for the GPU engines** (only when a GPU engine is chosen): the cards to
+     use, one game per card at a time; a warning when more games than cards run at once.
+   - The *In short* line does the arithmetic, and the CPU map shows which cores each game gets.
 
 The **summary** updates live: total games, pairings, openings per pass and node (e.g. 15
 openings on 2 nodes → 8 and 7), openings used, concurrent games, busy threads vs physical
@@ -311,6 +337,8 @@ match* games: every opening twice with colours reversed.
 - The **queue** starts the next tournament only when the current one has **all** its expected
   games and finished cleanly. If it ended cleanly with games missing (a crashed engine never
   recorded a game…), it is retried up to 2 times, then marked *incomplete* and the queue stops.
+- **Unqueue** (on a queued tournament) takes it out of the queue and gives it back the state it
+  had before: paused, stopped or draft.
 - A game that exceeds the longest possible duration at its time control is killed by a
   watchdog and replayed.
 - The **Dashboard** shows running and queued tournaments, games/hour over a rolling hour, the
@@ -400,7 +428,8 @@ result, and the crosstable of the tournament after every game.
 1. Router: forward the UDP ports (one per lane) to this computer.
 2. Firewall: *Allow in the firewall* adds the Windows rule (administrator rights asked).
 3. A fixed address: the public IP (*Show*) or a free dynamic DNS name if it changes.
-4. Ask Jay to add your address and ports to ccrl.live: *Copy the message* prepares it.
+4. Jay has to add your address and ports to ccrl.live (the *Copy the message* button is
+   disabled for now).
 5. Switch on *ccrl.live* for the tournament: the tab shows each lane's port, its game and the
    connected viewers.
 
@@ -440,10 +469,11 @@ captured material, clocks, eval and time graphs (click to jump), move list with 
 `Space` plays/pauses (0.5×–4×), `t` theater mode (large board), `f` flip. The large live
 board has the same bar, ticking clocks and the PV of the engine to move as arrows.
 **Board appearance** (palette button, or Settings): *Minimal* (flat, the default), slate,
-ocean, tournament green, classic brown, walnut, maple, marble, or *Custom* with your own
-light/dark square colours; 69 piece sets (sharechess and lichess sets whose licence allows
-bundling, with their colour variants; searchable); animation speed, coordinates, arrows and
-an optional move sound. **Import** adds any other set from a folder (lichess names
+ocean, tournament green, classic brown, walnut, maple, Szőts wood, Bastiii felt, marble, or
+*Custom* with your own light/dark square colours; 69 piece sets (sharechess and lichess sets whose licence allows
+bundling, with their colour variants; searchable); animation speed, coordinates (**on the frame**
+around the board, as on a real board, or inside the edge squares; they follow the board when it
+is flipped), arrows and an optional move sound. **Import** adds any other set from a folder (lichess names
 `wP.svg`…`bK.svg` or sharechess names `pw.svg`…`kb.svg`, SVG or PNG), e.g. the
 non-commercial sets of sharechess: they stay on your computer, for personal use.
 
@@ -517,12 +547,14 @@ The sidebar groups the screens: **Testing** (tournaments, live games, archive, e
 (settings, logs, help). Click a section title to fold it; *Icons only* narrows the sidebar
 for small screens. **Colour themes**: the list at the bottom of the sidebar or *Settings →
 Appearance* (with previews): **Paper** (the default: sober, warm off-white), System (follows
-the operating system), Dark, Light, the sober **Graphite**, Nord, Midnight (pure black), Forest, **Coffee** (espresso browns with a caramel accent)
-and High contrast. Settings
+the operating system), Dark, Light, the sober **Graphite**, Nord, Midnight (pure black), Forest, **Coffee** (espresso browns with a caramel accent),
+**Szőts** (for Gabor Szőts), **Bastiii** (green felt, for Bastiii) and High contrast.
+**Language**: *Settings → Appearance → Language* (English, Italiano). The number next to
+**Live** in the sidebar is the number of games being played. Settings
 are split into sections (General, Appearance, Paths & fastchess, Opening books, Live broadcast,
 CPU topology, Maintenance). The busier pages have **sub-tabs** at the top of their main area:
-*New tournament* goes step by step (Type & engines → Seeding for Swiss/cup → Conditions → NUMA
-& lanes; the summary and the Create buttons stay on the right), *Dashboard* (Now, Queue &
+*New tournament* goes step by step (Type & engines → Seeding for Swiss/cup → Conditions → Cores &
+games; the summary and the Create buttons stay on the right), *Dashboard* (Now, Queue &
 timeline, Recent & events), *Bench* (Run & latest result, History, TC calculator) and *CCRL
 Lists* (Lists, Suggest opponents, Name matching, Thresholds). *Engines → Add engine* gathers
 every way to add engines.

@@ -1,6 +1,7 @@
 import { FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { isTauri } from "../lib/api";
+import { useT } from "../i18n";
 
 export type PathKind = "file" | "folder";
 export type PathFilter = { name: string; extensions: string[] };
@@ -23,6 +24,7 @@ export function PathInput(props: {
   className?: string;
   onEnter?: () => void;
 }) {
+  const t = useT();
   return (
     <div className={`flex gap-1.5 min-w-0 ${props.className ?? ""}`}>
       <input
@@ -37,7 +39,7 @@ export function PathInput(props: {
         <button
           type="button"
           className="btn shrink-0"
-          title={props.kind === "folder" ? "Choose a folder" : "Choose a file"}
+          title={props.kind === "folder" ? t("ui.path.folder") : t("ui.path.file")}
           onClick={async () => {
             try {
               const p = await browse(props.kind, props.value, props.filters);

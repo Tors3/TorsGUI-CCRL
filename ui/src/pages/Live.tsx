@@ -12,6 +12,7 @@ import { usePoll } from "../lib/api";
 import { playMoveSound, useBoardPrefs } from "../lib/boardPrefs";
 import { isCheck } from "../lib/chess";
 import { clock, duration, evalText, nps } from "../lib/format";
+import { useT } from "../i18n";
 
 /**
  * Clock that keeps running between polls: the runner reports the clock at the last `go`;
@@ -57,12 +58,13 @@ function LaneCard({ l, onOpen }: { l: LiveLane; onOpen: () => void }) {
   const job = l.lane.job;
   const white = g?.engines.find((e) => e.name === g.white);
   const black = g?.engines.find((e) => e.name === g.black);
+  const t = useT();
   return (
     <button className="panel p-2.5 flex flex-col gap-1.5 text-left hover:border-[var(--accent)]" onClick={onOpen} disabled={!g} data-testid="lane-card">
       <div className="flex justify-between text-[11px] muted">
         <span className="truncate">{l.tournament}</span>
         <span className="shrink-0">
-          node {l.lane.node} · lane {l.lane.lane}
+          {t("live.nodeLane", { node: l.lane.node, lane: l.lane.lane })}
         </span>
       </div>
       {g && job ? (
@@ -72,7 +74,7 @@ function LaneCard({ l, onOpen }: { l: LiveLane; onOpen: () => void }) {
           <PlayerRow name={g.white} ms={g.wtime} active={g.side_to_move === "white"} e={white} />
           <div className="flex justify-between text-[11px] muted tnum">
             <span>
-              move {Math.floor(g.moves_uci.length / 2) + 1} · {g.moves_san.slice(-1)[0] ?? "start"}
+              {t("live.move", { n: Math.floor(g.moves_uci.length / 2) + 1, last: g.moves_san.slice(-1)[0] ?? t("live.start") })}
             </span>
             <span>
               p{job.pass} r{job.round} · #{job.opening} · {duration(l.elapsed_s)}
@@ -80,13 +82,14 @@ function LaneCard({ l, onOpen }: { l: LiveLane; onOpen: () => void }) {
           </div>
         </>
       ) : (
-        <div className="aspect-square flex items-center justify-center muted">idle</div>
+        <div className="aspect-square flex items-center justify-center muted">{t("live.idle")}</div>
       )}
     </button>
   );
 }
 
 function EnginePanel({ e, color }: { e?: EngineLive; color: string }) {
+  const t = useT();
   if (!e) return null;
   return (
     <div className="panel p-2.5 text-[12px]">
@@ -98,7 +101,7 @@ function EnginePanel({ e, color }: { e?: EngineLive; color: string }) {
       </div>
       <div className="grid grid-cols-4 gap-1 tnum muted mt-1">
         <span>d {e.depth ?? "—"}/{e.seldepth ?? "—"}</span>
-        <span>{nps(e.nodes)} nodes</span>
+        <span>{t("live.nodes", { n: nps(e.nodes) })}</span>
         <span>{nps(e.nps)} nps</span>
         <span>{e.time_ms != null ? `${(e.time_ms / 1000).toFixed(1)}s` : "—"}</span>
       </div>
@@ -111,6 +114,7 @@ function EnginePanel({ e, color }: { e?: EngineLive; color: string }) {
 
 function BigView({ l, onClose }: { l: LiveLane | null; onClose: () => void }) {
   const prefs = useBoardPrefs();
+  const t = useT();
   const g = l?.game;
   const lastLen = useRef<number | null>(null);
   useEffect(() => {
@@ -156,7 +160,7 @@ function BigView({ l, onClose }: { l: LiveLane | null; onClose: () => void }) {
             </div>
             <PlayerRow name={g.white} ms={g.wtime} active={g.side_to_move === "white"} e={white} fen={g.fen} side="w" />
             <div className="flex justify-between items-center text-[11.5px] muted">
-              <span>green arrow: best move of the engine to move · blue: the reply it expects</span>
+              <span>{t("live.arrows")}</span>
               <BoardSettingsButton />
             </div>
           </BoardColumn>
@@ -164,12 +168,12 @@ function BigView({ l, onClose }: { l: LiveLane | null; onClose: () => void }) {
             <EnginePanel e={white} color="var(--text)" />
             <EnginePanel e={black} color="#e3b341" />
             <div>
-              <div className="kpi-label mb-1">Evaluation (White's view) — both engines</div>
-              <LineChart x={series.x} series={[{ label: "White", color: "var(--text)", values: series.w }, { label: "Black", color: "#e3b341", values: series.b }]} height={140} zeroLine />
+              <div className="kpi-label mb-1">{t("live.evalTitle")}</div>
+              <LineChart x={series.x} series={[{ label: t("live.white"), color: "var(--text)", values: series.w }, { label: t("live.black"), color: "#e3b341", values: series.b }]} height={140} zeroLine />
             </div>
             <div>
-              <div className="kpi-label mb-1">Time per move (s)</div>
-              <LineChart x={series.x} series={[{ label: "White", color: "var(--text)", values: series.tw }, { label: "Black", color: "#e3b341", values: series.tb }]} height={90} />
+              <div className="kpi-label mb-1">{t("live.timeTitle")}</div>
+              <LineChart x={series.x} series={[{ label: t("live.white"), color: "var(--text)", values: series.tw }, { label: t("live.black"), color: "#e3b341", values: series.tb }]} height={90} />
             </div>
             <div className="panel p-2 mono leading-6 max-h-[160px] overflow-auto">
               {g.moves_san.map((m, i) => (
@@ -191,16 +195,17 @@ function BigView({ l, onClose }: { l: LiveLane | null; onClose: () => void }) {
 export function Live() {
   const { data, error } = usePoll<LiveLane[]>("live_lanes", {}, 1000);
   const [open, setOpen] = useState<string | null>(null);
+  const t = useT();
   const lanes = data ?? [];
   const busy = lanes.filter((l) => l.lane.busy).length;
   const cur = lanes.find((l) => `${l.tournament_id}/${l.lane.partition}/${l.lane.lane}` === open) ?? null;
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader help="run-it" title="Live" sub={`${busy} games in progress on ${lanes.length} lanes · engine logs tailed incrementally`} />
+      <PageHeader help="run-it" title={t("live.title")} sub={t("live.sub", { busy, lanes: lanes.length })} />
       <ErrorBox error={error} />
       {lanes.length === 0 ? (
         <Panel>
-          <Empty icon={<Activity size={22} />}>No tournament is running. Games in progress appear here with a mini board per lane.</Empty>
+          <Empty icon={<Activity size={22} />}>{t("live.empty")}</Empty>
         </Panel>
       ) : (
         <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))" }}>

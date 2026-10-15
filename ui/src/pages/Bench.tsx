@@ -12,6 +12,7 @@ import { LineChart } from "../components/Chart";
 import { Empty, ErrorBox, Field, PageHeader, PageTabs, Panel, ProgressBar, Spinner, useTabParam, Warn } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { num } from "../lib/format";
+import { useT } from "../i18n";
 
 type Hist = { id: number; host: string; created_at: string; run: BenchRun };
 const COLORS = ["#6d8cff", "#3fb97a", "#e3b341", "#f06a6a", "#b48cff", "#4fc3d9", "#e58fd0", "#9aa4b5"];
@@ -38,6 +39,7 @@ export function Bench() {
   const [inf, setInf] = useState("");
   const [tc, setTc] = useState<TcResult>();
   const [tcErr, setTcErr] = useState<string>();
+  const tr = useT();
 
   useEffect(() => {
     if (!topo) return;
@@ -82,7 +84,7 @@ export function Bench() {
     const cfg: BenchConfig = { binaries: all, levels: levels.split(",").map((x) => Number(x.trim())).filter(Boolean), runs, warmup, hash: 16, depth: 13, ref_ms: 2054, pin: true, force };
     try {
       await call("bench_start", { config: cfg });
-      toast("Bench started: keep the machine idle");
+      toast(tr("bench.started"));
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -90,7 +92,7 @@ export function Bench() {
   const saveFormulas = async () => {
     if (!settings) return;
     await call("settings_save", { settings: { ...settings, tc_base_formula: bf, tc_inc_formula: inf, default_factor: factor } });
-    toast.success("Formulas and factor saved as defaults");
+    toast.success(tr("bench.formulasSaved"));
     refreshSettings();
   };
   const latest = progress?.result ?? (hist ?? []).slice().sort((a, b) => (a.run.created_at || a.created_at).localeCompare(b.run.created_at || b.created_at)).pop()?.run;
@@ -101,7 +103,7 @@ export function Bench() {
     return {
       xs,
       series: runs.slice(-8).map((h, i) => ({
-        label: `${when(h).slice(0, 16).replace("T", " ")} ${h.run.builds.join("+")}${h.run.valid ? "" : " (invalid)"}`,
+        label: `${when(h).slice(0, 16).replace("T", " ")} ${h.run.builds.join("+")}${h.run.valid ? "" : tr("bench.invalidSuffix")}`,
         color: COLORS[i % COLORS.length],
         dash: h.run.valid ? undefined : [4, 4],
         values: xs.map((x) => h.run.levels.find((l) => l.instances === x)?.factor ?? null),
@@ -111,12 +113,12 @@ export function Bench() {
 
   return (
     <div className="flex flex-col gap-3 fade-in">
-      <PageHeader help="bench-and-time-control" title="Bench & calibration" sub="Stockfish 10 bench against the CCRL reference i7-4770K (2054 ms, 3 939 338 nodes)" />
+      <PageHeader help="bench-and-time-control" title={tr("bench.title")} sub={tr("bench.sub")} />
       <PageTabs
         tabs={[
-          { id: "run", label: "Run & latest result" },
-          { id: "history", label: "History", badge: hist?.length || undefined },
-          { id: "tc", label: "TC calculator" },
+          { id: "run", label: tr("bench.tabs.run") },
+          { id: "history", label: tr("bench.tabs.history"), badge: hist?.length || undefined },
+          { id: "tc", label: tr("bench.tabs.tc") },
         ]}
         value={tab}
         onChange={setTab}
@@ -124,9 +126,9 @@ export function Bench() {
       />
       {tab === "run" && (
         <div className="grid gap-3 cols-side-main">
-        <Panel title="Run a bench">
+        <Panel title={tr("bench.run")}>
           <div className="flex flex-col gap-2.5">
-            <div className="kpi-label">Stockfish 10 builds (64-bit only)</div>
+            <div className="kpi-label">{tr("bench.builds")}</div>
             {(bins?.binaries ?? []).map(([b, p]) => (
               <label key={p} className="flex items-center gap-2 text-[12px]">
                 <input type="checkbox" checked={picked.includes(p)} onChange={() => setPicked(picked.includes(p) ? picked.filter((x) => x !== p) : [...picked, p])} />
@@ -136,39 +138,39 @@ export function Bench() {
                 </span>
               </label>
             ))}
-            {(bins?.binaries ?? []).length === 0 && <div className="muted text-[12px]">No binary in {bins?.dir}.</div>}
+            {(bins?.binaries ?? []).length === 0 && <div className="muted text-[12px]">{tr("bench.noBinary", { dir: bins?.dir ?? "" })}</div>}
             <button
               className="btn btn-sm"
               onClick={() =>
                 call("bench_prepare")
                   .then(() => {
-                    toast.success("Official Stockfish 10 builds downloaded and verified (sha256)");
+                    toast.success(tr("bench.downloaded"));
                     refreshBins();
                   })
                   .catch((e) => toast.error(e.message))
               }
             >
-              <Download size={12} /> Get official SF10 (x64, popcnt, bmi2)
+              <Download size={12} /> {tr("bench.getOfficial")}
             </button>
-            <Field label="Or another 64-bit Stockfish 10 binary">
+            <Field label={tr("bench.otherBinary")}>
               <input className="input mono" value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="/path/to/stockfish_10_x64" />
             </Field>
-            <Field label="Parallel instances (levels)" hint="1 = single core; more instances load the machine like concurrent games">
+            <Field label={tr("bench.levels")} hint={tr("bench.levelsHint")}>
               <input className="input mono" value={levels} onChange={(e) => setLevels(e.target.value)} />
             </Field>
             <div className="grid grid-cols-2 gap-2">
-              <Field label="Runs per instance">
+              <Field label={tr("bench.runs")}>
                 <input className="input tnum" type="number" value={runs} onChange={(e) => setRuns(+e.target.value)} />
               </Field>
-              <Field label="Warm-up runs">
+              <Field label={tr("bench.warmup")}>
                 <input className="input tnum" type="number" value={warmup} onChange={(e) => setWarmup(+e.target.value)} />
               </Field>
             </div>
             <label className="flex items-center gap-2 text-[12px]">
-              <input type="checkbox" checked={force} onChange={(e) => setForce(e.target.checked)} /> Run even if the CPU is busy (result marked invalid)
+              <input type="checkbox" checked={force} onChange={(e) => setForce(e.target.checked)} /> {tr("bench.force")}
             </label>
             <button className="btn btn-primary justify-center" onClick={start} disabled={progress?.running || (!picked.length && !custom)}>
-              {progress?.running ? <Spinner /> : <Play size={14} />} Start bench
+              {progress?.running ? <Spinner /> : <Play size={14} />} {tr("bench.start")}
             </button>
             {progress?.running && (
               <div className="flex flex-col gap-1">
@@ -177,19 +179,19 @@ export function Bench() {
               </div>
             )}
             <ErrorBox error={progress?.error ?? undefined} />
-            <div className="muted text-[11.5px]">Guards: 32-bit binaries are refused, the CPU must be idle (&lt; 5 % load), the power plan (minimum processor state) and the frequency are recorded.</div>
+            <div className="muted text-[11.5px]">{tr("bench.guards")}</div>
           </div>
         </Panel>
-          <Panel title={latest ? `Latest result — ${latest.host} · ${latest.cpu}` : "Latest result"} noPad>
+          <Panel title={latest ? tr("bench.latestOf", { host: latest.host, cpu: latest.cpu }) : tr("bench.latest")} noPad>
             {!latest ? (
-              <Empty icon={<Gauge size={20} />}>No bench yet.</Empty>
+              <Empty icon={<Gauge size={20} />}>{tr("bench.none")}</Empty>
             ) : (
               <>
                 <div className="px-3 pt-2 flex flex-wrap gap-2 items-center text-[12px]">
-                  <span className={`chip ${latest.valid ? "chip-win" : "chip-loss"}`}>{latest.valid ? "valid" : "invalid"}</span>
+                  <span className={`chip ${latest.valid ? "chip-win" : "chip-loss"}`}>{latest.valid ? tr("bench.valid") : tr("bench.invalid")}</span>
                   <span className="mono">{latest.engine}</span>
                   <span className="muted">
-                    nodes {latest.signature.join(", ")} {latest.signature_ok ? "✓" : "≠ 3939338"}
+                    {tr("bench.nodes", { list: latest.signature.join(", ") })} {latest.signature_ok ? "✓" : "≠ 3939338"}
                   </span>
                   {latest.power?.plan && <span className="muted truncate max-w-[300px]">{latest.power.plan}</span>}
                   {latest.power?.current_mhz != null && <span className="muted">{latest.power.current_mhz} MHz</span>}
@@ -202,22 +204,22 @@ export function Bench() {
                 <table className="tbl">
                   <thead>
                     <tr>
-                      <th>Build</th>
-                      <th className="r">Instances</th>
-                      <th className="r">HT</th>
-                      <th className="r">nps / inst. (mean)</th>
-                      <th className="r">median</th>
-                      <th className="r">spread</th>
-                      <th className="r">sd</th>
-                      <th className="r">bench ms</th>
-                      <th className="r">Factor</th>
+                      <th>{tr("bench.build")}</th>
+                      <th className="r">{tr("bench.instances")}</th>
+                      <th className="r">{tr("bench.ht")}</th>
+                      <th className="r">{tr("bench.npsMean")}</th>
+                      <th className="r">{tr("bench.median")}</th>
+                      <th className="r">{tr("bench.spread")}</th>
+                      <th className="r">{tr("bench.sd")}</th>
+                      <th className="r">{tr("bench.benchMs")}</th>
+                      <th className="r">{tr("bench.factor")}</th>
                       <th className="r">Blitz 2+1</th>
                       <th className="r">15+10</th>
                     </tr>
                   </thead>
                   <tbody>
                     {latest.levels.map((l, i) => (
-                      <tr key={i} className="clickable" onClick={() => { setFactor(l.factor); setTab("tc"); }} title="Use this factor in the TC calculator">
+                      <tr key={i} className="clickable" onClick={() => { setFactor(l.factor); setTab("tc"); }} title={tr("bench.useFactorTip")}>
                         <td>
                           <span className="chip">{l.build}</span>
                         </td>
@@ -246,7 +248,7 @@ export function Bench() {
       )}
       {tab === "history" && (
         <div className="flex flex-col gap-3">
-          <Panel title="History — factor vs parallel instances (dashed = invalid run)">
+          <Panel title={tr("bench.historyTitle")}>
             {chart.series.length ? (
               <>
                 <LineChart x={chart.xs} series={chart.series} height={180} xLabel={(v) => String(v)} />
@@ -260,19 +262,19 @@ export function Bench() {
                 </div>
               </>
             ) : (
-              <Empty>No history yet.</Empty>
+              <Empty>{tr("bench.noHistory")}</Empty>
             )}
           </Panel>
-          <Panel title="Runs" noPad>
+          <Panel title={tr("bench.runsTitle")} noPad>
             <table className="tbl">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Host</th>
-                  <th>Engine</th>
-                  <th>Builds</th>
-                  <th className="r">Levels</th>
-                  <th>Status</th>
+                  <th>{tr("bench.date")}</th>
+                  <th>{tr("bench.host")}</th>
+                  <th>{tr("bench.engine")}</th>
+                  <th>{tr("bench.buildsCol")}</th>
+                  <th className="r">{tr("bench.levelsCol")}</th>
+                  <th>{tr("bench.status")}</th>
                   <th />
                 </tr>
               </thead>
@@ -288,10 +290,10 @@ export function Bench() {
                       <td>{h.run.builds.join(", ")}</td>
                       <td className="r">{h.run.levels.map((l) => l.instances).join(", ")}</td>
                       <td title={h.run.invalid_reason ?? ""}>
-                        <span className={`chip ${h.run.valid ? "chip-win" : "chip-loss"}`}>{h.run.valid ? "valid" : "invalid"}</span>
+                        <span className={`chip ${h.run.valid ? "chip-win" : "chip-loss"}`}>{h.run.valid ? tr("bench.valid") : tr("bench.invalid")}</span>
                       </td>
                       <td className="r">
-                        <button className="btn btn-ghost btn-icon btn-sm" aria-label="Delete run" onClick={() => call("bench_delete", { id: h.id }).then(refreshHist)}>
+                        <button className="btn btn-ghost btn-icon btn-sm" aria-label={tr("bench.deleteRun")} onClick={() => call("bench_delete", { id: h.id }).then(refreshHist)}>
                           <Trash2 size={12} />
                         </button>
                       </td>
@@ -300,19 +302,19 @@ export function Bench() {
               </tbody>
             </table>
             <div className="flex gap-2 p-3" style={{ borderTop: "1px solid var(--border)" }}>
-              <input className="input mono" placeholder="Import ccrl_bench.py JSON results (paths, comma separated)" value={importPaths} onChange={(e) => setImportPaths(e.target.value)} />
+              <input className="input mono" placeholder={tr("bench.importPlaceholder")} value={importPaths} onChange={(e) => setImportPaths(e.target.value)} />
               <button
                 className="btn"
                 onClick={() =>
                   call<number>("bench_import", { files: importPaths.split(",").map((s) => s.trim()).filter(Boolean) })
                     .then((n) => {
-                      toast.success(`${n} runs imported`);
+                      toast.success(tr("bench.imported", { count: n }));
                       refreshHist();
                     })
                     .catch((e) => toast.error(e.message))
                 }
               >
-                Import
+                {tr("bench.import")}
               </button>
             </div>
           </Panel>
@@ -320,9 +322,9 @@ export function Bench() {
       )}
       {tab === "tc" && (
         <div className="grid gap-3 cols-side-main">
-        <Panel title="TC calculator">
+        <Panel title={tr("bench.tcTitle")}>
           <div className="flex flex-col gap-2.5">
-            <Field label="CCRL nominal time control">
+            <Field label={tr("bench.nominal")}>
               <select className="select" value={nominal} onChange={(e) => setNominal(e.target.value)}>
                 {(presets ?? []).map((p) => (
                   <option key={p.id} value={p.id}>
@@ -331,19 +333,19 @@ export function Bench() {
                 ))}
               </select>
             </Field>
-            <Field label="Factor f" hint="from the bench: click a factor on the right">
+            <Field label={tr("bench.factorF")} hint={tr("bench.factorHint")}>
               <input className="input tnum" type="number" step={0.0001} value={factor} onChange={(e) => setFactor(+e.target.value)} data-testid="tc-factor" />
             </Field>
-            <Field label="Base formula" hint="B = nominal base (s), I = increment (s), M = moves, f = factor">
+            <Field label={tr("bench.base")} hint={tr("bench.baseHint")}>
               <input className="input mono" value={bf} onChange={(e) => setBf(e.target.value)} />
             </Field>
-            <Field label="Increment formula" hint="integral increment: some engines mishandle fractions">
+            <Field label={tr("bench.inc")} hint={tr("bench.incHint")}>
               <input className="input mono" value={inf} onChange={(e) => setInf(e.target.value)} />
             </Field>
             <ErrorBox error={tcErr} />
             {tc && (
               <div className="panel p-3 flex flex-col items-center gap-1" style={{ background: "var(--bg-2)" }}>
-                <div className="kpi-label">Local TC for fastchess</div>
+                <div className="kpi-label">{tr("bench.localTc")}</div>
                 <div className="font-semibold mono" style={{ fontSize: 28, lineHeight: 1.2 }} data-testid="tc-result">
                   {tc.fastchess}
                 </div>
@@ -351,35 +353,35 @@ export function Bench() {
               </div>
             )}
             <button className="btn" onClick={saveFormulas}>
-              <Save size={13} /> Save formulas &amp; factor as defaults
+              <Save size={13} /> {tr("bench.saveFormulas")}
             </button>
             <div className="muted text-[11.5px] flex gap-1.5">
-              <Calculator size={13} className="shrink-0 mt-0.5" /> Reference: Blitz 2'+1" at f≈0.86 → 103+1; 40/15 as 15'+10" at f≈1.878 → 1690+19.
+              <Calculator size={13} className="shrink-0 mt-0.5" /> {tr("bench.reference")}
             </div>
           </div>
         </Panel>
-          <Panel title="Factors measured on this machine" noPad>
+          <Panel title={tr("bench.measured")} noPad>
             {latest ? (
               <table className="tbl">
                 <thead>
                   <tr>
-                    <th className="r">Instances</th>
-                    <th className="r">Factor</th>
+                    <th className="r">{tr("bench.instances")}</th>
+                    <th className="r">{tr("bench.factor")}</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
                   {latest.levels.map((l, i) => (
-                    <tr key={i} className="clickable" onClick={() => setFactor(l.factor)} title="Use this factor">
+                    <tr key={i} className="clickable" onClick={() => setFactor(l.factor)} title={tr("bench.useTip")}>
                       <td className="r tnum">{l.instances}</td>
                       <td className="r tnum">{l.factor.toFixed(4)}</td>
-                      <td className="muted text-[11.5px]">click to use</td>
+                      <td className="muted text-[11.5px]">{tr("bench.clickToUse")}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             ) : (
-              <Empty icon={<Gauge size={20} />}>No bench yet: run one in the first tab.</Empty>
+              <Empty icon={<Gauge size={20} />}>{tr("bench.noneYet")}</Empty>
             )}
           </Panel>
         </div>

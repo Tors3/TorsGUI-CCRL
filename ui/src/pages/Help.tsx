@@ -4,10 +4,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import guideMd from "../../../docs/USER_GUIDE.md?raw";
 import fileMd from "../../../docs/TOURNAMENT_FILE.md?raw";
+import guideItMd from "../../../docs/it/USER_GUIDE.md?raw";
+import fileItMd from "../../../docs/it/TOURNAMENT_FILE.md?raw";
 import { PageHeader, Panel } from "../components/ui";
+import { useLocale, useT, type LocaleId } from "../i18n";
 
-/** Heading → anchor: "## 3. Engines" → "engines". */
-export const slug = (text: string) =>
+/** A heading's explicit anchor, `## 3. Motori {#engines}`: translations keep the English ids. */
+const ANCHOR = /\s*\{#([a-z0-9-]+)\}\s*$/;
+
+/** Heading → anchor: "## 3. Engines" → "engines" (or its explicit `{#id}`). */
+export const slug = (text: string) => text.match(ANCHOR)?.[1] ?? plainSlug(text);
+const plainSlug = (text: string) =>
   text
     .replace(/<[^>]+>/g, "")
     .replace(/^\d+\.\s*/, "")
@@ -17,20 +24,23 @@ export const slug = (text: string) =>
 
 type Section = { id: string; title: string; level: number; html: string; text: string };
 
+/** The guides per language (English is the source; a language without its own falls back to it). */
 const DOCS = {
-  guide: { title: "User guide", md: guideMd, icon: BookOpen },
-  file: { title: "Tournament files", md: fileMd, icon: FileCode2 },
-} as const;
+  guide: { md: { en: guideMd, it: guideItMd } as Partial<Record<LocaleId, string>> & { en: string }, icon: BookOpen },
+  file: { md: { en: fileMd, it: fileItMd } as Partial<Record<LocaleId, string>> & { en: string }, icon: FileCode2 },
+};
 type DocId = keyof typeof DOCS;
+/** The guide in this language, and whether it is translated. */
+export const guideText = (doc: DocId, locale: LocaleId) => ({ md: DOCS[doc].md[locale] ?? DOCS[doc].md.en, translated: !!DOCS[doc].md[locale] });
 
 /** Splits a Markdown guide into sections (one per ## / ### heading) rendered to HTML. */
-function sections(md: string): Section[] {
+export function sections(md: string): Section[] {
   const marked = new Marked({ gfm: true });
   marked.use({
     renderer: {
       heading({ tokens, depth }) {
         const text = this.parser.parseInline(tokens);
-        return `<h${depth} id="${slug(text)}">${text}</h${depth}>`;
+        return `<h${depth} id="${slug(text)}">${text.replace(ANCHOR, "")}</h${depth}>`;
       },
       link({ href, title, tokens }) {
         const text = this.parser.parseInline(tokens);
@@ -46,19 +56,23 @@ function sections(md: string): Section[] {
   const parts = md.split(/^(?=#{1,3} )/m);
   for (const p of parts) {
     const m = p.match(/^(#{1,3}) (.+)$/m);
-    const title = m ? m[2].trim() : "";
+    const heading = m ? m[2].trim() : "";
+    const title = heading.replace(ANCHOR, "");
     const level = m ? m[1].length : 1;
-    out.push({ id: slug(title), title, level, html: marked.parse(p) as string, text: p.toLowerCase() });
+    out.push({ id: slug(heading), title, level, html: marked.parse(p) as string, text: p.toLowerCase() });
   }
   return out;
 }
 
 export function Help() {
+  const t = useT();
+  const locale = useLocale();
   const [sp, setSp] = useSearchParams();
   const doc: DocId = sp.get("doc") === "file" ? "file" : "guide";
   const target = sp.get("s") ?? "";
   const [q, setQ] = useState("");
-  const all = useMemo(() => sections(DOCS[doc].md), [doc]);
+  const guide = guideText(doc, locale);
+  const all = useMemo(() => sections(guide.md), [guide.md]);
   const shown = q.trim() ? all.filter((s) => s.text.includes(q.trim().toLowerCase())) : all;
   const body = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -77,18 +91,18 @@ export function Help() {
   return (
     <div className="flex flex-col gap-3 fade-in">
       <PageHeader
-        title="Help"
-        sub="The user guide inside TorsGUI (works offline) · every screen has a ? button that opens its section"
+        title={t("help.title")}
+        sub={t("help.sub")}
         actions={
           <>
             <Link className="btn btn-primary" to="/start">
-              <Rocket size={14} /> Getting started
+              <Rocket size={14} /> {t("help.start")}
             </Link>
             {(Object.keys(DOCS) as DocId[]).map((d) => {
               const Icon = DOCS[d].icon;
               return (
                 <button key={d} className={`btn ${d === doc ? "btn-primary" : ""}`} onClick={() => setSp(d === "file" ? { doc: "file" } : {})}>
-                  <Icon size={14} /> {DOCS[d].title}
+                  <Icon size={14} /> {t(d === "file" ? "help.file" : "help.guide")}
                 </button>
               );
             })}
@@ -96,11 +110,11 @@ export function Help() {
         }
       />
       <div className="grid gap-3" style={{ gridTemplateColumns: "250px minmax(0, 1fr)" }}>
-        <Panel noPad title="Contents">
+        <Panel noPad title={t("help.contents")}>
           <div className="p-2">
             <div className="relative mb-2">
               <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 muted" />
-              <input className="input !pl-7" placeholder="Search the guide" value={q} onChange={(e) => setQ(e.target.value)} data-testid="help-search" />
+              <input className="input !pl-7" placeholder={t("help.search")} value={q} onChange={(e) => setQ(e.target.value)} data-testid="help-search" />
             </div>
             <nav className="flex flex-col overflow-auto" style={{ maxHeight: "calc(100vh - 250px)" }}>
               {shown
@@ -115,11 +129,12 @@ export function Help() {
                     {s.title}
                   </button>
                 ))}
-              {shown.length === 0 && <div className="muted text-[12px] px-2">No section mentions “{q}”.</div>}
+              {shown.length === 0 && <div className="muted text-[12px] px-2">{t("help.noMatch", { q })}</div>}
             </nav>
           </div>
         </Panel>
         <Panel noPad>
+          {!guide.translated && t("help.englishOnly") && <div className="px-6 pt-3 muted text-[12px]" data-testid="help-english-only">{t("help.englishOnly")}</div>}
           <div ref={body} className="help-body overflow-auto px-6 py-4" style={{ maxHeight: "calc(100vh - 160px)" }} data-testid="help-body">
             {shown.map((s) => (
               <section key={s.id + s.level} dangerouslySetInnerHTML={{ __html: s.html }} />

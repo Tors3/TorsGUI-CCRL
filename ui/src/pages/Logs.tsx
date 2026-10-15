@@ -4,6 +4,7 @@ import type { TournamentSummary } from "../bindings/TournamentSummary";
 import { Empty, PageHeader, Panel, Seg } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { bytes } from "../lib/format";
+import { useT } from "../i18n";
 
 type LogFile = { path: string; name: string; bytes: number; modified: string | null };
 
@@ -15,6 +16,7 @@ export function Logs() {
   const { data: files } = usePoll<LogFile[]>(tid ? "logs_list" : null, { id: tid }, 5000);
   const [file, setFile] = useState<string>("");
   const [text, setText] = useState("");
+  const tr = useT();
   useEffect(() => {
     if (!file) return;
     const load = () => call<{ text: string }>("log_tail", { path: file, bytes: 96 * 1024 }).then((r) => setText(r.text)).catch((e) => setText(String(e.message)));
@@ -26,32 +28,32 @@ export function Logs() {
   return (
     <div className="flex flex-col gap-3 fade-in">
       <PageHeader help="maintenance"
-        title="Logs"
-        sub="Events from the runners and the app, runner logs and per-game fastchess logs"
+        title={tr("logs.title")}
+        sub={tr("logs.sub")}
         actions={
           <>
-            <select className="select" style={{ width: 300 }} value={tid} onChange={(e) => { setTid(e.target.value); setFile(""); setText(""); }} aria-label="Tournament">
-              <option value="">All tournaments</option>
+            <select className="select" style={{ width: 300 }} value={tid} onChange={(e) => { setTid(e.target.value); setFile(""); setText(""); }} aria-label={tr("logs.tournament")}>
+              <option value="">{tr("logs.allTournaments")}</option>
               {(ts ?? []).map((t) => (
                 <option key={t.record.id} value={t.record.id}>
                   {t.record.name}
                 </option>
               ))}
             </select>
-            <Seg value={level} onChange={setLevel} options={[{ value: "all", label: "All" }, { value: "error", label: "Errors" }, { value: "warn", label: "Warnings" }, { value: "success", label: "Success" }, { value: "info", label: "Info" }]} />
+            <Seg value={level} onChange={setLevel} options={[{ value: "all", label: tr("logs.levels.all") }, { value: "error", label: tr("logs.levels.error") }, { value: "warn", label: tr("logs.levels.warn") }, { value: "success", label: tr("logs.levels.success") }, { value: "info", label: tr("logs.levels.info") }]} />
           </>
         }
       />
       <div className="grid gap-3" style={{ gridTemplateColumns: tid ? "1fr 1fr" : "1fr" }}>
-        <Panel title={`${rows.length} events`} noPad>
+        <Panel title={tr("logs.events", { count: rows.length })} noPad>
           <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 170px)" }}>
             <table className="tbl" data-testid="events-table">
               <thead>
                 <tr>
-                  <th>Time</th>
-                  <th>Level</th>
-                  <th>Kind</th>
-                  <th>Message</th>
+                  <th>{tr("logs.time")}</th>
+                  <th>{tr("logs.level")}</th>
+                  <th>{tr("logs.kind")}</th>
+                  <th>{tr("logs.message")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -67,11 +69,11 @@ export function Logs() {
                 ))}
               </tbody>
             </table>
-            {rows.length === 0 && <Empty>No event.</Empty>}
+            {rows.length === 0 && <Empty>{tr("logs.none")}</Empty>}
           </div>
         </Panel>
         {tid && (
-          <Panel title="Log files" noPad>
+          <Panel title={tr("logs.files")} noPad>
             <div className="grid" style={{ gridTemplateColumns: "240px 1fr", height: "calc(100vh - 170px)" }}>
               <div className="overflow-auto" style={{ borderRight: "1px solid var(--border)" }}>
                 {(files ?? []).map((f) => (
@@ -83,7 +85,7 @@ export function Logs() {
                   </button>
                 ))}
               </div>
-              <pre className="mono text-[11px] p-2 overflow-auto whitespace-pre-wrap">{text || "Select a file (the last 96 KB are shown and refreshed)."}</pre>
+              <pre className="mono text-[11px] p-2 overflow-auto whitespace-pre-wrap">{text || tr("logs.select")}</pre>
             </div>
           </Panel>
         )}

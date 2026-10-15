@@ -12,6 +12,7 @@ import { matchesEngine } from "../components/EngineRatings";
 import { Empty, ErrorBox, Field, PageHeader, Panel, ProgressBar, Seg, Spinner } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { evalText } from "../lib/format";
+import { useT } from "../i18n";
 
 type Source = "builtin" | "file" | "paste";
 const TIMES = [100, 250, 500, 1000, 3000, 10000];
@@ -21,6 +22,7 @@ const secs = (ms?: number | null) => (ms == null ? "—" : ms < 1000 ? `${ms} ms
 
 /** Test suites: EPD puzzles and mate finding for the engines of the library. */
 export function SuitesPage() {
+  const tr = useT();
   const { data: builtin } = usePoll<SuiteInfo[]>("suites_builtin", {}, 0);
   const { data: engines } = usePoll<EngineEntry[]>("engines_list", {}, 0);
   const { data: history, refresh: refreshHistory } = usePoll<SuiteRun[]>("suite_history", {}, 0);
@@ -72,7 +74,7 @@ export function SuitesPage() {
       if (was && p && !p.running) {
         refreshHistory();
         if (p.error) toast.error(p.error);
-        else if (p.run) toast.success(`${p.run.suite}: finished`);
+        else if (p.run) toast.success(tr("suites.finished", { suite: p.run.suite }));
       }
       was = !!p?.running;
     };
@@ -91,7 +93,7 @@ export function SuitesPage() {
       await call("suite_start", { config });
       setShownId("current");
       setSel(0);
-      toast.success("Test suite started");
+      toast.success(tr("suites.started"));
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -108,36 +110,36 @@ export function SuitesPage() {
   return (
     <div className="flex flex-col gap-3 fade-in">
       <PageHeader
-        title="Test suites"
-        sub="Puzzles and mate finding for engines: EPD positions with a best move (bm), a move to avoid (am) or a mate in N (dm)"
+        title={tr("suites.title")}
+        sub={tr("suites.sub")}
         actions={
           running ? (
-            <button className="btn btn-danger" onClick={() => call("suite_stop").then(() => toast("Stopping…"))} data-testid="suite-stop">
-              <Square size={13} /> Stop
+            <button className="btn btn-danger" onClick={() => call("suite_stop").then(() => toast(tr("suites.stopping")))} data-testid="suite-stop">
+              <Square size={13} /> {tr("suites.stop")}
             </button>
           ) : (
             <button className="btn btn-primary" onClick={start} disabled={!picked.length || !nPositions} data-testid="suite-start">
-              <Play size={13} /> Run {nPositions ? `${nPositions} positions` : ""}
-              {picked.length > 1 ? ` × ${picked.length} engines` : ""}
+              <Play size={13} /> {nPositions ? tr("suites.runPositions", { count: nPositions }) : tr("suites.run")}
+              {picked.length > 1 ? tr("suites.timesEngines", { count: picked.length }) : ""}
             </button>
           )
         }
       />
       <div className="grid gap-3 cols-fit">
-        <Panel title="Positions" actions={<Seg value={source} onChange={setSource} options={[{ value: "builtin", label: "Built-in" }, { value: "file", label: "EPD file" }, { value: "paste", label: "Paste" }]} />}>
+        <Panel title={tr("suites.positions")} actions={<Seg value={source} onChange={setSource} options={[{ value: "builtin", label: tr("suites.builtin") }, { value: "file", label: tr("suites.epdFile") }, { value: "paste", label: tr("suites.paste") }]} />}>
           <div className="flex flex-col gap-2">
             {source === "builtin" &&
               (builtin ?? []).map((b) => (
                 <label key={b.id} className="flex items-start gap-2 cursor-pointer" data-testid={`suite-${b.id}`}>
                   <input type="radio" className="mt-1" checked={suiteId === b.id} onChange={() => setSuiteId(b.id)} />
                   <span>
-                    <b>{b.name}</b> <span className="muted">· {b.positions} positions</span>
+                    <b>{b.name}</b> <span className="muted">· {tr("suites.positionsCount", { count: b.positions })}</span>
                     <div className="muted text-[11.5px]">{b.about}</div>
                   </span>
                 </label>
               ))}
             {source === "file" && (
-              <Field label="EPD file" hint="WAC, ECM, STS, Arasan, mate collections… any file with bm / am / dm">
+              <Field label={tr("suites.epdFile")} hint={tr("suites.fileHint")}>
                 <input className="input mono" placeholder="C:\Suites\wac.epd" value={path} onChange={(e) => setPath(e.target.value)} data-testid="suite-path" />
               </Field>
             )}
@@ -154,10 +156,10 @@ export function SuitesPage() {
             <ErrorBox error={previewErr} />
             {preview && (
               <div className="text-[12px]" data-testid="suite-preview">
-                <span className={preview.positions.length ? "w" : "l"}>{preview.positions.length} positions</span>
+                <span className={preview.positions.length ? "w" : "l"}>{tr("suites.positionsCount", { count: preview.positions.length })}</span>
                 {preview.errors.length > 0 && (
                   <details className="mt-1">
-                    <summary className="muted cursor-pointer">{preview.errors.length} lines skipped</summary>
+                    <summary className="muted cursor-pointer">{tr("suites.skipped", { count: preview.errors.length })}</summary>
                     <div className="mono text-[11px] muted max-h-[120px] overflow-auto">
                       {preview.errors.map((e) => (
                         <div key={e}>{e}</div>
@@ -169,10 +171,10 @@ export function SuitesPage() {
             )}
           </div>
         </Panel>
-        <Panel title="Engines" actions={<input className="input" style={{ width: 160, height: 24 }} placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />}>
+        <Panel title={tr("suites.engines")} actions={<input className="input" style={{ width: 160, height: 24 }} placeholder={tr("suites.search")} value={q} onChange={(e) => setQ(e.target.value)} />}>
           <div className="flex flex-col gap-2">
             <div className="max-h-[170px] overflow-auto flex flex-col gap-0.5" data-testid="suite-engines">
-              {shownEngines.length === 0 && <div className="muted text-[12px]">No engine in the library yet: add one in Engines.</div>}
+              {shownEngines.length === 0 && <div className="muted text-[12px]">{tr("suites.noEngine")}</div>}
               {shownEngines.map((e) => (
                 <label key={e.id} className="flex items-center gap-2 text-[12.5px] cursor-pointer">
                   <input type="checkbox" checked={picked.includes(e.id!)} onChange={(ev) => setPicked(ev.target.checked ? [...picked, e.id!] : picked.filter((x) => x !== e.id))} aria-label={e.display_name} />
@@ -182,7 +184,7 @@ export function SuitesPage() {
               ))}
             </div>
             <div className="grid grid-cols-4 gap-2">
-              <Field label="Time / position">
+              <Field label={tr("suites.time")}>
                 <select className="select" value={movetime} onChange={(e) => setMovetime(+e.target.value)} data-testid="suite-time">
                   {TIMES.map((t) => (
                     <option key={t} value={t}>
@@ -191,22 +193,22 @@ export function SuitesPage() {
                   ))}
                 </select>
               </Field>
-              <Field label="Threads">
+              <Field label={tr("suites.threads")}>
                 <input className="input tnum" type="number" min={1} value={threads} onChange={(e) => setThreads(Math.max(1, +e.target.value))} />
               </Field>
-              <Field label="Hash (MB)">
+              <Field label={tr("suites.hash")}>
                 <input className="input tnum" type="number" min={1} value={hash} onChange={(e) => setHash(Math.max(1, +e.target.value))} />
               </Field>
-              <Field label="In parallel" hint="engine processes">
+              <Field label={tr("suites.parallel")} hint={tr("suites.parallelHint")}>
                 <input className="input tnum" type="number" min={1} max={64} value={concurrency} onChange={(e) => setConcurrency(Math.max(1, +e.target.value))} />
               </Field>
             </div>
-            {estimate > 0 && <div className="muted text-[11.5px]">About {estimate < 90 ? `${Math.ceil(estimate)} s` : `${Math.ceil(estimate / 60)} min`} at most (engines stop at the time limit).</div>}
+            {estimate > 0 && <div className="muted text-[11.5px]">{estimate < 90 ? tr("suites.estimateS", { n: Math.ceil(estimate) }) : tr("suites.estimateMin", { n: Math.ceil(estimate / 60) })}</div>}
           </div>
         </Panel>
       </div>
       {running && progress && (
-        <Panel title="Running">
+        <Panel title={tr("suites.running")}>
           <div className="flex items-center gap-3 text-[12.5px]">
             <Spinner />
             <span className="tnum">
@@ -219,12 +221,12 @@ export function SuitesPage() {
         </Panel>
       )}
       <Panel
-        title="Results"
+        title={tr("suites.results")}
         noPad
         actions={
           <div className="flex items-center gap-2">
-            <select className="select" style={{ height: 24, width: 260 }} value={shownId} onChange={(e) => setShownId(e.target.value)} aria-label="Run" data-testid="suite-run-select">
-              <option value="current">{progress?.run ? `Last run: ${progress.run.suite}` : "Last run"}</option>
+            <select className="select" style={{ height: 24, width: 260 }} value={shownId} onChange={(e) => setShownId(e.target.value)} aria-label={tr("suites.runLabel")} data-testid="suite-run-select">
+              <option value="current">{progress?.run ? tr("suites.lastRunOf", { suite: progress.run.suite }) : tr("suites.lastRun")}</option>
               {(history ?? []).map((h) => (
                 <option key={h.id} value={h.id}>
                   {h.created_at.slice(0, 16).replace("T", " ")} · {h.suite} · {secs(h.movetime_ms)}
@@ -232,7 +234,7 @@ export function SuitesPage() {
               ))}
             </select>
             {shownId !== "current" && (
-              <button className="btn btn-sm btn-ghost btn-icon" aria-label="Delete this run" onClick={() => del(shownId)}>
+              <button className="btn btn-sm btn-ghost btn-icon" aria-label={tr("suites.deleteRun")} onClick={() => del(shownId)}>
                 <Trash2 size={12} />
               </button>
             )}
@@ -241,7 +243,7 @@ export function SuitesPage() {
       >
         {!run ? (
           <div className="p-3">
-            <Empty icon={<Puzzle size={18} />}>Pick the positions and the engines, then press Run. Every engine searches every position for the time chosen; a position is solved when the final move is a solution (or a mate as short as asked).</Empty>
+            <Empty icon={<Puzzle size={18} />}>{tr("suites.empty")}</Empty>
           </div>
         ) : (
           <SuiteResults run={run} sel={sel} setSel={setSel} />
@@ -252,6 +254,7 @@ export function SuitesPage() {
 }
 
 function SuiteResults({ run, sel, setSel }: { run: SuiteRun; sel: number; setSel: (i: number) => void }) {
+  const tr = useT();
   const p = run.positions[Math.min(sel, run.positions.length - 1)];
   const arrows: Arrow[] = [];
   if (p) {
@@ -268,8 +271,8 @@ function SuiteResults({ run, sel, setSel }: { run: SuiteRun; sel: number; setSel
         <table className="tbl" data-testid="suite-results">
           <thead>
             <tr>
-              <th>Position</th>
-              <th>Task</th>
+              <th>{tr("suites.position")}</th>
+              <th>{tr("suites.task")}</th>
               {run.engines.map((e) => (
                 <th key={e.engine_id}>{e.name}</th>
               ))}
@@ -282,7 +285,7 @@ function SuiteResults({ run, sel, setSel }: { run: SuiteRun; sel: number; setSel
                 <td className="muted text-[11.5px]">
                   {pos.bm.length ? `bm ${pos.bm.join(" ")}` : ""}
                   {pos.am.length ? ` am ${pos.am.join(" ")}` : ""}
-                  {pos.dm != null ? ` · mate in ${pos.dm}` : ""}
+                  {pos.dm != null ? tr("suites.mateIn", { n: pos.dm }) : ""}
                 </td>
                 {run.engines.map((e) => {
                   const r = e.results[i];
@@ -290,11 +293,11 @@ function SuiteResults({ run, sel, setSel }: { run: SuiteRun; sel: number; setSel
                   if (r.error)
                     return (
                       <td key={e.engine_id} className="l" title={r.error}>
-                        error
+                        {tr("suites.error")}
                       </td>
                     );
                   return (
-                    <td key={e.engine_id} title={`${r.bestmove_san} · ${evalText(r.score.cp, r.score.mate)} · depth ${r.depth}`}>
+                    <td key={e.engine_id} title={tr("suites.depthTip", { move: r.bestmove_san, eval: evalText(r.score.cp, r.score.mate), depth: r.depth })}>
                       {r.solved ? (
                         <span className="w inline-flex items-center gap-1">
                           <CheckCircle2 size={12} /> {secs(r.solved_at_ms)}
@@ -313,7 +316,7 @@ function SuiteResults({ run, sel, setSel }: { run: SuiteRun; sel: number; setSel
           <tfoot>
             <tr>
               <td colSpan={2}>
-                Solved · {run.positions.length} positions · {secs(run.movetime_ms)} each{!run.finished && run.engines.some((e) => e.results.some((r) => !r)) ? " · stopped" : ""}
+                {tr("suites.solvedLine", { count: run.positions.length, time: secs(run.movetime_ms) })}{!run.finished && run.engines.some((e) => e.results.some((r) => !r)) ? tr("suites.stopped") : ""}
               </td>
               {run.engines.map((e) => (
                 <td key={e.engine_id} data-testid="suite-solved">
@@ -324,13 +327,13 @@ function SuiteResults({ run, sel, setSel }: { run: SuiteRun; sel: number; setSel
           </tfoot>
         </table>
         {run.engines.length > 1 && (
-          <div className="muted text-[11.5px] mt-2">Ties on solved positions are broken by the total solve time: {run.engines.map((e) => `${e.name} ${secs(e.solve_time_ms)}`).join(" · ")}</div>
+          <div className="muted text-[11.5px] mt-2">{tr("suites.ties", { list: run.engines.map((e) => `${e.name} ${secs(e.solve_time_ms)}`).join(" · ") })}</div>
         )}
       </div>
       {p && (
         <div className="flex flex-col gap-2">
           <div className="text-[12.5px]">
-            <b>{p.id}</b> <span className="muted">· {p.fen.split(" ")[1] === "w" ? "White" : "Black"} to move</span>
+            <b>{p.id}</b> <span className="muted">{p.fen.split(" ")[1] === "w" ? tr("suites.whiteToMove") : tr("suites.blackToMove")}</span>
           </div>
           <div style={{ maxWidth: 380 }}>
             <Board fen={p.fen} orientation={p.fen.split(" ")[1] === "b" ? "black" : "white"} arrows={arrows} />
@@ -338,20 +341,20 @@ function SuiteResults({ run, sel, setSel }: { run: SuiteRun; sel: number; setSel
           <div className="text-[12px] flex flex-col gap-0.5">
             {p.bm.length > 0 && (
               <div>
-                <span className="w">■</span> Solution: <b>{p.bm.join(", ")}</b>
+                <span className="w">■</span> {tr("suites.solution")}<b>{p.bm.join(", ")}</b>
               </div>
             )}
             {p.am.length > 0 && (
               <div>
-                <span className="l">■</span> Avoid: <b>{p.am.join(", ")}</b>
+                <span className="l">■</span> {tr("suites.avoid")}<b>{p.am.join(", ")}</b>
               </div>
             )}
-            {p.dm != null && <div>Mate in {p.dm}</div>}
+            {p.dm != null && <div>{tr("suites.mate", { n: p.dm })}</div>}
             {run.engines.map((e) => {
               const r = e.results[sel];
               return (
                 <div key={e.engine_id} className="muted">
-                  {e.name}: {r ? (r.error ? r.error : `${r.bestmove_san} (${evalText(r.score.cp, r.score.mate)}, depth ${r.depth})`) : "…"}
+                  {e.name}: {r ? (r.error ? r.error : tr("suites.engineLine", { move: r.bestmove_san, eval: evalText(r.score.cp, r.score.mate), depth: r.depth })) : "…"}
                 </div>
               );
             })}

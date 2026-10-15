@@ -96,6 +96,33 @@
   border-image: url("/board/szots-frame.webp") 48 / 20px stretch;
   box-shadow: 0 6px 18px rgba(90, 50, 10, 0.28);
 }
+/* Basti felt (made for Bastiii): a chessboard on green card-table felt, the fibres drawn as
+   fine noise, lit from the right as in Basti's photo; a dark felt frame with a brass line
+   (pairs with the Basti theme) */
+.board-theme-basti {
+  --sq-light: #9ec4ab;
+  --sq-dark: #0f5a3e;
+  --sq-last: rgba(226, 192, 106, 0.5);
+}
+.board-theme-basti cg-board {
+  background:
+    radial-gradient(ellipse 85% 110% at 88% 42%, rgba(220, 255, 235, 0.16) 0%, rgba(220, 255, 235, 0) 60%),
+    radial-gradient(ellipse 95% 95% at 50% 50%, rgba(0, 0, 0, 0) 60%, rgba(0, 20, 12, 0.3) 100%),
+    url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Cfilter id='f' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' seed='5'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  1.6 0 0 0 -0.45'/%3E%3C/filter%3E%3Crect width='512' height='512' filter='url%28%23f%29'/%3E%3C/svg%3E") 0 0 / 100% 100%,
+    repeating-conic-gradient(#0f5a3e 0 25%, #9ec4ab 0 50%) 0 0 / 25% 25%;
+  background-blend-mode: normal, normal, soft-light, normal;
+  box-shadow: inset 0 0 0 1px rgba(0, 30, 18, 0.7), inset 2px 3px 8px rgba(0, 20, 12, 0.45);
+}
+/* pieces resting on felt: a soft, short shadow (felt swallows the light) */
+.board-theme-basti.board-box .cg-wrap piece {
+  filter: drop-shadow(0.5px 1px 0.6px rgba(0, 18, 10, 0.6)) drop-shadow(2px 3px 3px rgba(0, 18, 10, 0.3));
+}
+.board-theme-basti.board-box {
+  border: 14px solid #062a1d;
+  border-radius: 6px;
+  background: #062a1d;
+  box-shadow: inset 0 0 0 1px #0d3d2b, 0 0 0 1px #b8954a, 0 6px 18px rgba(0, 0, 0, 0.45);
+}
 .board-theme-marble {
   --sq-light: #e9e7e1;
   --sq-dark: #9aa6a0;
@@ -177,6 +204,79 @@
   flex: 1 1 0;
   text-align: right;
   padding-right: 0.3em;
+}
+/* rank numbers in the top-left corner of their own square (chessground centres them between squares) */
+.board-box .cg-wrap coords.ranks {
+  top: 0;
+  left: 0;
+  width: auto;
+}
+.board-box .cg-wrap coords.ranks coord {
+  flex: 1 1 0;
+  transform: none;
+  padding: 0.25em 0 0 0.3em;
+}
+/* coordinates on a frame around the board, as on a real board: the frame is the box's border
+   and the labels sit in it, one per square; a theme sets --frame-bg and --frame-fg */
+.board-box.board-framed {
+  --frame-w: 20px;
+  border: var(--frame-w) solid var(--frame-bg, color-mix(in srgb, var(--sq-dark) 45%, #111));
+  border-radius: 6px;
+  overflow: visible;
+}
+.frame-coords {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  pointer-events: none;
+  user-select: none;
+  font-size: clamp(11px, 2cqw, 14px);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--frame-fg, var(--sq-light));
+  font-variant-numeric: tabular-nums;
+}
+.frame-coords span {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.frame-files {
+  left: 0;
+  right: 0;
+  bottom: calc(-1 * var(--frame-w));
+  height: var(--frame-w);
+}
+.frame-ranks {
+  top: 0;
+  bottom: 0;
+  left: calc(-1 * var(--frame-w));
+  width: var(--frame-w);
+  flex-direction: column;
+}
+.board-theme-minimal { --frame-bg: #3a4049; --frame-fg: #e6e8eb; }
+.board-theme-slate { --frame-bg: #46516a; --frame-fg: #d9dde5; }
+.board-theme-ocean { --frame-bg: #4a5f6a; --frame-fg: #dee3e6; }
+.board-theme-tournament { --frame-bg: #4b6436; --frame-fg: #eeeed2; }
+.board-theme-classic { --frame-bg: #6b4a30; --frame-fg: #f0d9b5; }
+.board-theme-walnut { --frame-bg: #4a2e1b; --frame-fg: #e7c9a0; }
+.board-theme-maple { --frame-bg: #8a6238; --frame-fg: #f6e6c6; }
+.board-theme-marble { --frame-bg: #56605b; --frame-fg: #e9e7e1; }
+/* the wooden frame image and the felt frame keep their look, with the labels on them */
+.board-theme-szots.board-box.board-framed {
+  border-color: transparent;
+  border-image: url("/board/szots-frame.webp") 48 / var(--frame-w) stretch;
+  border-radius: 0;
+  --frame-fg: rgba(46, 20, 3, 0.92);
+}
+.board-theme-szots .frame-coords {
+  /* burnt into the wood: dark letters with a light lower edge */
+  text-shadow: 0 1px 0 rgba(255, 226, 180, 0.45);
+}
+.board-theme-basti.board-box.board-framed {
+  --frame-bg: #062a1d;
+  --frame-fg: #d4b46a;
 }
 .board-box {
   container-type: inline-size;

@@ -35,4 +35,13 @@ hash_mb?: number | null,
  * Withdrawn from the tournament: its games still to play are dropped (the other pairings
  * keep their openings), and its games are left out of the CCRL export by default.
  */
-withdrawn?: boolean, };
+withdrawn?: boolean, 
+/**
+ * Plays on a graphics card (Lc0 and the like): one game per card at a time.
+ */
+gpu?: boolean, 
+/**
+ * The UCI option that picks the card (`BackendOptions` for Lc0, which then gets
+ * `gpu=N`); empty: the card is picked with `CUDA_VISIBLE_DEVICES`.
+ */
+gpu_select?: string, };

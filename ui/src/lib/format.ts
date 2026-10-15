@@ -1,3 +1,4 @@
+import { getLocale, translate } from "../i18n";
 export function duration(s?: number | null): string {
   if (s == null || !isFinite(s) || s < 0) return "—";
   const t = Math.round(s);
@@ -47,7 +48,7 @@ export function ago(ts?: string | null): string {
   if (!ts) return "—";
   const t = Date.parse(ts.replace(" +", "+").replace(/([+-]\d\d)(\d\d)$/, "$1:$2"));
   if (isNaN(t)) return ts;
-  return duration((Date.now() - t) / 1000) + " ago";
+  return translate(getLocale(), "app.ago", { time: duration((Date.now() - t) / 1000) });
 }
 export function shortTime(ts?: string | null): string {
   if (!ts) return "—";

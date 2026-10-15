@@ -673,6 +673,8 @@ pub(crate) mod tests {
             threads: None,
             hash_mb: None,
             withdrawn: false,
+            gpu: false,
+            gpu_select: String::new(),
         }
     }
 
@@ -704,6 +706,8 @@ pub(crate) mod tests {
             adjudication: Adjudication::default(),
             extra_args: vec![],
             placement: Placement::None,
+            use_smt: false,
+        gpus: vec![],
             log_level: "info".into(),
             ccrl_list: "Blitz".into(),
             max_retries: 2,

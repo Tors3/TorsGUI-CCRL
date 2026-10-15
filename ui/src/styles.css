@@ -284,6 +284,47 @@
   color: #c8160c;
   font-weight: 700;
 }
+/* Basti (made for Bastiii): deep green card-table felt, darker where the lamp does not reach,
+   with a brass trim; pairs with the Basti felt board */
+:root[data-theme="basti"] {
+  --bg: #051d15;
+  --bg-2: #07241a;
+  --panel: #0a2f22;
+  --panel-2: #0d3a2a;
+  --hover: #114733;
+  --border: #14503b;
+  --border-strong: #1e6a50;
+  --text: #e4f0e8;
+  --text-2: #b6d0c1;
+  --muted: #84a796;
+  --accent: #d1ae5f;
+  --accent-2: #e2c47e;
+  --accent-bg: rgba(209, 174, 95, 0.15);
+  --on-accent: #10231a;
+  --win: #7fd19e;
+  --win-bg: rgba(127, 209, 158, 0.13);
+  --draw: #a6c2b2;
+  --draw-bg: rgba(166, 194, 178, 0.12);
+  --loss: #ef8a7c;
+  --loss-bg: rgba(239, 138, 124, 0.14);
+  --warn: #e8c25a;
+  --warn-bg: rgba(232, 194, 90, 0.14);
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
+  --board-light: #9ec4ab;
+  --board-dark: #0f5a3e;
+  color-scheme: dark;
+}
+/* Basti: the page itself is the felt, lit from the right as on the table */
+:root[data-theme="basti"] body {
+  background:
+    radial-gradient(ellipse 70% 90% at 92% 40%, rgba(60, 150, 110, 0.16) 0%, rgba(60, 150, 110, 0) 70%),
+    url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23f)'/%3E%3C/svg%3E"),
+    var(--bg);
+}
+:root[data-theme="basti"] .nav-item.active {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
 /* Retro fonts (Settings → Appearance), bundled with TorsGUI (OFL-1.1): DotGothic16 (Fontworks),
    a dot-matrix face like the screens of the classic chess GUIs, for text; IBM Plex Mono for
    numbers, moves and tables */
@@ -1079,4 +1120,131 @@ cg-board {
   .numa-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+/* Choices: radio cards with a sentence each (components/ui.tsx) */
+.choices {
+  display: grid;
+  gap: 8px;
+}
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-2, var(--panel));
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.choice:hover {
+  border-color: var(--border-strong);
+}
+.choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.choice:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.choice-on {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.choice-off {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.choice-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+.choice-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  flex-shrink: 0;
+}
+.choice-on .choice-dot {
+  border-color: var(--accent);
+  background: radial-gradient(circle, var(--accent) 0 3px, transparent 3.5px);
+}
+.choice-about {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--muted);
+  padding-left: 20px;
+}
+
+/* New tournament → Cores & games: the map of the CPUs */
+.cpu-map {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cpu-core {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+.cpu-cell {
+  width: 14px;
+  height: 20px;
+  border-radius: 2px;
+}
+.cpu-shared {
+  background: var(--accent);
+  opacity: 0.75;
+}
+.cpu-free {
+  background: var(--bg-2, var(--hover));
+  border: 1px dashed var(--border-strong);
+}
+.cpu-off {
+  background: repeating-linear-gradient(45deg, var(--border) 0 2px, transparent 2px 5px);
+}
+.cpu-os {
+  background: var(--muted);
+  opacity: 0.35;
+}
+.cpu-over .cpu-core {
+  border-color: var(--loss);
+}
+.cpu-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.cpu-legend .cpu-cell {
+  width: 10px;
+  height: 12px;
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 5px;
+}
+
+/* Sidebar: games in progress on the Live icon (icons-only sidebar) */
+.nav-dot-count {
+  position: absolute;
+  top: -6px;
+  right: -9px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  font-size: 9.5px;
+  line-height: 14px;
+  text-align: center;
+  background: var(--win);
+  color: var(--bg);
 }

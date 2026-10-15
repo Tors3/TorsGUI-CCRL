@@ -7,44 +7,46 @@ import { getUserPieceSets, setUserPieceSets } from "../lib/boardPrefs";
 import { BUNDLED_PIECE_SETS } from "../lib/pieceSets";
 import type { CSSProperties } from "react";
 import type React from "react";
-import { BOARD_THEMES, THEME_LABEL, pieceUrl, setBoardPrefs, themeStyle, useBoardPrefs } from "../lib/boardPrefs";
-import { playEvent, preloadSounds, SOUND_SET_LABEL, SOUND_SETS, type SoundSet } from "../lib/sound";
+import { BOARD_THEMES, pieceUrl, setBoardPrefs, themeStyle, useBoardPrefs, type CoordsStyle } from "../lib/boardPrefs";
+import { playEvent, preloadSounds, SOUND_SETS, type SoundSet } from "../lib/sound";
 import { Board } from "./Board";
 import { Modal } from "./ui";
+import { useT, type Key } from "../i18n";
 
 const PREVIEW_FEN = "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 1 5";
 
 /** Board theme, piece set, animation, coordinates, arrows and sound. */
 export function BoardAppearance() {
   const p = useBoardPrefs();
+  const tr = useT();
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: "minmax(0, 1fr) 260px" }}>
       <div className="flex flex-col gap-3 min-w-0">
         <div>
-          <div className="kpi-label mb-1.5">Board</div>
+          <div className="kpi-label mb-1.5">{tr("board.board")}</div>
           <div className="flex flex-wrap gap-2">
             {BOARD_THEMES.map((t) => (
-              <button key={t} className="flex flex-col items-center gap-1" onClick={() => setBoardPrefs({ theme: t })} aria-label={THEME_LABEL[t]} data-testid={`theme-${t}`}>
+              <button key={t} className="flex flex-col items-center gap-1" onClick={() => setBoardPrefs({ theme: t })} aria-label={tr(`board.theme.${t}` as Key)} data-testid={`theme-${t}`}>
                 <div className={`swatch board-theme-${t} ${p.theme === t ? "active" : ""}`} style={themeStyle(p, t) as CSSProperties}>
                   <span style={{ background: "var(--sq-light)" }} />
                   <span style={{ background: "var(--sq-dark)" }} />
                   <span style={{ background: "var(--sq-dark)" }} />
                   <span style={{ background: "var(--sq-light)" }} />
                 </div>
-                <span className="text-[11px] muted">{THEME_LABEL[t]}</span>
+                <span className="text-[11px] muted">{tr(`board.theme.${t}` as Key)}</span>
               </button>
             ))}
           </div>
           {p.theme === "custom" && (
             <div className="flex items-center gap-4 mt-2 text-[12.5px]">
               <label className="flex items-center gap-2">
-                <input type="color" value={p.customLight} onChange={(e) => setBoardPrefs({ customLight: e.target.value })} aria-label="Light squares" /> Light squares
+                <input type="color" value={p.customLight} onChange={(e) => setBoardPrefs({ customLight: e.target.value })} aria-label={tr("board.light")} /> {tr("board.light")}
               </label>
               <label className="flex items-center gap-2">
-                <input type="color" value={p.customDark} onChange={(e) => setBoardPrefs({ customDark: e.target.value })} aria-label="Dark squares" /> Dark squares
+                <input type="color" value={p.customDark} onChange={(e) => setBoardPrefs({ customDark: e.target.value })} aria-label={tr("board.dark")} /> {tr("board.dark")}
               </label>
               <button className="btn btn-sm" onClick={() => setBoardPrefs({ customLight: "#e8e8e8", customDark: "#9e9e9e" })}>
-                Reset
+                {tr("board.reset")}
               </button>
             </div>
           )}
@@ -52,15 +54,26 @@ export function BoardAppearance() {
         <PiecePicker />
         <div className="grid grid-cols-2 gap-3 text-[12.5px]">
           <label className="flex flex-col gap-1">
-            <span className="kpi-label">Animation {p.animation ? `${p.animation} ms` : "off"}</span>
-            <input type="range" min={0} max={600} step={20} value={p.animation} onChange={(e) => setBoardPrefs({ animation: Number(e.target.value) })} aria-label="Animation speed" />
+            <span className="kpi-label">{tr("board.animation", { value: p.animation ? `${p.animation} ms` : tr("board.off") })}</span>
+            <input type="range" min={0} max={600} step={20} value={p.animation} onChange={(e) => setBoardPrefs({ animation: Number(e.target.value) })} aria-label={tr("board.animationLabel")} />
           </label>
           <div className="flex flex-col gap-1.5 justify-end">
             <label className="flex items-center gap-2">
-              <input type="checkbox" checked={p.coordinates} onChange={(e) => setBoardPrefs({ coordinates: e.target.checked })} /> Coordinates
+              <input type="checkbox" checked={p.coordinates} onChange={(e) => setBoardPrefs({ coordinates: e.target.checked })} /> {tr("board.coordinates")}
+              <select
+                className="select ml-auto !py-0.5 text-[12px]"
+                value={p.coordsStyle}
+                disabled={!p.coordinates}
+                onChange={(e) => setBoardPrefs({ coordsStyle: e.target.value as CoordsStyle })}
+                aria-label={tr("board.coordsWhere")}
+                data-testid="coords-style"
+              >
+                <option value="frame">{tr("board.coordsFrame")}</option>
+                <option value="inside">{tr("board.coordsInside")}</option>
+              </select>
             </label>
             <label className="flex items-center gap-2">
-              <input type="checkbox" checked={p.arrows} onChange={(e) => setBoardPrefs({ arrows: e.target.checked })} /> Engine arrows (PV)
+              <input type="checkbox" checked={p.arrows} onChange={(e) => setBoardPrefs({ arrows: e.target.checked })} /> {tr("board.arrows")}
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -72,14 +85,14 @@ export function BoardAppearance() {
                 }}
                 data-testid="sound-toggle"
               />{" "}
-              Sounds
+              {tr("board.sounds")}
             </label>
           </div>
         </div>
         {p.sound && (
           <div className="flex flex-wrap items-end gap-3 text-[12.5px]" data-testid="sound-settings">
             <label className="flex flex-col gap-1">
-              <span className="kpi-label">Sound set</span>
+              <span className="kpi-label">{tr("board.soundSet")}</span>
               <select
                 className="select"
                 value={p.soundSet}
@@ -93,13 +106,13 @@ export function BoardAppearance() {
               >
                 {SOUND_SETS.map((s) => (
                   <option key={s} value={s}>
-                    {SOUND_SET_LABEL[s]}
+                    {tr(`board.sets.${s}` as Key)}
                   </option>
                 ))}
               </select>
             </label>
             <label className="flex flex-col gap-1 flex-1 min-w-[140px]">
-              <span className="kpi-label">Volume {Math.round(p.soundVolume * 100)}%</span>
+              <span className="kpi-label">{tr("board.volume", { n: Math.round(p.soundVolume * 100) })}</span>
               <input
                 type="range"
                 min={0}
@@ -107,11 +120,11 @@ export function BoardAppearance() {
                 step={5}
                 value={Math.round(p.soundVolume * 100)}
                 onChange={(e) => setBoardPrefs({ soundVolume: Number(e.target.value) / 100 })}
-                aria-label="Sound volume"
+                aria-label={tr("board.volumeLabel")}
                 data-testid="sound-volume"
               />
             </label>
-            <div className="flex flex-wrap gap-1" aria-label="Test the sounds">
+            <div className="flex flex-wrap gap-1" aria-label={tr("board.test")}>
               {(
                 [
                   ["move", "Move"],
@@ -122,9 +135,9 @@ export function BoardAppearance() {
                   ["end", "Game end"],
                   ["lowtime", "Low time"],
                 ] as const
-              ).map(([ev, label]) => (
-                <button key={ev} className="btn btn-sm" onClick={() => playEvent(ev, p.soundSet, p.soundVolume)} title={`Play the ${label.toLowerCase()} sound`}>
-                  <Volume2 size={12} /> {label}
+              ).map(([ev]) => (
+                <button key={ev} className="btn btn-sm" onClick={() => playEvent(ev, p.soundSet, p.soundVolume)} title={tr("board.playTip", { name: tr(`board.ev.${ev}` as Key) })}>
+                  <Volume2 size={12} /> {tr(`board.ev.${ev}` as Key)}
                 </button>
               ))}
             </div>
@@ -138,12 +151,13 @@ export function BoardAppearance() {
 
 export function BoardSettingsButton() {
   const [open, setOpen] = useState(false);
+  const tr = useT();
   return (
     <>
-      <button className="btn btn-icon" aria-label="Board appearance" title="Board appearance" onClick={() => setOpen(true)}>
+      <button className="btn btn-icon" aria-label={tr("board.appearance")} title={tr("board.appearance")} onClick={() => setOpen(true)}>
         <Palette size={15} />
       </button>
-      <Modal open={open} onOpenChange={setOpen} title="Board appearance" width={760}>
+      <Modal open={open} onOpenChange={setOpen} title={tr("board.appearance")} width={760}>
         <BoardAppearance />
       </Modal>
     </>
@@ -153,6 +167,7 @@ export function BoardSettingsButton() {
 /** Bundled sets (searchable) and sets imported for personal use. */
 function PiecePicker() {
   const p = useBoardPrefs();
+  const tr = useT();
   const [q, setQ] = useState("");
   const [user, setUser] = useState<UserPieceSet[]>(getUserPieceSets());
   const [dir, setDir] = useState("");
@@ -168,7 +183,7 @@ function PiecePicker() {
       const n = await call<string>("piece_set_import", { dir, name: name || null });
       await reload();
       setBoardPrefs({ pieces: `user:${n}` });
-      toast.success(`Piece set "${n}" imported`);
+      toast.success(tr("board.imported", { name: n }));
       setImporting(false);
       setDir("");
       setName("");
@@ -198,25 +213,25 @@ function PiecePicker() {
     <div>
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <div className="kpi-label">
-          Pieces · {BUNDLED_PIECE_SETS.length + user.length} sets
+          {tr("board.pieces", { count: BUNDLED_PIECE_SETS.length + user.length })}
         </div>
         <div className="flex gap-1.5">
-          <input className="input !h-[26px] text-[12px]" style={{ width: 150 }} placeholder="Search sets" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search piece sets" />
-          <button className="btn btn-sm" onClick={() => setImporting((x) => !x)} title="Import a piece set from a folder (for personal use)">
-            <FolderInput size={12} /> Import
+          <input className="input !h-[26px] text-[12px]" style={{ width: 150 }} placeholder={tr("board.searchSets")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={tr("board.searchLabel")} />
+          <button className="btn btn-sm" onClick={() => setImporting((x) => !x)} title={tr("board.importTip")}>
+            <FolderInput size={12} /> {tr("board.import")}
           </button>
         </div>
       </div>
       {importing && (
         <div className="panel p-2 mb-2 flex flex-col gap-1.5 text-[12px]">
           <div className="muted">
-            A folder with the 12 pieces as SVG or PNG (<span className="mono">wP.svg</span> … <span className="mono">bK.svg</span>, or the sharechess names <span className="mono">pw.svg</span> … <span className="mono">kb.svg</span>). Imported sets stay on this computer: use them only as their licence allows (many are for personal, non-commercial use).
+            {tr("board.importAbout1")}<span className="mono">wP.svg</span> … <span className="mono">bK.svg</span>{tr("board.importAbout2")}<span className="mono">pw.svg</span> … <span className="mono">kb.svg</span>{tr("board.importAbout3")}
           </div>
           <div className="flex gap-1.5">
             <input className="input mono" placeholder="…/sharechess/public/pieces/maestro" value={dir} onChange={(e) => setDir(e.target.value)} data-testid="piece-import-dir" />
-            <input className="input" style={{ width: 130 }} placeholder="name (optional)" value={name} onChange={(e) => setName(e.target.value)} />
+            <input className="input" style={{ width: 130 }} placeholder={tr("board.namePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} />
             <button className="btn btn-primary" disabled={!dir.trim()} onClick={doImport}>
-              Import
+              {tr("board.import")}
             </button>
           </div>
         </div>
@@ -228,10 +243,10 @@ function PiecePicker() {
             tile(
               `user:${u.name}`,
               u.name,
-              `${u.name} (imported, personal use)`,
+              tr("board.personal", { name: u.name }),
               <span
                 role="button"
-                aria-label={`Delete ${u.name}`}
+                aria-label={tr("board.deleteSet", { name: u.name })}
                 className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 btn btn-ghost btn-icon btn-sm"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -244,7 +259,7 @@ function PiecePicker() {
           )}
         {bundled.map((s) => tile(s.id, s.label, `${s.label} — ${s.author} (${s.license})`))}
       </div>
-      <div className="muted text-[11px] mt-1">{current ? `${current.label}: ${current.author}, ${current.license}` : p.pieces.startsWith("user:") ? "imported set (personal use)" : ""}</div>
+      <div className="muted text-[11px] mt-1">{current ? `${current.label}: ${current.author}, ${current.license}` : p.pieces.startsWith("user:") ? tr("board.importedSet") : ""}</div>
     </div>
   );
 }

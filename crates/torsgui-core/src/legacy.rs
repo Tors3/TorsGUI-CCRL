@@ -92,6 +92,8 @@ fn participant(v: &serde_json::Value, role: Role) -> Participant {
         threads: None,
         hash_mb: None,
         withdrawn: false,
+            gpu: false,
+            gpu_select: String::new(),
     }
 }
 
@@ -181,6 +183,8 @@ pub fn read(tournament_dir: &Path, results_dir: Option<&Path>) -> Result<LegacyT
         adjudication,
         extra_args: extra,
         placement: Placement::Node,
+        use_smt: false,
+        gpus: vec![],
         log_level: get("LOG_LEVEL", "info"),
         ccrl_list: ccrl_list.into(),
         max_retries: 2,

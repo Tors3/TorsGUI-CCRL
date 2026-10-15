@@ -9,6 +9,7 @@ import { GameViewer, type GameRef } from "../components/GameViewer";
 import { GamesTable } from "../components/GamesTable";
 import { Empty, ErrorBox, Modal, PageHeader, Panel, StateChip } from "../components/ui";
 import { call, usePoll } from "../lib/api";
+import { useT } from "../i18n";
 
 /** The game archive: every tournament's games plus PGN files or folders the user adds. */
 export function Games() {
@@ -20,6 +21,7 @@ export function Games() {
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
   const [path, setPath] = useState("");
+  const t = useT();
   useEffect(() => {
     if (!sel && sources?.length) setSel(sources[0]);
   }, [sources, sel]);
@@ -38,7 +40,7 @@ export function Games() {
   const add = async () => {
     try {
       await editArchive((p) => Array.from(new Set([...p, path.trim()])));
-      toast.success("Added to the archive");
+      toast.success(t("games.added"));
       setAdding(false);
       setPath("");
     } catch (e) {
@@ -62,7 +64,7 @@ export function Games() {
           {s.label}
         </span>
         <span className="block muted text-[11px] tnum">
-          {s.games} games{s.files > 1 ? ` · ${s.files} files` : ""}
+          {t("games.count", { games: s.games })}{s.files > 1 ? t("games.files", { count: s.files }) : ""}
         </span>
       </span>
       {s.state ? (
@@ -71,7 +73,7 @@ export function Games() {
         <span
           role="button"
           className="btn btn-ghost btn-icon btn-sm opacity-0 group-hover:opacity-100"
-          aria-label="Remove from the archive"
+          aria-label={t("games.removeLabel")}
           onClick={(e) => {
             e.stopPropagation();
             editArchive((p) => p.filter((x) => x !== s.path && !s.path.startsWith(x.replace(/[\\/]+$/, "") + "/") && !s.path.startsWith(x.replace(/[\\/]+$/, "") + "\\")));
@@ -86,13 +88,13 @@ export function Games() {
   return (
     <div className="flex flex-col gap-3 fade-in">
       <PageHeader help="games-viewer-and-board"
-        title="Games"
-        sub={`${sources?.length ?? 0} sources · ${total} games · replay with board, evaluation and clocks`}
+        title={t("games.title")}
+        sub={t("games.sub", { sources: sources?.length ?? 0, games: total })}
         actions={
           <>
             <BoardSettingsButton />
             <button className="btn" onClick={() => setAdding(true)}>
-              <FolderPlus size={14} /> Add PGN file or folder
+              <FolderPlus size={14} /> {t("games.add")}
             </button>
           </>
         }
@@ -100,17 +102,17 @@ export function Games() {
       <ErrorBox error={error} />
       {sources && sources.length === 0 ? (
         <Panel>
-          <Empty icon={<Swords size={22} />}>No games yet. Games of your tournaments appear here; you can also add old PGN files or folders (for example the tournaments of CCRL_ScirptsTests).</Empty>
+          <Empty icon={<Swords size={22} />}>{t("games.empty")}</Empty>
         </Panel>
       ) : (
         <div className="grid gap-3" style={{ gridTemplateColumns: "280px minmax(0, 1fr)" }}>
-          <Panel noPad title="Sources" actions={<input className="input" style={{ width: 130 }} placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search sources" />}>
+          <Panel noPad title={t("games.sources")} actions={<input className="input" style={{ width: 130 }} placeholder={t("games.search")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("games.searchLabel")} />}>
             <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
-              {tournaments.length > 0 && <div className="kpi-label px-2.5 pt-2 pb-1">Tournaments</div>}
+              {tournaments.length > 0 && <div className="kpi-label px-2.5 pt-2 pb-1">{t("games.tournaments")}</div>}
               {tournaments.map(item)}
               {files.length > 0 && (
                 <div className="kpi-label px-2.5 pt-3 pb-1 flex items-center gap-1">
-                  <FileText size={11} /> PGN files
+                  <FileText size={11} /> {t("games.pgnFiles")}
                 </div>
               )}
               {files.map(item)}
@@ -123,8 +125,8 @@ export function Games() {
         </div>
       )}
       <GameViewer game={game} onClose={() => setGame(null)} />
-      <Modal open={adding} onOpenChange={setAdding} title="Add PGN file or folder to the archive" footer={<button className="btn btn-primary" onClick={add} disabled={!path.trim()}>Add</button>}>
-        <p className="muted text-[12.5px] mb-2">Games outside the workspace are only read, never modified. A folder adds every .pgn file directly inside it.</p>
+      <Modal open={adding} onOpenChange={setAdding} title={t("games.addTitle")} footer={<button className="btn btn-primary" onClick={add} disabled={!path.trim()}>{t("games.addBtn")}</button>}>
+        <p className="muted text-[12.5px] mb-2">{t("games.addAbout")}</p>
         <input className="input mono" value={path} onChange={(e) => setPath(e.target.value)} placeholder="C:\CCRL\CCRL_ScirptsTests\tournaments\Triumviratus_7.0_8CPU\pgn" data-testid="archive-path" />
       </Modal>
     </div>

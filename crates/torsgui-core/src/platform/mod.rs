@@ -77,10 +77,34 @@ impl Topology {
         v.sort_by_key(|c| (c.group, c.number));
         v
     }
-    /// `lanes per node = physical cores per node / (2 x threads per engine)`.
-    pub fn suggested_lanes(&self, node: u32, threads: u32) -> u32 {
-        let cores = self.node(node).map(|n| n.physical_cores).unwrap_or(self.physical_cores);
-        (cores / (2 * threads.max(1))).max(1)
+    /// The CPUs lanes may use on `node`: one per physical core, or with `smt` every
+    /// logical CPU, the hardware threads of a core next to each other (so that a slice of
+    /// the list takes whole cores).
+    pub fn lane_cpus(&self, node: u32, smt: bool) -> Vec<&Cpu> {
+        if !smt {
+            return self.primary_cpus(node);
+        }
+        let mut v: Vec<&Cpu> = self.cpus.iter().filter(|c| c.node == node).collect();
+        v.sort_by_key(|c| (c.group, c.core, c.smt, c.number));
+        v
+    }
+    /// How many engine threads `node` can run at once: its physical cores, or with `smt`
+    /// its logical CPUs.
+    pub fn cpu_budget(&self, node: u32, smt: bool) -> u32 {
+        match self.node(node) {
+            Some(n) if smt => n.logical_cpus,
+            Some(n) => n.physical_cores,
+            None => 0,
+        }
+    }
+    /// `lanes per node = CPUs of the node / (2 x threads per engine)`.
+    pub fn suggested_lanes(&self, node: u32, threads: u32, smt: bool) -> u32 {
+        let cpus = match self.node(node) {
+            Some(_) => self.cpu_budget(node, smt),
+            None if smt => self.logical_cpus,
+            None => self.physical_cores,
+        };
+        (cpus / (2 * threads.max(1))).max(1)
     }
 }
 
@@ -122,12 +146,13 @@ pub struct LanePlan {
     pub cpuset: Option<CpuSet>,
 }
 
-/// Plans the lanes of a tournament.
-pub fn plan_lanes(topo: &Topology, nodes: &[u32], lanes_per_node: u32, cores_per_lane: u32, placement: crate::model::Placement) -> Vec<LanePlan> {
+/// Plans the lanes of a tournament. `cores_per_lane` counts CPUs of the pool: physical
+/// cores, or logical CPUs with `smt`.
+pub fn plan_lanes(topo: &Topology, nodes: &[u32], lanes_per_node: u32, cores_per_lane: u32, placement: crate::model::Placement, smt: bool) -> Vec<LanePlan> {
     use crate::model::Placement;
     let mut out = Vec::new();
     for (pi, &node) in nodes.iter().enumerate() {
-        let prim = topo.primary_cpus(node);
+        let prim = topo.lane_cpus(node, smt);
         for lane in 0..lanes_per_node.max(1) {
             let cpuset = match placement {
                 Placement::None => None,
@@ -297,15 +322,37 @@ mod tests {
         // run_node.py AFFINITY_MASK=0x5555555555 (even bits, siblings adjacent)
         assert_eq!(set.mask, 0x55_5555_5555);
         assert_eq!(set.group, 1);
-        assert_eq!(t.suggested_lanes(0, 8), 1);
-        assert_eq!(t.suggested_lanes(0, 4), 2);
-        let lanes = plan_lanes(&t, &[0, 1], 2, 8, P::Lane);
+        assert_eq!(t.suggested_lanes(0, 8, false), 1);
+        assert_eq!(t.suggested_lanes(0, 4, false), 2);
+        let lanes = plan_lanes(&t, &[0, 1], 2, 8, P::Lane, false);
         assert_eq!(lanes.len(), 4);
         assert_eq!(lanes[1].cpuset.as_ref().unwrap().cpus.len(), 8);
         assert_ne!(lanes[0].cpuset, lanes[1].cpuset);
-        let lanes = plan_lanes(&t, &[0, 1], 2, 16, P::Node);
+        let lanes = plan_lanes(&t, &[0, 1], 2, 16, P::Node, false);
         assert_eq!(lanes[0].cpuset, lanes[1].cpuset);
-        assert!(plan_lanes(&t, &[0], 1, 2, P::None)[0].cpuset.is_none());
+        assert!(plan_lanes(&t, &[0], 1, 2, P::None, false)[0].cpuset.is_none());
+    }
+    #[test]
+    fn smt_uses_both_threads_of_a_core() {
+        // a Ryzen 7: 8 cores, 16 threads, one node
+        let t = synthetic_topology(1, 8, 2);
+        assert_eq!(t.cpu_budget(0, false), 8);
+        assert_eq!(t.cpu_budget(0, true), 16);
+        assert_eq!(t.suggested_lanes(0, 1, false), 4);
+        assert_eq!(t.suggested_lanes(0, 1, true), 8);
+        // the whole node: every logical CPU
+        let node = plan_lanes(&t, &[0], 2, 2, P::Node, true);
+        assert_eq!(node[0].cpuset.as_ref().unwrap().mask, 0xFFFF);
+        // disjoint lanes take whole cores (both hardware threads), never half of one
+        let lanes = plan_lanes(&t, &[0], 8, 2, P::Lane, true);
+        let core_of = |id: u32| t.cpus.iter().find(|c| c.id == id).unwrap().core;
+        for l in &lanes {
+            let cpus = &l.cpuset.as_ref().unwrap().cpus;
+            assert_eq!(cpus.len(), 2);
+            assert_eq!(core_of(cpus[0]), core_of(cpus[1]));
+        }
+        assert_eq!(lanes[0].cpuset.as_ref().unwrap().mask, 0b11);
+        assert_eq!(lanes[7].cpuset.as_ref().unwrap().mask, 0b11 << 14);
     }
     #[test]
     fn cpulist() {

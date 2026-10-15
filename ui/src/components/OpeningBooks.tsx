@@ -6,12 +6,14 @@ import type { Settings } from "../bindings/Settings";
 import { call, usePoll } from "../lib/api";
 import { num } from "../lib/format";
 import { Spinner } from "./ui";
+import { useT } from "../i18n";
 
 type BooksResp = { dir: string | null; books: BundledBook[] };
 
 /** Installs the opening books shipped with TorsGUI into the books folder. */
 export function InstallBooksButton({ onDone, label }: { onDone?: () => void; label?: string }) {
   const [busy, setBusy] = useState(false);
+  const t = useT();
   return (
     <button
       className="btn btn-primary"
@@ -21,7 +23,7 @@ export function InstallBooksButton({ onDone, label }: { onDone?: () => void; lab
         setBusy(true);
         try {
           const r = await call<{ installed: string[]; default_book: string; default_set: boolean }>("books_install");
-          toast.success(`${r.installed.length} opening books installed${r.default_set ? ` · default: ${r.default_book.split(/[\\/]/).pop()}` : ""}`);
+          toast.success(t("help.books.installed", { count: r.installed.length }) + (r.default_set ? t("help.books.defaultSet", { file: r.default_book.split(/[\\/]/).pop() ?? "" }) : ""));
           onDone?.();
         } catch (e) {
           toast.error((e as Error).message);
@@ -30,7 +32,7 @@ export function InstallBooksButton({ onDone, label }: { onDone?: () => void; lab
         }
       }}
     >
-      {busy ? <Spinner /> : <BookOpen size={13} />} {label ?? "Install the CCRL opening books"}
+      {busy ? <Spinner /> : <BookOpen size={13} />} {label ?? t("help.books.install")}
     </button>
   );
 }
@@ -39,11 +41,12 @@ export function InstallBooksButton({ onDone, label }: { onDone?: () => void; lab
 export function OpeningBooksPanel({ settings, onSettings }: { settings: Settings; onSettings: () => void }) {
   const { data, refresh } = usePoll<BooksResp>("books_bundled", {}, 0);
   const books = data?.books ?? [];
-  if (!data?.dir) return <div className="muted text-[12.5px]">This installation has no bundled books.</div>;
+  const t = useT();
+  if (!data?.dir) return <div className="muted text-[12.5px]">{t("help.books.none")}</div>;
   const setDefault = async (file: string) => {
     const path = `${settings.books_dir.replace(/[\\/]+$/, "")}${settings.books_dir.includes("\\") ? "\\" : "/"}${file}`;
     await call("settings_save", { settings: { ...settings, default_book: path } });
-    toast.success(`Default book: ${file}`);
+    toast.success(t("help.books.defaultBook", { file }));
     onSettings();
   };
   return (
@@ -54,20 +57,20 @@ export function OpeningBooksPanel({ settings, onSettings }: { settings: Settings
             refresh();
             onSettings();
           }}
-          label={books.every((b) => b.installed) ? "Reinstall the books" : "Install all the books"}
+          label={books.every((b) => b.installed) ? t("help.books.reinstall") : t("help.books.installAll")}
         />
         <span className="muted text-[12px]">
-          into <span className="mono">{settings.books_dir}</span> · PGN books are used by fastchess, CGB books are for other GUIs
+          {t("help.books.into")}<span className="mono">{settings.books_dir}</span>{t("help.books.about")}
         </span>
       </div>
       <div className="overflow-auto max-h-[300px]">
         <table className="tbl" data-testid="books-table">
           <thead>
             <tr>
-              <th>Book</th>
-              <th>File</th>
-              <th className="r">Positions</th>
-              <th>Description</th>
+              <th>{t("help.books.book")}</th>
+              <th>{t("help.books.fileCol")}</th>
+              <th className="r">{t("help.books.positions")}</th>
+              <th>{t("help.books.description")}</th>
               <th />
             </tr>
           </thead>
@@ -88,10 +91,10 @@ export function OpeningBooksPanel({ settings, onSettings }: { settings: Settings
                   <td className="r">
                     {b.fastchess &&
                       (isDefault ? (
-                        <span className="chip chip-win">default</span>
+                        <span className="chip chip-win">{t("help.books.isDefault")}</span>
                       ) : (
                         <button className="btn btn-sm" disabled={!b.installed} onClick={() => setDefault(b.file)}>
-                          Use as default
+                          {t("help.books.useDefault")}
                         </button>
                       ))}
                   </td>

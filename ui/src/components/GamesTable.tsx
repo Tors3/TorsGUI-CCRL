@@ -4,25 +4,27 @@ import type { GameRow } from "../bindings/GameRow";
 import { duration, shortTime } from "../lib/format";
 import type { GameRef } from "./GameViewer";
 import { ErrorBox, Panel, Result } from "./ui";
+import { useT } from "../i18n";
 
 const col = createColumnHelper<GameRow>();
 
 export function GamesTable({ rows: data, error, onOpen, maxHeight = "calc(100vh - 330px)", title }: { rows?: GameRow[]; error?: string; onOpen: (g: GameRef) => void; maxHeight?: string; title?: string }) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "end_time", desc: true }]);
   const [q, setQ] = useState("");
+  const t = useT();
   const columns = useMemo(
     () => [
-      col.accessor("end_time", { header: "Finished", cell: (c) => <span className="mono">{shortTime(c.getValue())}</span> }),
-      col.accessor("white", { header: "White" }),
-      col.accessor("black", { header: "Black" }),
-      col.accessor("result", { header: "Result", cell: (c) => <Result r={c.getValue()} /> }),
-      col.accessor("termination", { header: "Termination" }),
-      col.accessor("plies", { header: "Moves", cell: (c) => Math.ceil(c.getValue() / 2) }),
-      col.accessor("duration_s", { header: "Duration", cell: (c) => duration(c.getValue()) }),
-      col.accessor("round", { header: "Slot", cell: (c) => <span className="mono muted">{c.getValue()}</span> }),
-      col.accessor("opening", { header: "Opening", cell: (c) => <span className="truncate block max-w-[280px]" title={c.getValue()}>{c.getValue()}</span> }),
+      col.accessor("end_time", { header: t("ui.games.finished"), cell: (c) => <span className="mono">{shortTime(c.getValue())}</span> }),
+      col.accessor("white", { header: t("ui.games.white") }),
+      col.accessor("black", { header: t("ui.games.black") }),
+      col.accessor("result", { header: t("ui.games.result"), cell: (c) => <Result r={c.getValue()} /> }),
+      col.accessor("termination", { header: t("ui.games.termination") }),
+      col.accessor("plies", { header: t("ui.games.moves"), cell: (c) => Math.ceil(c.getValue() / 2) }),
+      col.accessor("duration_s", { header: t("ui.games.duration"), cell: (c) => duration(c.getValue()) }),
+      col.accessor("round", { header: t("ui.games.slot"), cell: (c) => <span className="mono muted">{c.getValue()}</span> }),
+      col.accessor("opening", { header: t("ui.games.opening"), cell: (c) => <span className="truncate block max-w-[280px]" title={c.getValue()}>{c.getValue()}</span> }),
     ],
-    [],
+    [t],
   );
   const table = useReactTable({
     data: data ?? [],
@@ -36,9 +38,9 @@ export function GamesTable({ rows: data, error, onOpen, maxHeight = "calc(100vh 
   });
   return (
     <Panel
-      title={`${title ? title + " · " : ""}${table.getRowModel().rows.length} games`}
+      title={`${title ? title + " · " : ""}${t("ui.games.count", { count: table.getRowModel().rows.length })}`}
       noPad
-      actions={<input className="input" style={{ width: 240 }} placeholder="Filter (engine, result, opening…)" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Filter games" />}
+      actions={<input className="input" style={{ width: 240 }} placeholder={t("ui.games.filter")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("ui.games.filterLabel")} />}
     >
       <ErrorBox error={error} />
       <div className="overflow-auto" style={{ maxHeight }}>

@@ -37,4 +37,14 @@ default_options: { [key in string]: string },
 /**
  * Command-line arguments of the engine (e.g. imported from Cute Chess).
  */
-args: string, extra_files: Array<string>, selection_reason: string, added_at: string, };
+args: string, extra_files: Array<string>, selection_reason: string, added_at: string, 
+/**
+ * Set aside by the user (Engines → Inactive): kept in the library, but not offered first
+ * when choosing the engines of a tournament. New engines are active.
+ */
+inactive?: boolean, 
+/**
+ * Plays on a graphics card (Lc0 and the like): found from its options when it is
+ * verified, or set by the user (Engines → GPU).
+ */
+gpu?: boolean, };

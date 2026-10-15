@@ -2,6 +2,7 @@ import { AlertTriangle, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { UciOption } from "../bindings/UciOption";
 import { call } from "../lib/api";
+import { useT } from "../i18n";
 
 /** Options TorsGUI sets itself: the tournament's threads and hash, Chess960 from the variant. */
 const MANAGED = new Set(["Threads", "Hash", "UCI_Chess960"]);
@@ -26,6 +27,7 @@ function tablebaseFor(name: string, kind: string, paths: TablebasePaths): string
 export type TablebasePaths = { syzygy?: string; gaviota?: string; nalimov?: string; egbb?: string };
 
 export function UciOptionsEditor({ options, values, onChange, engineId, dir, syzygyPath, tournament }: { options: UciOption[]; values: Record<string, string>; onChange: (v: Record<string, string>) => void; engineId?: number | null; dir?: string; syzygyPath?: string; tournament?: boolean }) {
+  const t = useT();
   // the tablebase paths of the settings (the tournament's Syzygy path when given)
   const [tb, setTb] = useState<TablebasePaths>({});
   useEffect(() => {
@@ -76,17 +78,17 @@ export function UciOptionsEditor({ options, values, onChange, engineId, dir, syz
         <>
           <div className="flex items-center gap-2 text-[12px]">
             <span className="muted">
-              {declared.length} options declared by the engine · {nSet} set · empty = the engine's default. Threads and Hash come from the tournament.
+              {t("uci.declared", { count: declared.length, set: nSet })}
             </span>
-            {declared.length > 8 && <input className="input ml-auto" style={{ width: 180 }} placeholder="Find an option" value={q} onChange={(e) => setQ(e.target.value)} />}
+            {declared.length > 8 && <input className="input ml-auto" style={{ width: 180 }} placeholder={t("uci.find")} value={q} onChange={(e) => setQ(e.target.value)} />}
           </div>
           <div className="overflow-auto" style={{ maxHeight: 340 }}>
             <table className="tbl">
               <thead>
                 <tr>
-                  <th>Option</th>
-                  <th>Value sent</th>
-                  <th>Engine default</th>
+                  <th>{t("uci.option")}</th>
+                  <th>{t("uci.valueSent")}</th>
+                  <th>{t("uci.engineDefault")}</th>
                   <th />
                 </tr>
               </thead>
@@ -103,7 +105,7 @@ export function UciOptionsEditor({ options, values, onChange, engineId, dir, syz
                         <OptionInput o={o} v={v} set={(x) => set(o.name, x)} />
                         {auto && (
                           <div className="muted text-[11px] mt-0.5" data-testid={`uci-auto-${o.name}`}>
-                            empty: TorsGUI sends <span className="mono">{auto}</span> ({o.name === "SyzygyPath" && syzygyPath != null ? "the tournament's Syzygy path" : "Settings → Paths"})
+                            {t("uci.autoSends")}<span className="mono">{auto}</span> ({o.name === "SyzygyPath" && syzygyPath != null ? t("uci.tournamentSyzygy") : t("uci.settingsPaths")})
                           </div>
                         )}
                       </td>
@@ -113,7 +115,7 @@ export function UciOptionsEditor({ options, values, onChange, engineId, dir, syz
                       </td>
                       <td>
                         {v !== "" && (
-                          <button className="btn btn-ghost btn-icon btn-sm" aria-label={`reset ${o.name}`} title="back to the engine default" onClick={() => set(o.name, "")}>
+                          <button className="btn btn-ghost btn-icon btn-sm" aria-label={t("uci.reset", { name: o.name })} title={t("uci.resetTip")} onClick={() => set(o.name, "")}>
                             <RotateCcw size={12} />
                           </button>
                         )}
@@ -126,26 +128,26 @@ export function UciOptionsEditor({ options, values, onChange, engineId, dir, syz
           </div>
         </>
       ) : (
-        <div className="muted text-[12px]">The engine's options are not known yet (verify it to read them): write them below.</div>
+        <div className="muted text-[12px]">{t("uci.unknown")}</div>
       )}
       <div className="flex flex-col gap-1.5" data-testid="uci-extra">
         <div className="flex items-center gap-2 text-[12px]">
-          <span className="muted">{declared.length ? "Other options (not declared by the engine)" : "Options"}</span>
+          <span className="muted">{declared.length ? t("uci.other") : t("uci.options")}</span>
           <button className="btn btn-sm" onClick={() => setExtraRows([...extra, ["", ""]])} data-testid="uci-extra-add">
-            <Plus size={12} /> Add option
+            <Plus size={12} /> {t("uci.add")}
           </button>
         </div>
         {extra.map(([k, v], i) => (
           <div key={i} className="flex items-center gap-2">
-            <input className="input mono" style={{ width: 200 }} placeholder="Name (e.g. EvalFile)" value={k} onChange={(e) => setExtraRows(extra.map((r, j) => (j === i ? [e.target.value, r[1]] : r)))} aria-label={`extra option name ${i + 1}`} />
-            <input className="input mono flex-1" placeholder="Value (e.g. nets/my-net.nnue)" value={v} onChange={(e) => setExtraRows(extra.map((r, j) => (j === i ? [r[0], e.target.value] : r)))} aria-label={`extra option value ${i + 1}`} />
-            <button className="btn btn-ghost btn-icon btn-sm" aria-label={`remove extra option ${i + 1}`} onClick={() => setExtraRows(extra.filter((_, j) => j !== i))}>
+            <input className="input mono" style={{ width: 200 }} placeholder={t("uci.namePlaceholder")} value={k} onChange={(e) => setExtraRows(extra.map((r, j) => (j === i ? [e.target.value, r[1]] : r)))} aria-label={t("uci.extraName", { n: i + 1 })} />
+            <input className="input mono flex-1" placeholder={t("uci.valuePlaceholder")} value={v} onChange={(e) => setExtraRows(extra.map((r, j) => (j === i ? [r[0], e.target.value] : r)))} aria-label={t("uci.extraValue", { n: i + 1 })} />
+            <button className="btn btn-ghost btn-icon btn-sm" aria-label={t("uci.removeExtra", { n: i + 1 })} onClick={() => setExtraRows(extra.filter((_, j) => j !== i))}>
               <Trash2 size={12} />
             </button>
           </div>
         ))}
       </div>
-      {dir && <div className="muted text-[11.5px]">Relative file paths are read from the engine folder: <span className="mono">{dir}</span></div>}
+      {dir && <div className="muted text-[11.5px]">{t("uci.relative")}<span className="mono">{dir}</span></div>}
       {warnings.length > 0 && (
         <div className="flex flex-col gap-1" data-testid="uci-warnings">
           {warnings.map((w) => (
@@ -160,11 +162,12 @@ export function UciOptionsEditor({ options, values, onChange, engineId, dir, syz
 }
 
 function OptionInput({ o, v, set }: { o: UciOption; v: string; set: (v: string) => void }) {
+  const t = useT();
   const label = `option ${o.name}`;
   if (o.kind === "check")
     return (
       <select className="select" value={v} onChange={(e) => set(e.target.value)} aria-label={label}>
-        <option value="">(default: {o.default ?? "?"})</option>
+        <option value="">{t("uci.default", { value: o.default ?? "?" })}</option>
         <option value="true">true</option>
         <option value="false">false</option>
       </select>
@@ -172,7 +175,7 @@ function OptionInput({ o, v, set }: { o: UciOption; v: string; set: (v: string) 
   if (o.kind === "combo")
     return (
       <select className="select" value={v} onChange={(e) => set(e.target.value)} aria-label={label}>
-        <option value="">(default: {o.default ?? "?"})</option>
+        <option value="">{t("uci.default", { value: o.default ?? "?" })}</option>
         {o.vars.map((x) => (
           <option key={x}>{x}</option>
         ))}

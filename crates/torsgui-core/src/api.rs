@@ -11,6 +11,8 @@ use crate::export::{self, ExportOptions};
 use crate::forum::{self, PostContext, PostKind};
 use crate::live::LiveTracker;
 use crate::model::*;
+use crate::msg;
+use crate::msg::Msg;
 use crate::pgn::{self, Game};
 use crate::runner;
 use crate::scheduler;
@@ -87,7 +89,7 @@ pub struct TournamentDetail {
     pub lanes: Vec<runner::LaneStatus>,
     pub warnings: Vec<String>,
     /// Shown on the tournament page when an engine is not an AVX2 or AVX-512 build.
-    pub ccrl_disclaimer: Option<String>,
+    pub ccrl_disclaimer: Option<Msg>,
     pub pairings: Vec<(String, String, u32, u32)>,
     /// Swiss / knockout rounds (None for the other formats).
     pub stages: Option<scheduler::StagesView>,
@@ -114,14 +116,21 @@ pub struct WizardPreview {
     pub openings_used: u32,
     pub last_opening: u32,
     pub concurrent_games: u32,
+    /// Engine threads thinking at the same time (one engine per game: ponder is off).
     pub busy_threads: u32,
+    /// Threads of the two engines of the heaviest game together.
+    pub lane_threads: u32,
     pub physical_cores: u32,
+    /// Logical CPUs (hardware threads) of the selected nodes.
+    pub logical_cpus: u32,
+    /// The CPUs the games may use: the physical cores, or the logical CPUs with SMT.
+    pub cpu_budget: u32,
     pub ram_needed_mb: u64,
     pub ram_total_mb: u64,
     pub est_game_s: f64,
     pub eta_s: f64,
-    pub errors: Vec<String>,
-    pub warnings: Vec<String>,
+    pub errors: Vec<Msg>,
+    pub warnings: Vec<Msg>,
     pub first_command: String,
     pub event_example: String,
 }
@@ -327,7 +336,7 @@ impl App {
                 let topo = crate::platform::os().topology();
                 let nodes: Vec<u32> = arg(&a, "nodes")?;
                 let placement: Placement = opt(&a, "placement").unwrap_or(Placement::Node);
-                ok(crate::platform::plan_lanes(&topo, &nodes, arg(&a, "lanes")?, opt::<u32>(&a, "cores_per_lane").unwrap_or(2 * arg::<u32>(&a, "threads")?), placement))
+                ok(crate::platform::plan_lanes(&topo, &nodes, arg(&a, "lanes")?, opt::<u32>(&a, "cores_per_lane").unwrap_or(2 * arg::<u32>(&a, "threads")?), placement, opt(&a, "smt").unwrap_or(false)))
             }
             "health" => ok(crate::health::collect(&self.ws, &mut self.sys.lock().unwrap())),
             "events_since" => ok(store.events_since(opt(&a, "seq").unwrap_or(0), opt(&a, "limit").unwrap_or(200))?),
@@ -446,8 +455,8 @@ impl App {
                 let text: String = arg(&a, "text")?;
                 let action: String = opt(&a, "action").unwrap_or_else(|| "queue".into());
                 let (imp, preview) = self.tfile_parse(&store, &text)?;
-                let (Some(cfg), None) = (imp.config.clone(), imp.errors.first().or(preview.errors.first())) else {
-                    bail!("{}", imp.errors.iter().chain(preview.errors.iter()).cloned().collect::<Vec<_>>().join("; "));
+                let Some(cfg) = imp.config.clone().filter(|_| imp.errors.is_empty() && preview.errors.is_empty()) else {
+                    bail!("{}", imp.errors.iter().cloned().chain(preview.errors.iter().map(|m| m.to_string())).collect::<Vec<_>>().join("; "));
                 };
                 let rec = TournamentRecord::new(cfg);
                 store.insert_tournament(&rec)?;
@@ -779,9 +788,9 @@ impl App {
             }
             "queue_remove" => {
                 let id: String = arg(&a, "id")?;
-                store.set_state(&id, TState::Draft)?;
-                store.conn.execute("UPDATE tournaments SET queue_pos=NULL WHERE id=?1", [&id])?;
-                ok(true)
+                let back = store.unqueue(&id)?;
+                store.push_event("info", "queue_changed", Some(&id), &format!("removed from the queue ({})", back.as_str()))?;
+                ok(back)
             }
             "queue_move" => {
                 store.move_in_queue(&arg::<String>(&a, "id")?, arg(&a, "delta")?)?;
@@ -923,6 +932,37 @@ impl App {
                 let id = store.save_engine(&e)?;
                 ok(store.engine(id)?)
             }
+            "gpus" => ok(crate::gpu::gpus(opt::<bool>(&a, "refresh").unwrap_or(false))),
+            "engines_set_gpu" => {
+                let ids: Vec<i64> = arg(&a, "ids")?;
+                let gpu: bool = arg(&a, "gpu")?;
+                let mut n = 0;
+                for id in ids {
+                    if let Some(mut e) = store.engine(id)? {
+                        if e.gpu != gpu {
+                            e.gpu = gpu;
+                            store.save_engine(&e)?;
+                            n += 1;
+                        }
+                    }
+                }
+                ok(n)
+            }
+            "engines_set_active" => {
+                let ids: Vec<i64> = arg(&a, "ids")?;
+                let active: bool = arg(&a, "active")?;
+                let mut n = 0;
+                for id in ids {
+                    if let Some(mut e) = store.engine(id)? {
+                        if e.inactive == active {
+                            e.inactive = !active;
+                            store.save_engine(&e)?;
+                            n += 1;
+                        }
+                    }
+                }
+                ok(n)
+            }
             "engine_delete" => {
                 store.delete_engine(arg(&a, "id")?)?;
                 ok(true)
@@ -974,6 +1014,7 @@ impl App {
                         e.id = old.id;
                         e.path = old.path.clone();
                         e.dir = old.dir.clone();
+                        e.inactive = old.inactive;
                     } else {
                         added += 1;
                     }
@@ -1459,7 +1500,7 @@ impl App {
             (r.rating, r.estimated)
         };
         let topo = crate::platform::os().topology();
-        let env = crate::tournament_file::Env { engines: &engines, settings: &s, nodes: topo.nodes.iter().map(|n| (n.id, n.physical_cores)).collect(), rating: &rating };
+        let env = crate::tournament_file::Env { engines: &engines, settings: &s, nodes: topo.nodes.iter().map(|n| (n.id, n.physical_cores, n.logical_cpus)).collect(), gpus: crate::gpu::gpus(false).iter().map(|g| g.index).collect(), rating: &rating };
         let mut imp = crate::tournament_file::build(&f, &env);
         if let Some(c) = imp.config.as_mut() {
             if c.variant == Variant::Chess960 && c.book.is_empty() {
@@ -1655,28 +1696,28 @@ impl App {
     pub fn preview(&self, cfg: &TournamentConfig) -> WizardPreview {
         let mut p = WizardPreview::default();
         if cfg.participants.len() < 2 {
-            p.errors.push("select at least two engines".into());
+            p.errors.push(msg!("preview.selectTwo", "select at least two engines"));
         }
         if matches!(cfg.kind, TournamentKind::Gauntlet | TournamentKind::MultiGauntlet) && cfg.seeds().is_empty() {
-            p.errors.push("select the engine under test (seed)".into());
+            p.errors.push(msg!("preview.selectSeed", "select the engine under test (seed)"));
         }
         if cfg.kind == TournamentKind::Match && cfg.participants.len() != 2 {
-            p.errors.push("a match needs exactly two engines".into());
+            p.errors.push(msg!("preview.matchTwo", "a match needs exactly two engines"));
         }
         if cfg.kind.is_dynamic() && cfg.participants.len() < 3 {
-            p.errors.push(format!("a {} needs at least three engines (two engines: use a match)", kind_label(cfg.kind)));
+            p.errors.push(if cfg.kind == TournamentKind::Swiss { msg!("preview.swissThree", "a Swiss needs at least three engines (two engines: use a match)") } else { msg!("preview.knockoutThree", "a knockout needs at least three engines (two engines: use a match)") });
         }
         if cfg.kind == TournamentKind::Swiss && cfg.passes as usize >= cfg.participants.len().max(2) {
-            p.warnings.push(format!("{} rounds for {} engines: some engines will meet twice (at most {} rounds without rematches)", cfg.passes, cfg.participants.len(), cfg.participants.len().saturating_sub(1)));
+            p.warnings.push(msg!("preview.swissRematches", "{rounds} rounds for {engines} engines: some engines will meet twice (at most {max} rounds without rematches)", rounds = cfg.passes, engines = cfg.participants.len(), max = cfg.participants.len().saturating_sub(1)));
         }
         let rpp = crate::model::rounds_per_pass_for(cfg.kind, cfg.games_per_pairing, cfg.passes, cfg.nodes.len().max(1) as u32);
         match rpp {
             Ok(r) => {
                 if r != cfg.rounds_per_pass {
-                    p.warnings.push(format!("rounds per pass should be {r:?}"));
+                    p.warnings.push(msg!("preview.roundsPerPass", "rounds per pass should be {rounds}", rounds = format!("{r:?}")));
                 }
             }
-            Err(e) => p.errors.push(e),
+            Err(e) => p.errors.push(Msg::plain(e)),
         }
         let pairs = scheduler::pairings(cfg);
         p.pairings = pairs.len() as u32;
@@ -1695,65 +1736,102 @@ impl App {
             let per_round = if cfg.kind == TournamentKind::Swiss { (n / 2) * cfg.games_per_pairing } else { (n.next_power_of_two() / 2) * cfg.games_per_pairing };
             let lanes = cfg.lanes_per_node * cfg.nodes.len().max(1) as u32;
             if lanes > per_round {
-                p.warnings.push(format!("{lanes} lanes but at most {per_round} games per round: some lanes stay idle (each round starts when the previous one is finished)"));
+                p.warnings.push(msg!("preview.idleLanes", "{lanes} lanes but at most {perRound} games per round: some lanes stay idle (each round starts when the previous one is finished)", lanes = lanes, perRound = per_round));
             }
         }
         let topo = crate::platform::os().topology();
         p.concurrent_games = cfg.lanes_per_node * cfg.nodes.len().max(1) as u32;
         // the heaviest engine of a lane thinks alone (ponder is off)
         p.busy_threads = p.concurrent_games * cfg.participants.iter().map(|x| cfg.threads_of(x)).max().unwrap_or(cfg.threads);
+        p.lane_threads = cfg.cores_per_lane();
         p.physical_cores = cfg.nodes.iter().map(|n| topo.node(*n).map(|x| x.physical_cores).unwrap_or(0)).sum::<u32>();
+        p.logical_cpus = cfg.nodes.iter().map(|n| topo.node(*n).map(|x| x.logical_cpus).unwrap_or(0)).sum::<u32>();
+        p.cpu_budget = cfg.nodes.iter().map(|n| topo.cpu_budget(*n, cfg.use_smt)).sum::<u32>();
         for n in &cfg.nodes {
             if topo.node(*n).is_none() {
-                p.warnings.push(format!("NUMA node {n} does not exist on this machine"));
+                p.warnings.push(msg!("preview.noNode", "NUMA node {node} does not exist on this machine", node = n));
             }
         }
-        if p.physical_cores > 0 && p.concurrent_games * cfg.cores_per_lane() > p.physical_cores {
-            p.warnings.push(format!("{} lanes x {} threads (the two engines of a lane) = {} threads for {} physical cores (ponder is off: one engine thinks at a time, but hash and startup overlap)", p.concurrent_games, cfg.cores_per_lane(), p.concurrent_games * cfg.cores_per_lane(), p.physical_cores));
+        if cfg.placement == Placement::None && topo.nodes.len() > 1 {
+            p.warnings.push(msg!("preview.noneOnNuma", "placement \"none\" on a machine with {nodes} NUMA nodes: games may move between sockets, away from their memory; lock them to their node", nodes = topo.nodes.len()));
         }
-        if p.physical_cores > 0 && p.busy_threads > p.physical_cores {
-            p.errors.push(format!("{} busy threads exceed the {} physical cores of the selected nodes", p.busy_threads, p.physical_cores));
+        if cfg.use_smt && p.logical_cpus > 0 && p.logical_cpus == p.physical_cores {
+            p.warnings.push(msg!("preview.smtNoSiblings", "SMT / Hyper-Threading is on but this CPU has one thread per core (or SMT is disabled in the BIOS): nothing changes"));
+        }
+        if p.cpu_budget > 0 && p.concurrent_games * p.lane_threads > p.cpu_budget {
+            let (games, lane, total, budget) = (p.concurrent_games, p.lane_threads, p.concurrent_games * p.lane_threads, p.cpu_budget);
+            p.warnings.push(if cfg.use_smt {
+                msg!("preview.laneOverlapSmt", "{games} games x {threads} threads (the two engines of a game) = {total} threads for {budget} logical CPUs (SMT on) (ponder is off: one engine thinks at a time, but hash and startup overlap)", games = games, threads = lane, total = total, budget = budget)
+            } else {
+                msg!("preview.laneOverlap", "{games} games x {threads} threads (the two engines of a game) = {total} threads for {budget} physical cores (ponder is off: one engine thinks at a time, but hash and startup overlap)", games = games, threads = lane, total = total, budget = budget)
+            });
+        }
+        if p.cpu_budget > 0 && p.busy_threads > p.cpu_budget {
+            p.errors.push(if cfg.use_smt {
+                msg!("preview.busySmt", "{busy} busy threads exceed the {budget} logical CPUs (SMT on) of the selected nodes", busy = p.busy_threads, budget = p.cpu_budget)
+            } else {
+                msg!("preview.busy", "{busy} busy threads exceed the {budget} physical cores of the selected nodes", busy = p.busy_threads, budget = p.cpu_budget)
+            });
+        } else if cfg.use_smt && p.physical_cores > 0 && p.busy_threads > p.physical_cores {
+            p.warnings.push(msg!("preview.smtShare", "SMT: {busy} engine threads on {cores} physical cores, so engines share cores and search slower; fine for your own tests, but CCRL runs one engine thread per physical core", busy = p.busy_threads, cores = p.physical_cores));
         }
         let mut sys = self.sys.lock().unwrap();
         sys.refresh_memory();
         p.ram_total_mb = sys.total_memory() / 1024 / 1024;
         p.ram_needed_mb = crate::health::ram_needed_mb(p.concurrent_games, cfg.hash_per_lane() / 2);
         if p.ram_total_mb > 0 && p.ram_needed_mb as f64 > p.ram_total_mb as f64 * 0.85 {
-            p.errors.push(format!("estimated RAM {} MB exceeds 85 % of the {} MB installed (fastchess keeps both engines alive)", p.ram_needed_mb, p.ram_total_mb));
+            p.errors.push(msg!("preview.ram", "estimated RAM {needed} MB exceeds 85 % of the {total} MB installed (fastchess keeps both engines alive)", needed = p.ram_needed_mb, total = p.ram_total_mb));
         }
         for x in &cfg.participants {
             let rule = cfg.ccrl_hash(cfg.threads_of(x));
             if cfg.hash_of(x) != rule {
-                p.warnings.push(format!("{}: hash {} MB differs from the CCRL rule for {} threads on the {} list: {} MB", x.name, cfg.hash_of(x), cfg.threads_of(x), if cfg.ccrl_list.is_empty() { "Blitz" } else { &cfg.ccrl_list }, rule));
+                p.warnings.push(msg!("preview.hashRule", "{engine}: hash {hash} MB differs from the CCRL rule for {threads} threads on the {list} list: {rule} MB", engine = x.name, hash = cfg.hash_of(x), threads = cfg.threads_of(x), list = if cfg.ccrl_list.is_empty() { "Blitz" } else { &cfg.ccrl_list }, rule = rule));
             }
         }
         if cfg.book.is_empty() || !Path::new(&cfg.book).exists() {
-            p.warnings.push("opening book not found on this machine".into());
+            p.warnings.push(msg!("preview.noBook", "opening book not found on this machine"));
         }
         for pp in &cfg.participants {
             if !Path::new(&pp.cmd).exists() {
-                p.warnings.push(format!("{}: executable not found ({})", pp.name, pp.cmd));
+                p.warnings.push(msg!("preview.noExe", "{engine}: executable not found ({path})", engine = pp.name, path = pp.cmd));
+            }
+        }
+        // GPU engines: one game per card at a time
+        let gpu_engines: Vec<&str> = cfg.gpu_engines().iter().map(|p| p.name.as_str()).collect();
+        if !gpu_engines.is_empty() {
+            let cards = crate::gpu::gpus(false);
+            if cards.is_empty() {
+                p.warnings.push(msg!("preview.gpuNone", "GPU engines ({list}) but no graphics card was found on this machine", list = gpu_engines.join(", ")));
+            }
+            for g in &cfg.gpus {
+                if !cards.is_empty() && !cards.iter().any(|c| c.index == *g) {
+                    p.warnings.push(msg!("preview.gpuMissing", "graphics card {card} does not exist on this machine", card = g));
+                }
+            }
+            let n = cfg.gpus.len().max(1) as u32;
+            if p.concurrent_games > n {
+                p.warnings.push(msg!("preview.gpuShared", "{games} games at the same time, graphics cards: {cards}. GPU engines share a card and search slower; one game per card gives repeatable results", games = p.concurrent_games, cards = n));
             }
         }
         let frc = cfg.variant == Variant::Chess960;
         if frc && !cfg.book.to_lowercase().ends_with(".epd") {
-            p.errors.push("Chess960 needs a book of start positions (.epd): generate one (all 960 positions, a random set or double Chess960)".into());
+            p.errors.push(msg!("preview.chess960Book", "Chess960 needs a book of start positions (.epd): generate one (all 960 positions, a random set or double Chess960)"));
         }
         if let Ok(store) = self.ws.open() {
             // CCRL builds: AVX2 or AVX-512 only — the disclaimer comes first
             let (errs, disclaimer) = ccrl_build_disclaimer(&store, cfg);
-            p.errors.extend(errs);
+            p.errors.extend(errs.into_iter().map(Msg::plain));
             if let Some(d) = disclaimer {
                 p.warnings.insert(0, d);
             }
             for pp in &cfg.participants {
                 if let Some(e) = pp.engine_id.and_then(|id| store.engine(id).ok().flatten()) {
-                    p.warnings.extend(engines::check_options(&pp.name, &pp.options, &e.options, &pp.dir));
+                    p.warnings.extend(engines::check_options(&pp.name, &pp.options, &e.options, &pp.dir).into_iter().map(Msg::plain));
                     if frc && !e.chess960 {
                         if e.options.is_empty() {
-                            p.warnings.push(format!("{}: UCI options unknown (verify the engine): Chess960 support not confirmed", pp.name));
+                            p.warnings.push(msg!("preview.chess960Unknown", "{engine}: UCI options unknown (verify the engine): Chess960 support not confirmed", engine = pp.name));
                         } else {
-                            p.errors.push(format!("{} does not support Chess960 (no UCI_Chess960 option)", pp.name));
+                            p.errors.push(msg!("preview.noChess960", "{engine} does not support Chess960 (no UCI_Chess960 option)", engine = pp.name));
                         }
                     }
                 }
@@ -1762,7 +1840,7 @@ impl App {
         p.est_game_s = crate::tc::estimate_game_seconds(&cfg.tc, 60.0);
         p.eta_s = p.est_game_s * p.total_games as f64 / p.concurrent_games.max(1) as f64;
         if let Some(j) = jobs.first() {
-            let args = crate::fastchess::game_args(cfg, &scheduler::job_pair(cfg, j).unwrap_or_else(|| pairs[j.pairing].clone()), j, Path::new("pgn/node0_lane0.pgn"), Path::new("logs/games/<game>.log"), Path::new("logs/games/<game>.json"));
+            let args = crate::fastchess::game_args(cfg, &scheduler::job_pair(cfg, j).unwrap_or_else(|| pairs[j.pairing].clone()), j, cfg.lane_gpu(0), Path::new("pgn/node0_lane0.pgn"), Path::new("logs/games/<game>.log"), Path::new("logs/games/<game>.json"));
             p.first_command = format!("fastchess {}", args.iter().map(|a| if a.contains(' ') { format!("\"{a}\"") } else { a.clone() }).collect::<Vec<_>>().join(" "));
             p.event_example = j.event(&cfg.event);
         }
@@ -2404,6 +2482,8 @@ impl Default for TournamentRecord {
             adjudication: Default::default(),
             extra_args: vec![],
             placement: Placement::Node,
+            use_smt: false,
+            gpus: vec![],
             log_level: "info".into(),
             ccrl_list: String::new(),
             max_retries: 2,
@@ -2444,7 +2524,7 @@ pub fn build_check(name: &str, build: &str) -> (Option<String>, Option<String>, 
 
 /// The CCRL validity of a tournament's builds: errors (AVX-512 builds this CPU cannot run) and
 /// the disclaimer to show when an engine is not an AVX2 or AVX-512 build.
-pub fn ccrl_build_disclaimer(store: &crate::store::Store, cfg: &TournamentConfig) -> (Vec<String>, Option<String>) {
+pub fn ccrl_build_disclaimer(store: &crate::store::Store, cfg: &TournamentConfig) -> (Vec<String>, Option<Msg>) {
     let (mut errors, mut other, mut unknown) = (Vec::new(), Vec::new(), Vec::new());
     for p in &cfg.participants {
         let Some(e) = p.engine_id.and_then(|id| store.engine(id).ok().flatten()) else { continue };
@@ -2456,14 +2536,18 @@ pub fn ccrl_build_disclaimer(store: &crate::store::Store, cfg: &TournamentConfig
         other.extend(o);
         unknown.extend(u);
     }
-    let mut parts = Vec::new();
-    if !other.is_empty() {
-        parts.push(format!("DISCLAIMER: not all the selected engines are AVX2 or AVX-512 builds: {}. Go on only if you cannot get an AVX2 or AVX-512 build of them", other.join(", ")));
-    }
-    if !unknown.is_empty() {
-        parts.push(format!("{}valid for CCRL only if these are AVX2 or AVX-512 builds (TorsGUI cannot tell from the file name): {}", if other.is_empty() { "Check the builds: " } else { "Also check: " }, unknown.join(", ")));
-    }
-    (errors, (!parts.is_empty()).then(|| parts.join(". ")))
+    let disclaimer = match (other.is_empty(), unknown.is_empty()) {
+        (true, true) => None,
+        (false, true) => Some(msg!("preview.buildsOther", "DISCLAIMER: not all the selected engines are AVX2 or AVX-512 builds: {other}. Go on only if you cannot get an AVX2 or AVX-512 build of them", other = other.join(", "))),
+        (true, false) => Some(msg!("preview.buildsUnknown", "Check the builds: valid for CCRL only if these are AVX2 or AVX-512 builds (TorsGUI cannot tell from the file name): {unknown}", unknown = unknown.join(", "))),
+        (false, false) => Some(msg!(
+            "preview.buildsBoth",
+            "DISCLAIMER: not all the selected engines are AVX2 or AVX-512 builds: {other}. Go on only if you cannot get an AVX2 or AVX-512 build of them. Also check: valid for CCRL only if these are AVX2 or AVX-512 builds (TorsGUI cannot tell from the file name): {unknown}",
+            other = other.join(", "),
+            unknown = unknown.join(", ")
+        )),
+    };
+    (errors, disclaimer)
 }
 
 fn game_row(g: &pgn::Game) -> GameRow {
