@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- **Export: the tournament list grouped by folder**, as in Tournaments and Games (tournaments
+  outside folders first).
+
 ## [0.8.2] - 2026-10-16
 
 ### Added

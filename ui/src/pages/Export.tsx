@@ -12,6 +12,7 @@ import { ErrorBox, Field, PageHeader, Panel, Seg, Spinner } from "../components/
 import { call, usePoll } from "../lib/api";
 import { HelpLink } from "../components/HelpLink";
 import { useMsg, useT, type Key } from "../i18n";
+import { tournamentFolders } from "./Tournaments";
 
 const CHECK_ICON = {
   ok: <CheckCircle2 size={14} style={{ color: "var(--win)" }} />,
@@ -134,7 +135,12 @@ export function ExportPage() {
     const b = (opts?.ccrl_names[n]?.trim() || n).replace(/\s+\d+CPU$/, "");
     return `${b}${/64-bit$/.test(b) ? "" : " 64-bit"}${opts && opts.threads > 1 ? ` ${opts.threads}CPU` : ""}`;
   };
-  const eventPreview = opts ? `${exportName(opts.seed)} - <Mon D>` : "";
+  const option = (t: TournamentSummary) => (
+    <option key={t.record.id} value={t.record.id}>
+      {tr("exportPage.option", { name: t.record.name, state: tr(`ui.state.${t.record.state}` as Key), games: t.record.done_games })}
+    </option>
+  );
+  const eventPreview =opts ? `${exportName(opts.seed)} - <Mon D>` : "";
   const base = opts ? `[${opts.tester} ${opts.date}] ${res?.event ?? eventPreview} (hash ${opts.hash_mb}MB) (book ${opts.book}) (egtb ${opts.egtb}-man)` : "";
   return (
     <div className="flex flex-col gap-3 fade-in">
@@ -143,10 +149,12 @@ export function ExportPage() {
         sub={tr("exportPage.sub")}
         actions={
           <select className="select" style={{ width: 360 }} value={id} onChange={(e) => setSp({ id: e.target.value })} aria-label={tr("exportPage.tournament")}>
-            {(ts ?? []).map((t) => (
-              <option key={t.record.id} value={t.record.id}>
-                {tr("exportPage.option", { name: t.record.name, state: tr(`ui.state.${t.record.state}` as Key), games: t.record.done_games })}
-              </option>
+            {/* tournaments outside folders first, then one group per folder (as in Tournaments) */}
+            {(ts ?? []).filter((t) => !t.record.folder).map(option)}
+            {tournamentFolders(ts ?? []).map((f) => (
+              <optgroup key={f} label={f} data-testid="export-folder">
+                {(ts ?? []).filter((t) => t.record.folder === f).map(option)}
+              </optgroup>
             ))}
           </select>
         }
