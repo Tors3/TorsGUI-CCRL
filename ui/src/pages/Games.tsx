@@ -1,4 +1,5 @@
-import { ChevronDown, ChevronRight, FileText, Folder, FolderPlus, Grid3x3, Swords, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, FolderPlus, Grid3x3, Swords, Trash2 } from "lucide-react";
+import { FolderIcon, useFolderColors } from "../components/Folders";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { ArchiveSource } from "../bindings/ArchiveSource";
@@ -22,6 +23,7 @@ export function Games() {
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
   const [crosstable, setCrosstable] = useState(false);
+  const { colorOf } = useFolderColors();
   // tournament folders folded in the list (kept on this computer)
   const [folded, setFolded] = useState<string[]>(() => {
     try {
@@ -141,7 +143,7 @@ export function Games() {
                     <div key={f} data-testid="games-folder">
                       <button className="w-full text-left px-2.5 py-1.5 flex items-center gap-1.5 text-[12.5px] font-medium" style={{ borderBottom: "1px solid var(--border)" }} onClick={() => toggleFolder(f)} aria-expanded={open}>
                         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                        <Folder size={12} className="muted" /> <span className="truncate">{f}</span>
+                        <FolderIcon color={colorOf("tournaments", f)} /> <span className="truncate">{f}</span>
                         <span className="chip ml-auto">{inside.length}</span>
                       </button>
                       {open && <div style={{ paddingLeft: 14 }}>{inside.map(item)}</div>}

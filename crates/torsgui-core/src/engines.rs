@@ -81,6 +81,9 @@ pub struct EngineEntry {
     /// verified, or set by the user (Engines → GPU).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub gpu: bool,
+    /// Folder of the library (Engines page), to keep engines in groups.
+    #[serde(default)]
+    pub folder: Option<String>,
 }
 
 /// Files of `dir` (and its subfolders, 3 levels) that may be engines: executables (`.exe` on

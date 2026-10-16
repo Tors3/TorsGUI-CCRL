@@ -51,4 +51,8 @@ inactive?: boolean,
  * Plays on a graphics card (Lc0 and the like): found from its options when it is
  * verified, or set by the user (Engines → GPU).
  */
-gpu?: boolean, };
+gpu?: boolean, 
+/**
+ * Folder of the library (Engines page), to keep engines in groups.
+ */
+folder: string | null, };

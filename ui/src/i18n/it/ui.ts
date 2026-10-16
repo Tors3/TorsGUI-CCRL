@@ -68,4 +68,17 @@ export const ui: Shape<typeof en> = {
     title: "Questa schermata ha avuto un errore",
     retry: "Riprova",
   },
+  folderColor: {
+    label: "Colore",
+    tip: "Colore della cartella (resta in ogni pagina che la mostra)",
+    none: "Nessun colore",
+    red: "Rosso",
+    orange: "Arancione",
+    yellow: "Giallo",
+    green: "Verde",
+    teal: "Verde acqua",
+    blue: "Blu",
+    purple: "Viola",
+    pink: "Rosa",
+  },
 };

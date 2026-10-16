@@ -817,7 +817,19 @@ impl App {
                 let folder: Option<String> = opt(&a, "folder");
                 ok(store.set_folder(&ids, folder.as_deref())?)
             }
-            "tournament_folder_rename" => ok(store.rename_folder(&arg::<String>(&a, "from")?, &opt::<String>(&a, "to").unwrap_or_default())?),
+            "tournament_folder_rename" => {
+                let (from, to) = (arg::<String>(&a, "from")?, opt::<String>(&a, "to").unwrap_or_default());
+                let n = store.rename_folder(&from, &to)?;
+                store.move_folder_color("tournaments", &from, &to)?;
+                ok(n)
+            }
+            // colours of the folders (Engines, Tournaments, Games, Database)
+            "folder_colors" => ok(store.folder_colors()?),
+            "folder_color_set" => {
+                let key = format!("{}/{}", arg::<String>(&a, "page")?, arg::<String>(&a, "folder")?);
+                store.set_folder_color(&key, opt::<String>(&a, "color").as_deref())?;
+                ok(store.folder_colors()?)
+            }
             "queue_remove" => {
                 let id: String = arg(&a, "id")?;
                 let back = store.unqueue(&id)?;
@@ -942,7 +954,9 @@ impl App {
                 ok(true)
             }
             "db_collection_delete" => {
-                store.db_collection_delete(arg(&a, "id")?)?;
+                let id: i64 = arg(&a, "id")?;
+                store.db_collection_delete(id)?;
+                store.set_folder_color(&format!("database/{id}"), None)?;
                 ok(true)
             }
             "db_import" => {
@@ -1062,6 +1076,12 @@ impl App {
                 }
                 ok(n)
             }
+            // folders of the Engines page
+            "engines_set_folder" => {
+                let ids: Vec<i64> = arg(&a, "ids")?;
+                ok(store.set_engine_folder(&ids, opt::<String>(&a, "folder").as_deref())?)
+            }
+            "engine_folder_rename" => ok(store.rename_engine_folder(&arg::<String>(&a, "from")?, &opt::<String>(&a, "to").unwrap_or_default())?),
             "engines_set_active" => {
                 let ids: Vec<i64> = arg(&a, "ids")?;
                 let active: bool = arg(&a, "active")?;

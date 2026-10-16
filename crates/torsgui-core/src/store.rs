@@ -508,6 +508,58 @@ impl Store {
         Ok(())
     }
 
+    // ------------------------------------------------------------ folder colours
+    /// The colours of the folders, by `<page>/<folder>`: "engines/Blitz", "tournaments/R1",
+    /// "database/12" (a database folder by its id).
+    pub fn folder_colors(&self) -> Result<std::collections::BTreeMap<String, String>> {
+        Ok(self.kv_get("folder_colors")?.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default())
+    }
+    /// Sets (or with `None` removes) the colour of a folder.
+    pub fn set_folder_color(&self, key: &str, color: Option<&str>) -> Result<()> {
+        let mut m = self.folder_colors()?;
+        match color.map(str::trim).filter(|c| !c.is_empty()) {
+            Some(c) => m.insert(key.to_string(), c.to_string()),
+            None => m.remove(key),
+        };
+        self.kv_set("folder_colors", &serde_json::to_string(&m)?)
+    }
+    /// A renamed folder keeps its colour; a deleted one (`to` empty) loses it.
+    pub fn move_folder_color(&self, page: &str, from: &str, to: &str) -> Result<()> {
+        let mut m = self.folder_colors()?;
+        if let Some(c) = m.remove(&format!("{page}/{from}")) {
+            let to = to.trim();
+            if !to.is_empty() {
+                m.insert(format!("{page}/{to}"), c);
+            }
+            self.kv_set("folder_colors", &serde_json::to_string(&m)?)?;
+        }
+        Ok(())
+    }
+
+    // ------------------------------------------------------------ engine folders
+    /// Puts engines in a folder (`None` or an empty name: out of their folder).
+    pub fn set_engine_folder(&self, ids: &[i64], folder: Option<&str>) -> Result<usize> {
+        let folder = folder.map(str::trim).filter(|f| !f.is_empty()).map(str::to_string);
+        let mut n = 0;
+        for &id in ids {
+            if let Some(mut e) = self.engine(id)? {
+                if e.folder != folder {
+                    e.folder = folder.clone();
+                    self.save_engine(&e)?;
+                    n += 1;
+                }
+            }
+        }
+        Ok(n)
+    }
+    /// Renames an engine folder; an empty `to` deletes it (its engines stay, out of folders).
+    pub fn rename_engine_folder(&self, from: &str, to: &str) -> Result<usize> {
+        let ids: Vec<i64> = self.engines()?.into_iter().filter(|e| e.folder.as_deref() == Some(from)).filter_map(|e| e.id).collect();
+        let n = self.set_engine_folder(&ids, Some(to))?;
+        self.move_folder_color("engines", from, to)?;
+        Ok(n)
+    }
+
     // ------------------------------------------------------------ events
     pub fn push_event(&self, level: &str, kind: &str, tid: Option<&str>, msg: &str) -> Result<i64> {
         self.conn.execute(
@@ -974,15 +1026,37 @@ mod queue_tests {
             st.insert_tournament(&TournamentRecord { id: id.into(), ..Default::default() }).unwrap();
         }
         let folder = |id: &str| st.tournament(id).unwrap().unwrap().folder;
+        st.set_folder_color("tournaments/Blitz 2026", Some("blue")).unwrap();
         assert_eq!(folder("a"), None);
         assert_eq!(st.set_folder(&["a".into(), "b".into()], Some(" Blitz 2026 ")).unwrap(), 2);
         assert_eq!((folder("a").as_deref(), folder("c")), (Some("Blitz 2026"), None));
         assert_eq!(st.rename_folder("Blitz 2026", "Blitz").unwrap(), 2);
         assert_eq!(folder("b").as_deref(), Some("Blitz"));
+        st.move_folder_color("tournaments", "Blitz 2026", "Blitz").unwrap();
+        assert_eq!(st.folder_colors().unwrap().get("tournaments/Blitz").map(String::as_str), Some("blue"));
         st.set_folder(&["b".into()], Some("")).unwrap();
         assert_eq!(folder("b"), None);
         st.rename_folder("Blitz", "").unwrap();
         assert_eq!(folder("a"), None, "deleting a folder takes its tournaments out");
+    }
+
+    #[test]
+    fn engines_go_in_folders() {
+        let st = Store::in_memory().unwrap();
+        let ids: Vec<i64> = ["A 1", "B 2", "C 3"]
+            .iter()
+            .map(|n| st.save_engine(&crate::engines::EngineEntry { display_name: n.to_string(), ..Default::default() }).unwrap())
+            .collect();
+        let folder = |id: i64| st.engine(id).unwrap().unwrap().folder;
+        assert_eq!(st.set_engine_folder(&ids[..2], Some(" Top ")).unwrap(), 2);
+        assert_eq!((folder(ids[0]).as_deref(), folder(ids[2])), (Some("Top"), None));
+        st.set_folder_color("engines/Top", Some("green")).unwrap();
+        assert_eq!(st.rename_engine_folder("Top", "Elite").unwrap(), 2);
+        assert_eq!(folder(ids[1]).as_deref(), Some("Elite"));
+        assert_eq!(st.folder_colors().unwrap().get("engines/Elite").map(String::as_str), Some("green"));
+        st.rename_engine_folder("Elite", "").unwrap();
+        assert_eq!(folder(ids[0]), None, "deleting a folder takes its engines out");
+        assert!(st.folder_colors().unwrap().is_empty(), "and drops its colour");
     }
 
     #[test]

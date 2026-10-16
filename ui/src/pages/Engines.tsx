@@ -1,4 +1,4 @@
-import { CheckCircle2, Copy, FileText, FolderOpen, Pencil, PackagePlus, RefreshCw, Search, Trash2, XCircle } from "lucide-react";
+import { CheckCircle2, Copy, FileText, FolderInput, FolderOpen, FolderPlus, Pencil, PackagePlus, RefreshCw, Search, Trash2, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -14,11 +14,15 @@ import type { RepoRef } from "../bindings/RepoRef";
 import type { Selection } from "../bindings/Selection";
 import { UciOptionsEditor } from "../components/UciOptions";
 import { FolderImportDialog, RefreshFoldersButton } from "../components/FolderImport";
+import { FolderColorMenu, FolderIcon, FolderNameDialog, useFolderColors } from "../components/Folders";
 import { cmpNum, EloCell, matchesEngine, RATING_LISTS, SortTh, useEngineRatings, type RatingList, type SortDir } from "../components/EngineRatings";
 import { ENGINE_FILTERS, PathInput } from "../components/PathInput";
 import { Empty, ErrorBox, Field, Modal, PageHeader, PageTabs, Panel, Spinner, Tip, MenuButton, useTabParam } from "../components/ui";
 import { useT } from "../i18n";
 import { call, usePoll } from "../lib/api";
+
+const ALL_FOLDERS = "\u0000all";
+const NO_FOLDER = "\u0000none";
 
 type ReleasesResp = { repo: RepoRef; latest_stable: string | null; releases: { release: Release; selection: Selection }[]; policy: AssetPolicy };
 
@@ -501,6 +505,62 @@ export function Engines() {
   const activeN = engines.filter((e) => !e.inactive).length;
   const gpuN = engines.filter((e) => e.gpu).length;
   const inGroup = (e: EngineEntry) => group === "all" || (group === "gpu" ? e.gpu : (group === "active") === !e.inactive);
+  // folders: made in the All tab; another tab shows a folder holding at least two of its engines
+  const [efolder, setEfolder] = useState<string>(() => {
+    try {
+      return localStorage.getItem("torsgui-engine-folder") ?? ALL_FOLDERS;
+    } catch {
+      return ALL_FOLDERS;
+    }
+  });
+  const [picked, setPicked] = useState<number[]>([]);
+  const [naming, setNaming] = useState<null | { mode: "new" | "rename"; initial: string }>(null);
+  const { colorOf, nameOf, setColor } = useFolderColors();
+  const allFolders = Array.from(new Set(engines.map((e) => e.folder).filter((f): f is string => !!f))).sort((a, b) => a.localeCompare(b));
+  const folderCount = (f: string) => engines.filter((e) => inGroup(e) && (f === ALL_FOLDERS || (f === NO_FOLDER ? !e.folder : e.folder === f))).length;
+  const folders = group === "all" ? allFolders : allFolders.filter((f) => folderCount(f) >= 2);
+  const shownFolder = efolder === ALL_FOLDERS || (efolder === NO_FOLDER && folders.length > 0) || folders.includes(efolder) ? efolder : ALL_FOLDERS;
+  useEffect(() => {
+    try {
+      localStorage.setItem("torsgui-engine-folder", shownFolder);
+    } catch {
+      /* private mode */
+    }
+  }, [shownFolder]);
+  const inFolder = (e: EngineEntry) => shownFolder === ALL_FOLDERS || (shownFolder === NO_FOLDER ? !e.folder : e.folder === shownFolder);
+  const moveTo = async (target: string | null) => {
+    try {
+      await call("engines_set_folder", { ids: picked, folder: target });
+      toast.success(target ? t("engines.folders.moved", { count: picked.length, folder: target }) : t("engines.folders.movedOut", { count: picked.length }));
+      setPicked([]);
+      refresh();
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  };
+  const named = async (name: string) => {
+    const n = naming;
+    setNaming(null);
+    if (!n) return;
+    if (n.mode === "new") {
+      if (picked.length) await moveTo(name);
+      setEfolder(name);
+    } else {
+      try {
+        await call("engine_folder_rename", { from: n.initial, to: name });
+        setEfolder(name);
+        refresh();
+      } catch (err) {
+        toast.error((err as Error).message);
+      }
+    }
+  };
+  const removeFolder = async (f: string) => {
+    if (!confirm(t("engines.folders.confirmDelete", { folder: f }))) return;
+    await call("engine_folder_rename", { from: f, to: "" });
+    setEfolder(ALL_FOLDERS);
+    refresh();
+  };
   const [cards, setCards] = useState<Gpu[]>();
   useEffect(() => {
     if (group === "gpu" && !cards) call<Gpu[]>("gpus").then(setCards).catch(() => setCards([]));
@@ -529,7 +589,7 @@ export function Engines() {
     refreshRatings();
   }, [data, refreshRatings]);
   const shown = engines
-    .filter((e) => inGroup(e) && matchesEngine(e, q))
+    .filter((e) => inGroup(e) && inFolder(e) && matchesEngine(e, q))
     .sort((a, b) =>
       sort[0] === "name"
         ? (sort[1] === "asc" ? 1 : -1) * a.display_name.localeCompare(b.display_name, undefined, { numeric: true, sensitivity: "base" })
@@ -666,6 +726,66 @@ export function Engines() {
           </div>
         </Panel>
       )}
+      {(folders.length > 0 || group === "all") && (
+        <div className="flex items-start gap-2 flex-wrap">
+          <div className="flex-1 min-w-0">
+            <PageTabs
+              tabs={[
+                { id: ALL_FOLDERS, label: t("engines.folders.all"), badge: folderCount(ALL_FOLDERS) },
+                ...folders.map((f) => ({ id: f, label: <span className="inline-flex items-center gap-1"><FolderIcon color={colorOf("engines", f)} /> {f}</span>, badge: folderCount(f) })),
+                { id: NO_FOLDER, label: t("engines.folders.none"), badge: folderCount(NO_FOLDER), hidden: folders.length === 0 },
+              ]}
+              value={shownFolder}
+              onChange={setEfolder}
+              testid="efolder"
+            />
+          </div>
+          {group === "all" && (
+            <div className="flex gap-1.5 items-center">
+              {shownFolder !== ALL_FOLDERS && shownFolder !== NO_FOLDER && (
+                <>
+                  <FolderColorMenu value={nameOf("engines", shownFolder)} onChange={(c) => setColor("engines", shownFolder, c)} />
+                  <button className="btn btn-sm btn-ghost" onClick={() => setNaming({ mode: "rename", initial: shownFolder })} data-testid="efolder-rename">
+                    <Pencil size={12} /> {t("engines.folders.rename")}
+                  </button>
+                  <button className="btn btn-sm btn-ghost" onClick={() => removeFolder(shownFolder)} title={t("engines.folders.deleteTip")} data-testid="efolder-delete">
+                    <Trash2 size={12} /> {t("engines.folders.delete")}
+                  </button>
+                </>
+              )}
+              <button className="btn btn-sm" onClick={() => setNaming({ mode: "new", initial: "" })} title={t("engines.folders.newTip")} data-testid="efolder-new">
+                <FolderPlus size={13} /> {t("engines.folders.new")}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      {group === "active" && allFolders.length > folders.length && (
+        <div className="muted text-[12px] -mt-1.5" data-testid="efolder-active-about">
+          {t("engines.folders.activeAbout")}
+        </div>
+      )}
+      {picked.length > 0 && (
+        <div className="flex items-center gap-2 text-[12.5px] px-3 py-2 rounded-md" style={{ background: "var(--accent-bg)" }} data-testid="engines-selection">
+          <span className="font-medium">{t("engines.folders.selected", { count: picked.length })}</span>
+          <MenuButton
+            testid="efolder-move"
+            label={
+              <>
+                <FolderIcon size={13} /> {t("engines.folders.moveTo")}
+              </>
+            }
+            items={[
+              ...allFolders.map((f) => ({ icon: <FolderIcon size={13} color={colorOf("engines", f)} />, label: f, onSelect: () => moveTo(f), testid: `emove-to-${f}` })),
+              { icon: <FolderPlus size={13} />, label: t("engines.folders.new") + "…", onSelect: () => setNaming({ mode: "new", initial: "" }), testid: "emove-to-new" },
+              { icon: <FolderInput size={13} />, label: t("engines.folders.out"), onSelect: () => moveTo(null), hidden: !picked.some((id) => engines.find((e) => e.id === id)?.folder), testid: "emove-out" },
+            ]}
+          />
+          <button className="btn btn-sm btn-ghost ml-auto" onClick={() => setPicked([])}>
+            {t("engines.folders.clear")}
+          </button>
+        </div>
+      )}
       <Panel
         noPad
         title={q ? t("engines.page.shownOf", { shown: shown.length, total: engines.length }) : t("engines.page.library")}
@@ -692,10 +812,20 @@ export function Engines() {
           <Empty>{t("engines.page.empty")}</Empty>
         ) : (
           // the list scrolls inside the window, so its horizontal scrollbar is always on screen
-          <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 285px)", minHeight: 240 }}>
+          <div className="overflow-auto" style={{ maxHeight: `calc(100vh - ${folders.length > 0 || group === "all" ? 335 : 285}px)`, minHeight: 240 }}>
             <table className="tbl" data-testid="engines-table">
               <thead>
                 <tr>
+                  <th style={{ width: 1 }}>
+                    <input
+                      type="checkbox"
+                      aria-label={t("engines.folders.selectAll")}
+                      title={t("engines.folders.pickTip")}
+                      checked={shown.length > 0 && shown.every((e) => picked.includes(e.id!))}
+                      onChange={(ev) => setPicked(ev.target.checked ? shown.map((e) => e.id!) : [])}
+                      data-testid="engines-pick-all"
+                    />
+                  </th>
                   <th style={{ width: 1 }}>
                     <Tip content={t("engines.activeTip")}>
                       <span>{t("engines.activeCol")}</span>
@@ -727,13 +857,22 @@ export function Engines() {
               <tbody>
                 {shown.length === 0 && (
                   <tr>
-                    <td colSpan={15} className="muted" data-testid="engines-empty-group">
+                    <td colSpan={16} className="muted" data-testid="engines-empty-group">
                       {q ? t("engines.page.noMatch", { q }) : group === "active" ? t("engines.noneActive") : group === "gpu" ? t("engines.gpu.none") : t("engines.noneInactive")}
                     </td>
                   </tr>
                 )}
                 {shown.map((e) => (
                   <tr key={e.id} style={e.inactive ? { opacity: 0.6 } : undefined}>
+                    <td className="text-center">
+                      <input
+                        type="checkbox"
+                        checked={picked.includes(e.id!)}
+                        onChange={(ev) => setPicked(ev.target.checked ? [...picked, e.id!] : picked.filter((x) => x !== e.id))}
+                        aria-label={`${t("engines.folders.pickCol")}: ${e.display_name}`}
+                        data-testid={`engine-pick-${e.id}`}
+                      />
+                    </td>
                     <td className="text-center">
                       <input type="checkbox" checked={!e.inactive} onChange={() => setActive([e.id!], !!e.inactive, e.display_name)} aria-label={`${t("engines.activeCol")}: ${e.display_name}`} data-testid={`engine-active-${e.id}`} />
                     </td>
@@ -756,6 +895,11 @@ export function Engines() {
                       {e.gpu && (
                         <span className="chip chip-warn ml-1.5" title={t("engines.gpu.chipTip")}>
                           GPU
+                        </span>
+                      )}
+                      {shownFolder === ALL_FOLDERS && e.folder && (
+                        <span className="chip ml-1.5 inline-flex items-center gap-1" data-testid="engine-folder-chip">
+                          <FolderIcon size={10} color={colorOf("engines", e.folder)} /> {e.folder}
                         </span>
                       )}
                       <div className="mono muted text-[11px] truncate max-w-[260px]" title={e.asset}>
@@ -821,6 +965,15 @@ export function Engines() {
         target={ghTarget}
       />
       <EditDialog e={edit} setE={setEdit} onDone={refresh} />
+      <FolderNameDialog
+        open={!!naming}
+        title={naming?.mode === "rename" ? t("engines.folders.renameTitle") : t("engines.folders.newTitle")}
+        initial={naming?.initial ?? ""}
+        placeholder={t("engines.folders.placeholder")}
+        okLabel={t("engines.folders.ok")}
+        onOk={named}
+        onClose={() => setNaming(null)}
+      />
       <CuteChessDialog open={cute} setOpen={setCute} onDone={refresh} />
       <FolderImportDialog open={folder} setOpen={setFolder} onDone={refresh} />
       <Modal open={local} onOpenChange={setLocal} title={t("engines.local.title")} footer={<button className="btn btn-primary" onClick={addLocal} disabled={!localPath}>{t("engines.local.add")}</button>}>

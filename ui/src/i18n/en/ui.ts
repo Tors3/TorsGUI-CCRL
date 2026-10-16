@@ -66,4 +66,17 @@ export const ui = {
     title: "This screen hit an error",
     retry: "Try again",
   },
+  folderColor: {
+    label: "Colour",
+    tip: "Colour of the folder (kept on every page that shows it)",
+    none: "No colour",
+    red: "Red",
+    orange: "Orange",
+    yellow: "Yellow",
+    green: "Green",
+    teal: "Teal",
+    blue: "Blue",
+    purple: "Purple",
+    pink: "Pink",
+  },
 };

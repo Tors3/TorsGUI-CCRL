@@ -11,6 +11,7 @@ import { BoardSettingsButton } from "../components/BoardSettings";
 import { GameViewer, type GameRef } from "../components/GameViewer";
 import { PathInput } from "../components/PathInput";
 import { Empty, ErrorBox, Field, MenuButton, Modal, PageHeader, PageTabs, Panel, Spinner } from "../components/ui";
+import { FolderColorMenu, FolderIcon, useFolderColors } from "../components/Folders";
 import { useT } from "../i18n";
 import { call } from "../lib/api";
 
@@ -39,7 +40,7 @@ function NameDialog({ open, title, initial, onOk, onClose }: { open: boolean; ti
 }
 
 /** The folder tree: folders with their subfolders, folded or open. */
-function Tree({ all, parent, depth, sel, setSel, open, toggle }: { all: DbCollection[]; parent: bigint | number | null; depth: number; sel?: number; setSel: (id: number) => void; open: number[]; toggle: (id: number) => void }) {
+function Tree({ all, parent, depth, sel, setSel, open, toggle, colorOf }: { all: DbCollection[]; parent: bigint | number | null; depth: number; sel?: number; setSel: (id: number) => void; open: number[]; toggle: (id: number) => void; colorOf: (id: number) => string | undefined }) {
   const kids = all.filter((c) => (c.parent ?? null) === parent);
   // games and positions of a folder with its subfolders
   const total = (id: number): number => {
@@ -59,12 +60,12 @@ function Tree({ all, parent, depth, sel, setSel, open, toggle }: { all: DbCollec
                 {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
               </button>
               <button className="flex-1 text-left flex items-center gap-1.5 py-1 pr-2 min-w-0" onClick={() => setSel(id)} data-testid="db-folder">
-                {sel === id ? <FolderOpen size={13} style={{ color: "var(--accent)" }} /> : <Folder size={13} className="muted" />}
+                {colorOf(id) ? <FolderIcon size={13} open={sel === id} color={colorOf(id)} /> : sel === id ? <FolderOpen size={13} style={{ color: "var(--accent)" }} /> : <Folder size={13} className="muted" />}
                 <span className={`truncate ${sel === id ? "font-medium" : ""}`}>{c.name}</span>
                 {total(id) > 0 && <span className="muted text-[11px] ml-auto tnum">{total(id)}</span>}
               </button>
             </div>
-            {sub && isOpen && <Tree all={all} parent={c.id} depth={depth + 1} sel={sel} setSel={setSel} open={open} toggle={toggle} />}
+            {sub && isOpen && <Tree all={all} parent={c.id} depth={depth + 1} sel={sel} setSel={setSel} open={open} toggle={toggle} colorOf={colorOf} />}
           </div>
         );
       })}
@@ -226,6 +227,7 @@ export function DatabasePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick]);
   const folder = all?.find((c) => Number(c.id) === sel);
+  const { colorOf, nameOf, setColor } = useFolderColors();
   // the path of the selected folder: its parents are open in the tree
   const path = useMemo(() => {
     const out: DbCollection[] = [];
@@ -342,7 +344,7 @@ export function DatabasePage() {
         <div className="grid gap-3" style={{ gridTemplateColumns: "260px minmax(0, 1fr)" }}>
           <Panel noPad title={t("database.folders")}>
             <div className="p-1.5 overflow-auto" style={{ maxHeight: "calc(100vh - 220px)" }} data-testid="db-tree">
-              {!all ? <Spinner /> : <Tree all={all} parent={null} depth={0} sel={sel} setSel={setSel} open={open} toggle={(id) => setOpen(open.includes(id) ? open.filter((x) => x !== id) : [...open, id])} />}
+              {!all ? <Spinner /> : <Tree all={all} parent={null} depth={0} sel={sel} setSel={setSel} open={open} toggle={(id) => setOpen(open.includes(id) ? open.filter((x) => x !== id) : [...open, id])} colorOf={(id) => colorOf("database", id)} />}
             </div>
           </Panel>
           <div className="flex flex-col gap-3 min-w-0">
@@ -360,6 +362,7 @@ export function DatabasePage() {
                     ))}
                   </div>
                   <div className="flex gap-1.5 ml-auto">
+                    <FolderColorMenu value={nameOf("database", Number(folder.id))} onChange={(c) => setColor("database", Number(folder.id), c)} testid="db-folder-color" />
                     <button className="btn btn-sm" onClick={() => setNaming({ mode: "sub", initial: "" })} data-testid="db-new-sub">
                       <FolderPlus size={12} /> {t("database.newSub")}
                     </button>

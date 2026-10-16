@@ -1,6 +1,13 @@
 # Changelog
 
-## [Unreleased]
+## [0.8.3] - 2026-10-16
+
+### Added
+- **Engine folders** (Engines → All): tick engines and move them to a folder, rename or delete a
+  folder (its engines stay in the library). The Active, Inactive and GPU tabs show a folder when
+  at least two of its engines are in that tab.
+- **Folder colours**: a colour for each folder of Engines, Tournaments (shown in Games too) and
+  Database.
 
 ### Fixed
 - **Export: the tournament list grouped by folder**, as in Tournaments and Games (tournaments

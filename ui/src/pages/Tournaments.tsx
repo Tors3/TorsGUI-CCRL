@@ -1,4 +1,4 @@
-import { FileCode2, Folder, FolderInput, FolderPlus, Pencil, Plus, Trash2 } from "lucide-react";
+import { FileCode2, FolderInput, FolderPlus, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cpuLabel } from "../lib/cpu";
@@ -7,6 +7,7 @@ import type { TournamentSummary } from "../bindings/TournamentSummary";
 import { TournamentActions } from "../components/TournamentActions";
 import { Empty, ErrorBox, Field, MenuButton, Modal, PageHeader, PageTabs, Panel, ProgressBar, Seg, Spinner, StateChip } from "../components/ui";
 import { TournamentFileDialog } from "../components/TournamentFileDialog";
+import { FolderColorMenu, FolderIcon, FolderNameDialog, useFolderColors } from "../components/Folders";
 import { call, usePoll } from "../lib/api";
 import { duration } from "../lib/format";
 import { useT, type Key } from "../i18n";
@@ -86,28 +87,6 @@ export function tournamentFolders(list: { record: { folder: string | null } }[])
   return Array.from(new Set(list.map((t) => t.record.folder).filter((f): f is string => !!f))).sort((a, b) => a.localeCompare(b));
 }
 
-/** Asks a folder name (new folder, rename). */
-function FolderNameDialog({ open, title, initial, onOk, onClose }: { open: boolean; title: string; initial: string; onOk: (name: string) => void; onClose: () => void }) {
-  const tr = useT();
-  const [name, setName] = useState(initial);
-  useEffect(() => setName(initial), [initial, open]);
-  return (
-    <Modal
-      open={open}
-      onOpenChange={(o) => !o && onClose()}
-      title={title}
-      width={420}
-      footer={
-        <button className="btn btn-primary" disabled={!name.trim()} onClick={() => onOk(name.trim())} data-testid="folder-name-ok">
-          {tr("tournaments.folders.ok")}
-        </button>
-      }
-    >
-      <input className="input w-full" autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && name.trim() && onOk(name.trim())} placeholder={tr("tournaments.folders.placeholder")} data-testid="folder-name" />
-    </Modal>
-  );
-}
-
 export function Tournaments() {
   const { data, error, refresh } = usePoll<TournamentSummary[]>("tournaments_list", {}, 4000);
   const nav = useNavigate();
@@ -120,6 +99,7 @@ export function Tournaments() {
   const [picked, setPicked] = useState<string[]>([]);
   const [naming, setNaming] = useState<null | { mode: "new" | "rename"; initial: string }>(null);
   const folders = tournamentFolders(data ?? []);
+  const { colorOf, nameOf, setColor } = useFolderColors();
   const shownFolder = folder !== ALL && folder !== NONE && !folders.includes(folder) ? ALL : folder;
   useEffect(() => {
     try {
@@ -201,7 +181,7 @@ export function Tournaments() {
           <PageTabs
             tabs={[
               { id: ALL, label: tr("tournaments.folders.all"), badge: count(ALL) },
-              ...folders.map((f) => ({ id: f, label: <span className="inline-flex items-center gap-1"><Folder size={12} /> {f}</span>, badge: count(f) })),
+              ...folders.map((f) => ({ id: f, label: <span className="inline-flex items-center gap-1"><FolderIcon color={colorOf("tournaments", f)} /> {f}</span>, badge: count(f) })),
               { id: NONE, label: tr("tournaments.folders.none"), badge: count(NONE), hidden: folders.length === 0 },
             ]}
             value={shownFolder}
@@ -212,6 +192,7 @@ export function Tournaments() {
         <div className="flex gap-1.5 items-center">
           {shownFolder !== ALL && shownFolder !== NONE && (
             <>
+              <FolderColorMenu value={nameOf("tournaments", shownFolder)} onChange={(c) => setColor("tournaments", shownFolder, c)} />
               <button className="btn btn-sm btn-ghost" onClick={() => setNaming({ mode: "rename", initial: shownFolder })} title={tr("tournaments.folders.rename")} data-testid="folder-rename">
                 <Pencil size={12} /> {tr("tournaments.folders.rename")}
               </button>
@@ -232,11 +213,11 @@ export function Tournaments() {
             testid="folder-move"
             label={
               <>
-                <Folder size={13} /> {tr("tournaments.folders.moveTo")}
+                <FolderIcon size={13} /> {tr("tournaments.folders.moveTo")}
               </>
             }
             items={[
-              ...folders.map((f) => ({ icon: <Folder size={13} />, label: f, onSelect: () => moveTo(f), testid: `move-to-${f}` })),
+              ...folders.map((f) => ({ icon: <FolderIcon size={13} color={colorOf("tournaments", f)} />, label: f, onSelect: () => moveTo(f), testid: `move-to-${f}` })),
               { icon: <FolderPlus size={13} />, label: tr("tournaments.folders.newEllipsis"), onSelect: () => setNaming({ mode: "new", initial: "" }), testid: "move-to-new" },
               { icon: <FolderInput size={13} />, label: tr("tournaments.folders.out"), onSelect: () => moveTo(null), hidden: !picked.some((id) => (data ?? []).find((t) => t.record.id === id)?.record.folder), testid: "move-out" },
             ]}
@@ -288,7 +269,7 @@ export function Tournaments() {
                     {t.record.name}
                     {shownFolder === ALL && t.record.folder && (
                       <span className="chip ml-2 inline-flex items-center gap-1">
-                        <Folder size={10} /> {t.record.folder}
+                        <FolderIcon size={10} color={colorOf("tournaments", t.record.folder)} /> {t.record.folder}
                       </span>
                     )}
                     {t.record.imported && <span className="chip ml-2">{tr("tournaments.imported")}</span>}
@@ -327,7 +308,15 @@ export function Tournaments() {
           </table>
         )}
       </Panel>
-      <FolderNameDialog open={!!naming} title={naming?.mode === "rename" ? tr("tournaments.folders.renameTitle") : tr("tournaments.folders.newTitle")} initial={naming?.initial ?? ""} onOk={named} onClose={() => setNaming(null)} />
+      <FolderNameDialog
+        open={!!naming}
+        title={naming?.mode === "rename" ? tr("tournaments.folders.renameTitle") : tr("tournaments.folders.newTitle")}
+        initial={naming?.initial ?? ""}
+        placeholder={tr("tournaments.folders.placeholder")}
+        okLabel={tr("tournaments.folders.ok")}
+        onOk={named}
+        onClose={() => setNaming(null)}
+      />
       <ImportDialog open={imp} setOpen={setImp} onDone={refresh} />
       <TournamentFileDialog open={tfile} setOpen={setTfile} onDone={refresh} />
     </div>
