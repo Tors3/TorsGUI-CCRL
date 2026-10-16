@@ -5,6 +5,9 @@
 ### Fixed
 - **Export: the tournament list grouped by folder**, as in Tournaments and Games (tournaments
   outside folders first).
+- **An engine installed from GitHub with a tag like `sf_19`** was named "Stockfish sf_19" and not
+  recognised in the CCRL lists as Stockfish 19: the tag prefix is now dropped from the version, and
+  entries already named that way match too.
 
 ## [0.8.2] - 2026-10-16
 

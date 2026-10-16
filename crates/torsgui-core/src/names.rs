@@ -55,7 +55,9 @@ pub fn normalize(name: &str) -> String {
         .map(|p| Regex::new(p).unwrap())
         .collect()
     });
-    let mut s = name.to_string();
+    // a release tag used as version ("Stockfish sf_19"): the short prefix goes, the number stays
+    static TAG: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\s)[A-Za-z]{1,3}_(\d)").unwrap());
+    let mut s = TAG.replace_all(name, "$1$2").to_string();
     for r in STRIP.iter() {
         s = r.replace_all(&s, " ").to_string();
     }
@@ -84,6 +86,12 @@ pub fn normalize(name: &str) -> String {
         })
         .collect();
     toks.join(" ")
+}
+
+/// The version in a release tag: "v1.2" -> "1.2", "sf_19" -> "19", "rel-3" -> "3".
+pub fn tag_version(tag: &str) -> String {
+    static PREFIX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(?:[vV]|[A-Za-z]{1,3}[_-]v?)(\d)").unwrap());
+    PREFIX.replace(tag.trim(), "$1").to_string()
 }
 
 /// Engine family (name without version tokens): "RubiChess 20240817" -> "rubichess".
@@ -161,6 +169,17 @@ pub fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn release_tags_as_versions() {
+        assert_eq!(normalize("Stockfish sf_19"), normalize("Stockfish 19 64-bit 8CPU"));
+        assert_eq!(similarity("Stockfish sf_19", "Stockfish 19"), 1.0);
+        // a name that starts that way is not a tag
+        assert_eq!(normalize("Fire_8"), "fire 8");
+        for (t, v) in [("sf_19", "19"), ("v1.2.0", "1.2.0"), ("V3", "3"), ("rel-3", "3"), ("b-v3.0.1", "3.0.1"), ("20240817", "20240817"), ("dev", "dev")] {
+            assert_eq!(tag_version(t), v, "{t}");
+        }
+    }
+
     use super::*;
     #[test]
     fn ccrl_names() {

@@ -2644,7 +2644,7 @@ impl App {
             }
         }
         let v = engines::verify(&exe, 12, std::time::Duration::from_secs(120));
-        let ver = rel.tag.trim_start_matches(['v', 'V']).to_string();
+        let ver = crate::names::tag_version(&rel.tag);
         let mut e = EngineEntry {
             display_name: crate::names::display_name(&r.repo, &ver),
             engine: r.repo.clone(),
