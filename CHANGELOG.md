@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.8.2] - 2026-10-16
 
 ### Added
 - **Chess324 list** (computerchess.org.uk/Chess324): fetched with the others (best and all
@@ -15,6 +15,9 @@
   using instructions the CPU lacks) and lose every game by crash: the summary now refuses it.
 - **The engine library failing to load** ("missing field `has_syzygy`") when an entry was
   written without some fields: they now take their defaults.
+- **Engines page with many engines on a small screen**: the list scrolls inside the window,
+  so its horizontal scrollbar (to reach the Edit buttons on the right) is always visible
+  instead of below the last engine.
 
 ## [0.8.1] - 2026-10-15
 

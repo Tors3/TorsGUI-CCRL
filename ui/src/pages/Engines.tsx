@@ -691,7 +691,8 @@ export function Engines() {
         {engines.length === 0 ? (
           <Empty>{t("engines.page.empty")}</Empty>
         ) : (
-          <div className="overflow-auto">
+          // the list scrolls inside the window, so its horizontal scrollbar is always on screen
+          <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 285px)", minHeight: 240 }}>
             <table className="tbl" data-testid="engines-table">
               <thead>
                 <tr>
