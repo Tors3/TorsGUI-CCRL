@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- **PlyCount of games lost by an illegal move** in the CCRL export: fastchess counts the
+  illegal move, which is not in the movetext, so the CCRL scripts took the game for broken. The
+  export now writes the number of moves actually played.
+
 ## [0.8.3] - 2026-10-16
 
 ### Added

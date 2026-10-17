@@ -2,7 +2,9 @@
 //!
 //! Every finished game once (duplicates dropped, keeping the first by
 //! GameEndTime), sorted by GameEndTime; only Event, Site, White/Black and Round
-//! are changed (pitfall 10: TimeControl and every other tag stay untouched).
+//! are changed (pitfall 10: TimeControl and every other tag stay untouched), and
+//! PlyCount when it does not match the moves of the game (fastchess counts the
+//! illegal move that ended a game, which is not in the movetext).
 
 use crate::names::ccrl_name;
 use crate::pgn::{event_slot, game_blocks, is_finished, read_text, Headers};
@@ -67,6 +69,14 @@ static EVENT_LINE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(?m)^\[Event ".*"\]$
 static SITE_LINE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(?m)^\[Site ".*"\]$"#).unwrap());
 static ROUND_LINE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(?m)^\[Round ".*"\]$"#).unwrap());
 static PLAYER_LINE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(?m)^\[(White|Black) "(.*)"\]$"#).unwrap());
+static PLYCOUNT_LINE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(?m)^\[PlyCount "(\d*)"\]$"#).unwrap());
+
+/// The plies actually played in a game block (its movetext, without comments).
+fn played_plies(block: &str) -> usize {
+    let movetext: Vec<&str> = block.lines().filter(|l| !l.trim_start().starts_with('[')).collect();
+    crate::pgn::parse_movetext(&movetext.join("
+")).len()
+}
 
 /// Key used by export_ccrl.py: (slot(h), White, Black) where slot falls back
 /// to (Event, Round) when the Event carries no node/pass.
@@ -188,6 +198,10 @@ pub fn build(files: &[PathBuf], o: &ExportOptions) -> Result<(String, String, us
             let n = names.get(&c[2]).cloned().unwrap_or_else(|| export_name(&c[2]));
             format!("[{} \"{}\"]", &c[1], n)
         });
+        // the moves played: an illegal move that ended the game is counted by fastchess
+        // but not written, and the CCRL scripts then take the game for broken
+        let plies = played_plies(&b);
+        let b = PLYCOUNT_LINE.replace_all(&b, |_: &regex::Captures| format!("[PlyCount \"{plies}\"]"));
         out.push(b.to_string());
     }
     let mut players: Vec<String> = names.values().cloned().collect();
@@ -261,6 +275,36 @@ mod tests {
             zip_name(base),
             "Francesco_Torsello_2026-09-28_Triumviratus_7.0_64-bit_8CPU_-_Sep_27_hash_4096MB_book_avt-book-2026_egtb_5-man.zip"
         );
+    }
+
+    #[test]
+    fn plycount_is_the_moves_played() {
+        let dir = std::env::temp_dir().join(format!("torsgui-export-plies-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let pgn = dir.join("g.pgn");
+        // fastchess counts the illegal move that ended the game (3), the movetext has 2
+        let game = "[Event \"x\"]\n[Site \"pc\"]\n[Date \"2026.10.16\"]\n[Round \"1\"]\n[White \"A 1\"]\n[Black \"B 1\"]\n[Result \"0-1\"]\n[GameEndTime \"2026-10-16T10:00:00\"]\n[PlyCount \"3\"]\n[Termination \"illegal move\"]\n\n1. e4 {+0.30/20 1.0s} e5 {-0.20/20 1.0s, White makes an illegal move: e4e6}\n0-1\n\n";
+        std::fs::write(&pgn, game).unwrap();
+        let o = ExportOptions {
+            tester: "T".into(),
+            site: "Milan".into(),
+            date: "2026-10-17".into(),
+            seed: "A 1".into(),
+            players: vec!["A 1".into(), "B 1".into()],
+            threads: 1,
+            hash_mb: 256,
+            threads_of: BTreeMap::new(),
+            book: "b".into(),
+            egtb: 5,
+            make_zip: false,
+            ccrl_names: BTreeMap::new(),
+            name_sources: BTreeMap::new(),
+            skip_abandoned: false,
+            exclude_players: vec![],
+        };
+        let (text, ..) = build(&[pgn], &o).unwrap();
+        assert!(text.contains("[PlyCount \"2\"]") && !text.contains("[PlyCount \"3\"]"), "{text}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
