@@ -222,14 +222,14 @@ mod book_tests {
     #[test]
     fn install_extracts_and_counts_positions() {
         let t = tempfile::tempdir().unwrap();
-        let only = vec!["LowDraw1000.pgn".to_string(), "GBSelect2026.pgn".to_string()];
+        let only: Vec<String> = ["LowDraw1000.pgn", "GBSelect2026.pgn", "avt-2026b-eq.pgn", "avt-fringe-2026-eq.pgn"].iter().map(|s| s.to_string()).collect();
         let got = install_books(&repo_books(), t.path(), Some(&only)).unwrap();
-        assert_eq!(got.len(), 2);
+        assert_eq!(got.len(), 4);
         let list = books(&repo_books(), t.path()).unwrap();
         for b in list.iter().filter(|b| b.installed) {
             let n = crate::pgn::read_games(&t.path().join(&b.file)).unwrap().len() as u32;
             assert_eq!(Some(n), b.positions, "{}", b.file);
         }
-        assert_eq!(list.iter().filter(|b| b.installed).count(), 2);
+        assert_eq!(list.iter().filter(|b| b.installed).count(), 4);
     }
 }

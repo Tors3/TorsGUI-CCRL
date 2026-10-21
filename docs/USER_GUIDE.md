@@ -37,13 +37,16 @@ checklist. The demo can be standard chess or Chess960, and it can be removed aft
 TorsGUI ships the opening books used by CCRL testers, kindly provided by **Graham Banks**
 (CCRL); thanks to him and to the authors of the books. *Install the CCRL opening books*
 (Getting started, or **Settings → Opening books**) extracts them into the books folder and,
-if no default book is set, makes **AVT-Book 2026d** (`AVT2026d.pgn`) the default.
+if no default book is set, makes **AVT-Book 2026d** (`AVT2026d.pgn`) the default. The two
+equalized AVT books were sent by their author, **Andres Valverde** (EveAnn): thanks to him.
 
 | Book | Positions | Notes |
 |---|---|---|
 | AVT-Book 2026d | 16677 | ICCF games >2200, 12 moves, shuffled (default) |
 | AVT-Book 2026c | 20319 | ICCF games >2200, 12 moves, slightly unbalanced |
 | AVT-Fringe 2026 | 6292 | ICCF games >2400, 12 moves, pretty unbalanced |
+| AVT-Fringe 2026 equalized | 1290 | the same, as many White-better as Black-better lines |
+| AVT-Book 2026b equalized | 6682 | 8 moves, ±25–50 cp, as many White-better as Black-better lines |
 | AVT 8 moves 50-65 | 3745 | ICCF games >2200, 8 moves, exit score 50–65 cp |
 | AVT ICCF 8 moves more unbalanced | 3745 | ICCF games >2200, 8 moves, more unbalanced |
 | GBSelect 2026 | 1879 | selected openings with ECO codes and names |
@@ -51,7 +54,7 @@ if no default book is set, makes **AVT-Book 2026d** (`AVT2026d.pgn`) the default
 | LowDraw1000 | 1000 | openings with a low draw rate |
 | TopGM 8 moves | 4999 | top GM games, 8 moves |
 
-The archive holds 9 **PGN** books, which fastchess plays, and 9 **CGB** books (the format of
+The archive holds 11 **PGN** books, which fastchess plays, and 9 **CGB** books (the format of
 other GUIs), installed only for testers who also use those GUIs: fastchess cannot read CGB, so
 TorsGUI never offers them for tournaments. The CGB books are 2600+ 8 moves, AVT-Fringe 2026, AVT 8 moves 50-65,
 AVT ICCF 8 moves more unbalanced, FOEBOS v20.1, Hert500, IECG Masters, SuperGM 2020 and

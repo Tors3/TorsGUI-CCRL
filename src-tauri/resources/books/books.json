@@ -10,6 +10,26 @@
     "terms": "free for every use"
   },
   {
+    "file": "avt-2026b-eq.pgn",
+    "name": "AVT-Book 2026b equalized",
+    "format": "pgn",
+    "positions": 6682,
+    "fastchess": true,
+    "author": "Andres Valverde",
+    "description": "8 moves, final scores \u00b125\u201350 cp (slightly unbalanced; good for SPRT tests too); equalized: as many White-better as Black-better lines (Stockfish 18), original order",
+    "terms": "free for every use"
+  },
+  {
+    "file": "avt-fringe-2026-eq.pgn",
+    "name": "AVT-Fringe 2026 equalized",
+    "format": "pgn",
+    "positions": 1290,
+    "fastchess": true,
+    "author": "Andres Valverde",
+    "description": "ICCF games (players >2400), 12 moves; final scores \u00b160\u201375 cp (pretty unbalanced, at the UHO frontier); equalized: as many White-better as Black-better lines (Stockfish 18)",
+    "terms": "free for every use"
+  },
+  {
     "file": "AVT2026c.pgn",
     "name": "AVT-Book 2026c",
     "format": "pgn",
