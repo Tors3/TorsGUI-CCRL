@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.8.4] - 2026-10-21
 
 ### Fixed
 - **PlyCount of games lost by an illegal move** in the CCRL export: fastchess counts the
