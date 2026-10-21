@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.8.5] - 2026-10-21
 
 ### Fixed
 - **Lc0 and other GPU engines installed from GitHub** took the CPU build even with a graphics
