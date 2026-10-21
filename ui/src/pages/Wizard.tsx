@@ -24,6 +24,7 @@ import { UciOptionsEditor } from "../components/UciOptions";
 import { cmpNum, EloCell, matchesEngine, SortTh, useEngineRatings, type RatingList, type SortDir } from "../components/EngineRatings";
 import { BOOK_FILTERS, PathInput } from "../components/PathInput";
 import { BookPicker, type InstalledBook } from "../components/OpeningBooks";
+import { useRunningItems } from "../components/LoadMap";
 import { Empty, ErrorBox, Field, Modal, PageHeader, PageTabs, Panel, Seg, Spinner, Tip, useTabParam, Warn } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { suggestedLanes } from "../lib/cores";
@@ -58,6 +59,7 @@ export function Wizard() {
   const { data: settings } = usePoll<Settings>("settings_get", {}, 0);
   const { data: presets } = usePoll<NominalTc[]>("tc_presets", {}, 0);
   const { data: books } = usePoll<InstalledBook[]>("books_list", {}, 0);
+  const runningOthers = useRunningItems(editId);
 
   const [kind, setKind] = useState<TournamentKind>("gauntlet");
   const [list, setList] = useState("Blitz");
@@ -956,6 +958,8 @@ export function Wizard() {
           {shownStep === "numa" && (
             <CoresPanel
               topo={topo}
+              name={eventName.replace(/^CCRL /, "") || t("cores.load.thisTournament")}
+              others={runningOthers}
               value={{ nodes, lanes, placement, smt, gpus: gpuList }}
               cards={cards}
               gpuEngines={gpuEngines}

@@ -1,4 +1,4 @@
-import { Activity } from "lucide-react";
+import { Activity, ChevronDown, ChevronRight, Cpu } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { EngineLive } from "../bindings/EngineLive";
 import type { LiveLane } from "../bindings/LiveLane";
@@ -8,6 +8,8 @@ import { BoardSettingsButton } from "../components/BoardSettings";
 import { LineChart } from "../components/Chart";
 import { Material } from "../components/GameViewer";
 import { Empty, ErrorBox, Modal, PageHeader, Panel } from "../components/ui";
+import { LoadMap, useRunningItems } from "../components/LoadMap";
+import type { Topology } from "../bindings/Topology";
 import { usePoll } from "../lib/api";
 import { playMoveSound, useBoardPrefs } from "../lib/boardPrefs";
 import { isCheck } from "../lib/chess";
@@ -192,6 +194,39 @@ function BigView({ l, onClose }: { l: LiveLane | null; onClose: () => void }) {
   );
 }
 
+/** The CPUs given to the running tournaments, each in its colour (folded by default, kept on this computer). */
+function CpuLoad() {
+  const t = useT();
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem("torsgui-live-load") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const { data: topo } = usePoll<Topology>(open ? "topology" : null, {}, 0);
+  const items = useRunningItems();
+  const toggle = () => {
+    setOpen(!open);
+    try {
+      localStorage.setItem("torsgui-live-load", open ? "0" : "1");
+    } catch {
+      /* private mode */
+    }
+  };
+  return (
+    <Panel
+      title={
+        <button className="flex items-center gap-1.5" onClick={toggle} aria-expanded={open} data-testid="live-load-toggle">
+          {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />} <Cpu size={13} /> {t("cores.load.title")}
+        </button>
+      }
+    >
+      {open && (!topo ? null : items.length === 0 ? <div className="muted text-[12.5px]">{t("cores.load.none")}</div> : <LoadMap topo={topo} items={items} />)}
+    </Panel>
+  );
+}
+
 export function Live() {
   const { data, error } = usePoll<LiveLane[]>("live_lanes", {}, 1000);
   const [open, setOpen] = useState<string | null>(null);
@@ -203,6 +238,7 @@ export function Live() {
     <div className="flex flex-col gap-3 fade-in">
       <PageHeader help="run-it" title={t("live.title")} sub={t("live.sub", { busy, lanes: lanes.length })} />
       <ErrorBox error={error} />
+      <CpuLoad />
       {lanes.length === 0 ? (
         <Panel>
           <Empty icon={<Activity size={22} />}>{t("live.empty")}</Empty>

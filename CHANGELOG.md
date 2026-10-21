@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ### Added
+- **Placement of a tournament** (Tournament → Configuration): choose the sockets, Hyper-Threading
+  and how many games run at once, also after games were played (they stay). With fewer sockets
+  than opening blocks, a socket takes several blocks.
+- **Map of the CPUs**: every core with its two threads, each tournament in its own colour and its
+  games in shades of it, the other running tournaments included and the CPUs a socket lacks in red.
+  It is in the placement panel, in the wizard's Cores & games step, and in Live (*CPU load*, a
+  panel that opens and closes). Threads are drawn one per core first, as the system spreads them.
 - **Three equalized AVT books** by Andres Valverde (EveAnn), who sent them, with as many
   White-better as Black-better lines: AVT-Book 2026b equalized (6682 lines, 8 moves, ±25–50 cp,
   balanced), AVT-Book 2026d equalized (3914 lines, 12 moves, ±40–65 cp, less balanced) and

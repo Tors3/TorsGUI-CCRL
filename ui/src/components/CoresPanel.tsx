@@ -1,12 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import type { LanePlan } from "../bindings/LanePlan";
 import type { Gpu } from "../bindings/Gpu";
 import type { Placement } from "../bindings/Placement";
 import type { Topology } from "../bindings/Topology";
 import type { WizardPreview } from "../bindings/WizardPreview";
 import { useT } from "../i18n";
-import { call } from "../lib/api";
-import { cpuMap, gameColor, suggestedLanes, type Cell, type NodeMap } from "../lib/cores";
+import { suggestedLanes, type LoadItem } from "../lib/cores";
+import { LoadMap } from "./LoadMap";
 import { Choices, Field, Panel, Spinner } from "./ui";
 
 /** What the panel edits in the tournament's configuration. */
@@ -28,27 +26,15 @@ export function CoresPanel(props: {
   /** The graphics cards of the machine, and the chosen GPU engines (none: no card section). */
   cards?: Gpu[];
   gpuEngines?: string[];
+  /** The tournament's name on the map, and the other running tournaments (in grey). */
+  name?: string;
+  others?: LoadItem[];
 }) {
   const t = useT();
-  const { topo, value, onChange, pair, preview, cards, gpuEngines = [] } = props;
+  const { topo, value, onChange, pair, preview, cards, gpuEngines = [], name = "", others = [] } = props;
   const { nodes, lanes, placement, smt, gpus } = value;
   const laneCpus = Math.max(2, pair[0] + pair[1]);
-  const [plans, setPlans] = useState<LanePlan[]>([]);
-
-  const planKey = JSON.stringify([nodes, lanes, laneCpus, placement, smt]);
-  useEffect(() => {
-    if (!nodes.length) return setPlans([]);
-    let live = true;
-    call<LanePlan[]>("lane_plan", { nodes, lanes, threads: 1, cores_per_lane: laneCpus, placement, smt })
-      .then((p) => live && setPlans(p))
-      .catch(() => live && setPlans([]));
-    return () => {
-      live = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey]);
-
-  const maps = useMemo(() => (topo ? cpuMap(topo, nodes, smt, placement, plans) : []), [topo, nodes, smt, placement, plans]);
+  const items: LoadItem[] = [...others, { key: "this", name, nodes, lanes, laneCpus, smt, placement }];
   if (!topo) return <Panel title={t("cores.title")}><Spinner /></Panel>;
 
   const multiNode = topo.nodes.length > 1;
@@ -167,76 +153,19 @@ export function CoresPanel(props: {
           </div>
         )}
 
-        <CpuMap maps={maps} smt={smt} placement={placement} over={over} lanes={lanes} laneCpus={laneCpus} multiNode={multiNode} />
+        <div className="flex flex-col gap-2" data-testid="cpu-map">
+          <div className="label">{t("cores.map.title")}</div>
+          <LoadMap topo={topo} items={items} focus={items.length - 1} />
+          {placement === "none" &&
+            (multiNode ? (
+              <div className="text-[12px] p-2 rounded" style={{ color: "var(--loss)", background: "var(--loss-bg)" }} data-testid="cores-none-numa">
+                {t("cores.map.noneNuma", { count: nodes.length })}
+              </div>
+            ) : (
+              <div className="muted text-[11.5px]">{t("cores.map.noneNote")}</div>
+            ))}
+        </div>
       </div>
     </Panel>
-  );
-}
-
-function CpuMap(props: { maps: NodeMap[]; smt: boolean; placement: Placement; over: boolean; lanes: number; laneCpus: number; multiNode: boolean }) {
-  const t = useT();
-  const { maps, smt, placement, over, lanes, laneCpus, multiNode } = props;
-  const cellStyle = (c: Cell) => (c.state === "game" ? { background: gameColor(c.lane ?? 0) } : undefined);
-  const gamesShown = placement === "lane" ? Math.min(lanes, Math.max(0, ...maps.map((m) => m.fit))) : 0;
-  return (
-    <div className="flex flex-col gap-2" data-testid="cpu-map">
-      <div className="label">{t("cores.map.title")}</div>
-      {maps.map((m) => (
-        <div key={m.node} className="flex flex-col gap-1">
-          {multiNode && <div className="muted text-[11.5px]">{t("cores.nodes.node", { id: m.node })}</div>}
-          <div className={`cpu-map ${over ? "cpu-over" : ""}`}>
-            {m.cores.map((core) => (
-              <div key={core.core} className="cpu-core" title={t("cores.map.core", { n: core.core })}>
-                {core.cells.map((c) => (
-                  <span key={c.id} className={`cpu-cell cpu-${c.state}`} style={cellStyle(c)} title={`CPU ${c.id}`} />
-                ))}
-              </div>
-            ))}
-          </div>
-          {placement === "lane" && m.fit < lanes && <div className="text-[11.5px]" style={{ color: "var(--warn)" }}>{t("cores.map.tooShort", { games: lanes, threads: laneCpus, fit: m.fit })}</div>}
-        </div>
-      ))}
-      <div className="cpu-legend">
-        {placement === "none" ? (
-          <span>
-            <span className="cpu-cell cpu-os" />
-            {t("cores.map.legendOs")}
-          </span>
-        ) : placement === "node" ? (
-          <span>
-            <span className="cpu-cell cpu-shared" />
-            {t("cores.map.legendShared")}
-          </span>
-        ) : (
-          <>
-            {Array.from({ length: Math.min(gamesShown, 8) }, (_, i) => (
-              <span key={i}>
-                <span className="cpu-cell" style={{ background: gameColor(i) }} />
-                {t("cores.map.legendGame", { n: i + 1 })}
-              </span>
-            ))}
-            {gamesShown > 8 && <span>{t("cores.map.legendMore", { count: gamesShown * maps.length })}</span>}
-            <span>
-              <span className="cpu-cell cpu-free" />
-              {t("cores.map.legendFree")}
-            </span>
-          </>
-        )}
-        {!smt && placement !== "none" && (
-          <span>
-            <span className="cpu-cell cpu-off" />
-            {t("cores.map.legendOff")}
-          </span>
-        )}
-      </div>
-      {placement === "none" &&
-        (multiNode ? (
-          <div className="text-[12px] p-2 rounded" style={{ color: "var(--loss)", background: "var(--loss-bg)" }} data-testid="cores-none-numa">
-            {t("cores.map.noneNuma", { count: maps.length })}
-          </div>
-        ) : (
-          <div className="muted text-[11.5px]">{t("cores.map.noneNote")}</div>
-        ))}
-    </div>
   );
 }

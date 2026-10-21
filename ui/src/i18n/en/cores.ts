@@ -86,4 +86,20 @@ export const cores = {
     cpus: "CPUs",
     busy: "{busy} busy / {budget} {unit}",
   },
+
+  load: {
+    title: "CPU load",
+    socket: "socket {id}",
+    inUse: "{used} of {total} CPUs given to games",
+    free: "free",
+    game: "{name} · game {n}",
+    thread: "core {core}, thread {k}",
+    others: "other tournaments",
+    over: "{cpus} CPUs missing on this node: games share cores and slow down",
+    shareNote: "Each colour is a game's share of the node: the system moves its threads among the CPUs of the node, so the picture shows how many CPUs each game takes, not exactly which.",
+    liveItem: "{name}: {games} games × {cpus} CPUs",
+    none: "No tournament is running.",
+    thisTournament: "this tournament",
+    show: "CPU load",
+  },
 };

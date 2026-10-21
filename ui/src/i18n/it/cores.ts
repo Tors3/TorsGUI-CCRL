@@ -88,4 +88,20 @@ export const cores: Shape<typeof en> = {
     cpus: "CPU",
     busy: "{busy} occupati / {budget} {unit}",
   },
+
+  load: {
+    title: "Carico delle CPU",
+    socket: "socket {id}",
+    inUse: "{used} di {total} CPU assegnate alle partite",
+    free: "libera",
+    game: "{name} · partita {n}",
+    thread: "core {core}, thread {k}",
+    others: "altri tornei",
+    over: "mancano {cpus} CPU su questo nodo: le partite si dividono i core e rallentano",
+    shareNote: "Ogni colore è la quota di una partita sul nodo: il sistema sposta i suoi thread tra le CPU del nodo, quindi l'immagine mostra quante CPU prende ogni partita, non esattamente quali.",
+    liveItem: "{name}: {games} partite × {cpus} CPU",
+    none: "Nessun torneo in corso.",
+    thisTournament: "questo torneo",
+    show: "Carico CPU",
+  },
 };

@@ -18,6 +18,7 @@ import { TournamentBroadcast } from "../components/Broadcast";
 import { TournamentActions } from "../components/TournamentActions";
 import { UciOptionsEditor } from "../components/UciOptions";
 import { Empty, ErrorBox, Field, Kpi, PageHeader, Panel, ProgressBar, Result, Seg, StateChip, Tip, Warn, Wdl, WdlBar } from "../components/ui";
+import { PlacementPanel } from "../components/PlacementPanel";
 import { call, usePoll } from "../lib/api";
 import { cpuLabel } from "../lib/cpu";
 import { CrosstableView } from "../components/Crosstable";
@@ -557,6 +558,7 @@ function Config({ d, refresh }: { d: TournamentDetail; refresh: () => void }) {
             ))}
           </div>
         </Panel>
+        {!r.imported && <PlacementPanel d={d} refresh={refresh} />}
         <EngineOptions d={d} refresh={refresh} />
         <Panel title={tr("detail.config.rename")}>
           <p className="muted text-[12px] mb-2">{tr("detail.config.renameAbout")}</p>

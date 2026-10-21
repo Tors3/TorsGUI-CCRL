@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { LanePlan } from "../bindings/LanePlan";
 import type { Topology } from "../bindings/Topology";
-import { cpuBudget, cpuMap, suggestedLanes } from "./cores";
+import { cpuBudget, loadMap, suggestedLanes, type LoadItem } from "./cores";
 
 /** `nodes` nodes of `cores` cores with `smt` threads each (mirrors `platform::synthetic_topology`). */
 function topo(nodes: number, cores: number, smt: number): Topology {
@@ -26,7 +25,7 @@ function topo(nodes: number, cores: number, smt: number): Topology {
     has_bmi2: true,
   };
 }
-const set = (node: number, cpus: number[]) => ({ node, group: node, mask: 0, cpus });
+const item = (key: string, nodes: number[], lanes: number, laneCpus: number, smt: boolean, placement: LoadItem["placement"] = "node"): LoadItem => ({ key, name: key, nodes, lanes, laneCpus, smt, placement });
 
 describe("cores and games", () => {
   const ryzen = topo(1, 8, 2);
@@ -38,31 +37,43 @@ describe("cores and games", () => {
     expect(suggestedLanes(ryzen, 0, 2, true)).toBe(8);
     expect(suggestedLanes(ryzen, 0, 32, true)).toBe(1);
   });
-  it("leaves the second threads out with physical cores only", () => {
-    const [m] = cpuMap(ryzen, [0], false, "node", [{ partition: 0, node: 0, lane: 0, cpuset: set(0, [0, 2, 4]) }]);
-    expect(m.cores).toHaveLength(8);
-    expect(m.cores[0].cells.map((c) => c.state)).toEqual(["shared", "off"]);
+  it("the system spreads the threads one per core before the second threads", () => {
+    const xeon = topo(2, 20, 2);
+    const [m] = loadMap(xeon, [item("mock", [0], 2, 8, true)]);
+    // 16 CPUs: the first thread of 16 cores, the second threads still free
+    expect(m.cores.filter((c) => c.cells[0].item === 0)).toHaveLength(16);
+    expect(m.cores.every((c) => c.cells[1].item == null)).toBe(true);
+    expect(m.cores[8].cells[0].game).toBe(2);
+    // the whole node: every thread
+    const [full] = loadMap(xeon, [item("igel", [0, 1], 5, 8, true)]);
+    expect(full.cores.flatMap((c) => c.cells).every((c) => c.item === 0)).toBe(true);
   });
-  it("gives each game its own whole cores", () => {
-    const plans: LanePlan[] = [0, 1].map((lane) => ({ partition: 0, node: 0, lane, cpuset: set(0, [lane * 2, lane * 2 + 1]) }));
-    const [m] = cpuMap(ryzen, [0], true, "lane", plans);
-    expect(m.fit).toBe(2);
-    expect(m.cores[0].cells).toEqual([{ id: 0, state: "game", lane: 0 }, { id: 1, state: "game", lane: 0 }]);
-    expect(m.cores[1].cells[0]).toEqual({ id: 2, state: "game", lane: 1 });
-    expect(m.cores[2].cells[0].state).toBe("free");
+  it("fixed CPUs per game take whole cores", () => {
+    const xeon = topo(2, 20, 2);
+    const [s0, s1] = loadMap(xeon, [item("igel", [0, 1], 5, 8, true, "lane")]);
+    expect(s0.cores[0].cells.map((c) => c.game)).toEqual([1, 1]);
+    expect(s0.cores[3].cells.map((c) => c.game)).toEqual([1, 1]);
+    expect(s0.cores[4].cells[0].game).toBe(2);
+    // the second block of openings on socket 1: games 6 to 10
+    expect(s1.cores[0].cells[0].game).toBe(6);
+    expect(s0.cores.flatMap((c) => c.cells).every((c) => c.item === 0)).toBe(true);
+    expect(s0.over).toEqual([]);
   });
-  it("says when the CPUs are not enough for fixed sets", () => {
-    const all = Array.from({ length: 8 }, (_, i) => i * 2);
-    const plans: LanePlan[] = [
-      { partition: 0, node: 0, lane: 0, cpuset: set(0, [0, 2, 4, 6, 8, 10]) },
-      { partition: 0, node: 0, lane: 1, cpuset: set(0, all) },
-    ];
-    const [m] = cpuMap(ryzen, [0], false, "lane", plans);
-    expect(m.fit).toBe(1);
-    expect(m.cores[7].cells[0].state).toBe("shared");
+  it("without Hyper-Threading one thread per core, the other left free", () => {
+    const [m] = loadMap(ryzen, [item("a", [0], 2, 4, false)]);
+    expect(m.cores[0].cells.map((c) => c.game)).toEqual([1, undefined]);
+    expect(m.cores[4].cells[0].game).toBe(2);
+    expect(m.over).toEqual([]);
   });
-  it("no limits: the system decides", () => {
-    const [m] = cpuMap(ryzen, [0], false, "none", [{ partition: 0, node: 0, lane: 0, cpuset: null }]);
-    expect(m.cores.flatMap((c) => c.cells).every((c) => c.state === "os")).toBe(true);
+  it("other tournaments come first; what does not fit is counted", () => {
+    const [m] = loadMap(ryzen, [item("other", [0], 6, 2, true), item("mine", [0], 3, 2, true)]);
+    expect(m.cores.flatMap((c) => c.cells).filter((c) => c.item === 0)).toHaveLength(12);
+    expect(m.cores.flatMap((c) => c.cells).filter((c) => c.item === 1)).toHaveLength(4);
+    expect(m.over).toEqual([{ item: 1, cpus: 2 }]);
+  });
+  it("both opening blocks on one socket", () => {
+    const [s0, s1] = loadMap(topo(2, 20, 2), [item("igel", [1, 1], 2, 8, true)]);
+    expect(s0.cores.flatMap((c) => c.cells).some((c) => c.item != null)).toBe(false);
+    expect(s1.cores.flatMap((c) => c.cells).filter((c) => c.item === 0)).toHaveLength(32);
   });
 });

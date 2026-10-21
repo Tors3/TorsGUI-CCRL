@@ -179,4 +179,18 @@ export const detail: Shape<typeof en> = {
     played: "{count} partite sono già state giocate con le opzioni vecchie: quelle nuove si usano dalla prossima partita. Per il CCRL ogni partita di un torneo deve usare le stesse impostazioni.",
     first: "Usate dalla prima partita.",
   },
+  placement: {
+    title: "Posizionamento",
+    about: "Dove girano le partite e quante alla volta. Le partite giocate restano.",
+    nodes: "Socket (nodi NUMA)",
+    smt: "Hyper-Threading: i due thread di ogni core",
+    games: "Partite alla volta",
+    gamesHint: { one: "", other: "a passi di {count}: le aperture sono divise in {count} blocchi, ognuno su un socket" },
+    oneBlock: "Un solo blocco di aperture: il torneo gira su un socket.",
+    running: "Metti in pausa o ferma il torneo per cambiare dove gira.",
+    sum: "{games} partite · {cpus} CPU assegnate · circa {busy} thread al lavoro (pensa un motore alla volta)",
+    save: "Salva posizionamento",
+    saved: "Posizionamento salvato: {games} partite alla volta",
+    noNode: "Scegli almeno un socket.",
+  },
 };

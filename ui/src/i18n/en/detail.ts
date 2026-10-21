@@ -177,4 +177,18 @@ export const detail = {
     played: "{count} games were already played with the old options: the new ones are used from the next game. For CCRL every game of a tournament must use the same settings.",
     first: "Used from the first game.",
   },
+  placement: {
+    title: "Placement",
+    about: "Where the games run and how many at once. The games played stay.",
+    nodes: "Sockets (NUMA nodes)",
+    smt: "Hyper-Threading: both threads of each core",
+    games: "Games at the same time",
+    gamesHint: { one: "", other: "in steps of {count}: the openings are split in {count} blocks, each on a socket" },
+    oneBlock: "One block of openings: the tournament runs on one socket.",
+    running: "Pause or stop the tournament to change where it runs.",
+    sum: "{games} games · {cpus} CPUs given · about {busy} threads working (one engine thinks at a time)",
+    save: "Save placement",
+    saved: "Placement saved: {games} games at once",
+    noNode: "Choose at least one socket.",
+  },
 };
