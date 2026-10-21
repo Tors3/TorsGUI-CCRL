@@ -2791,7 +2791,9 @@ pub const NOT_CCRL_FLAG: &str = "AVX-512 build: personal use, not valid for CCRL
 /// The asset policy of a request: the settings, overridable per call (`avx2_only`) from the
 /// *Add from GitHub* dialog.
 fn request_policy(s: &crate::store::Settings, a: &Value) -> crate::assets::AssetPolicy {
-    if opt::<bool>(a, "avx2_only").unwrap_or(s.avx2_only) { crate::assets::AssetPolicy::ccrl() } else { crate::assets::AssetPolicy::for_this_cpu() }
+    let p = if opt::<bool>(a, "avx2_only").unwrap_or(s.avx2_only) { crate::assets::AssetPolicy::ccrl() } else { crate::assets::AssetPolicy::for_this_cpu() };
+    // GPU engines (Lc0…): the build for this computer's card
+    p.with_gpu(crate::gpu::vendor(&crate::gpu::gpus(false)))
 }
 
 /// The build of one engine for CCRL: (error, "not AVX2/AVX-512" entry, "unknown" entry).

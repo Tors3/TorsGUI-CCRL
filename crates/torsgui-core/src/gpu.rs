@@ -23,6 +23,23 @@ pub struct Gpu {
 
 static CACHE: Mutex<Option<Vec<Gpu>>> = Mutex::new(None);
 
+/// The card GPU engines would use: NVIDIA (CUDA builds), AMD Radeon or Intel Arc (DirectML
+/// builds), or none (a server's onboard VGA, integrated graphics: the CPU build).
+pub fn vendor(cards: &[Gpu]) -> crate::assets::GpuVendor {
+    use crate::assets::GpuVendor;
+    let name = |g: &Gpu| g.name.to_lowercase();
+    if cards.iter().any(|g| g.source == "nvidia-smi" || name(g).contains("nvidia")) {
+        GpuVendor::Nvidia
+    } else if cards.iter().any(|g| {
+        let n = name(g);
+        n.contains("radeon") || n.contains("intel(r) arc") || n.contains("intel arc")
+    }) {
+        GpuVendor::Other
+    } else {
+        GpuVendor::None
+    }
+}
+
 /// The graphics cards of this computer (looked up once; `refresh` looks again).
 pub fn gpus(refresh: bool) -> Vec<Gpu> {
     let mut c = CACHE.lock().unwrap();
@@ -88,6 +105,17 @@ pub fn parse_system(s: &str) -> Vec<Gpu> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_card_gives_the_build() {
+        use crate::assets::GpuVendor;
+        let card = |name: &str, source: &str| Gpu { name: name.into(), source: source.into(), ..Default::default() };
+        assert_eq!(vendor(&[card("NVIDIA GeForce GTX 1060 6GB", "nvidia-smi")]), GpuVendor::Nvidia);
+        assert_eq!(vendor(&[card("AMD Radeon RX 7900 XTX", "system")]), GpuVendor::Other);
+        // a server's onboard VGA or integrated graphics: no card for engines
+        assert_eq!(vendor(&[card("Matrox G200eR2", "system"), card("Intel(R) UHD Graphics 770", "system")]), GpuVendor::None);
+        assert_eq!(vendor(&[]), GpuVendor::None);
+    }
 
     #[test]
     fn reads_nvidia_smi_and_the_system_list() {

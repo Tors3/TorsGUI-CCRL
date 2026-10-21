@@ -48,6 +48,21 @@ pub struct AssetVerdict {
     pub ccrl_ok: bool,
 }
 
+/// The graphics card a GPU engine (Lc0 and the like) would run on: its release has CPU and GPU
+/// builds, and the GPU build for this card is taken.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export)]
+pub enum GpuVendor {
+    /// No card for engines: the CPU build.
+    #[default]
+    None,
+    /// CUDA builds.
+    Nvidia,
+    /// AMD Radeon, Intel Arc: DirectML (ONNX) builds.
+    Other,
+}
+
 /// Which builds are taken. The default is "AVX2 only"; [`AssetPolicy::for_this_cpu`] adds the
 /// AVX-512 builds this CPU can run (both are valid for CCRL).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
@@ -59,6 +74,9 @@ pub struct AssetPolicy {
     pub prefer_avx512: bool,
     pub cpu_avx512: bool,
     pub cpu_vnni: bool,
+    /// The card of this computer, for the releases with GPU builds.
+    #[serde(default)]
+    pub gpu: GpuVendor,
 }
 
 impl AssetPolicy {
@@ -69,7 +87,11 @@ impl AssetPolicy {
     /// The best build this CPU runs: AVX-512 VNNI, AVX-512, else AVX2.
     pub fn for_this_cpu() -> AssetPolicy {
         let (cpu_avx512, cpu_vnni) = cpu_avx512();
-        AssetPolicy { allow_avx512: true, prefer_avx512: true, cpu_avx512, cpu_vnni }
+        AssetPolicy { allow_avx512: true, prefer_avx512: true, cpu_avx512, cpu_vnni, gpu: GpuVendor::None }
+    }
+    /// The same policy for a computer with this graphics card.
+    pub fn with_gpu(self, gpu: GpuVendor) -> AssetPolicy {
+        AssetPolicy { gpu, ..self }
     }
     /// AVX-512 builds accepted (not preferred): to classify a file the user picked.
     pub fn personal(prefer: bool) -> AssetPolicy {
@@ -277,14 +299,45 @@ pub fn select(names: &[String], os: TargetOs) -> Selection {
     select_with(names, os, AssetPolicy::ccrl())
 }
 
+/// A GPU build (CUDA, cuDNN, ONNX/DirectML, TensorRT, OpenCL…), from its name.
+pub fn is_gpu_build(name: &str) -> bool {
+    has(r"(?i)(gpu|cuda|cudnn|onnx|directml|[-_]dml([-_.]|$)|tensorrt|[-_]trt([-_.]|$)|opencl|vulkan)", name)
+}
+
+/// Rank of a build for the card of this computer (lower first). A release without GPU builds
+/// ranks every build the same; without a card the CPU builds come first.
+fn gpu_rank(name: &str, gpu: GpuVendor) -> u8 {
+    let gpu_build = is_gpu_build(name);
+    let nodll = has(r"(?i)nodll", name);
+    match gpu {
+        GpuVendor::None => gpu_build as u8,
+        // the CUDA builds that ship their DLLs first (the -nodll ones need the CUDA toolkit);
+        // TensorRT needs it too
+        GpuVendor::Nvidia if !gpu_build => 7,
+        GpuVendor::Nvidia if nodll => 5,
+        GpuVendor::Nvidia if has(r"(?i)cuda[-_]?12", name) => 0,
+        GpuVendor::Nvidia if has(r"(?i)cuda", name) && !has(r"(?i)cudnn", name) => 1,
+        GpuVendor::Nvidia if has(r"(?i)cudnn", name) => 2,
+        GpuVendor::Nvidia if has(r"(?i)(dml|directml)", name) => 3,
+        GpuVendor::Nvidia if has(r"(?i)(trt|tensorrt)", name) => 6,
+        GpuVendor::Nvidia => 4,
+        GpuVendor::Other if has(r"(?i)(dml|directml)", name) => 0,
+        GpuVendor::Other if has(r"(?i)(opencl|vulkan)", name) => 1,
+        GpuVendor::Other if !gpu_build => 2,
+        GpuVendor::Other => 3,
+    }
+}
+
 /// Picks the best asset. Archives rank just after bare executables of the same tier.
 /// AVX-512 builds this CPU runs come first when preferred, else after the AVX2 builds.
+/// A release with GPU builds gives the one for this computer's card (the CPU build without one).
 pub fn select_with(names: &[String], os: TargetOs, policy: AssetPolicy) -> Selection {
     let verdicts: Vec<AssetVerdict> = names.iter().map(|n| classify_with(n, os, policy)).collect();
     let mut acc: Vec<&AssetVerdict> = verdicts.iter().filter(|v| v.accepted).collect();
     let preferred = |v: &AssetVerdict| -> bool { policy.prefer_avx512 && build_level(&v.build) == "avx512" };
     acc.sort_by_key(|v| {
         (
+            gpu_rank(&v.name, policy.gpu),
             !preferred(v),
             v.tier,
             v.is_archive as u8,
@@ -296,6 +349,12 @@ pub fn select_with(names: &[String], os: TargetOs, policy: AssetPolicy) -> Selec
     match acc.first() {
         Some(best) => {
             let mut reason = format!("{}: {}", best.name, best.reason);
+            if is_gpu_build(&best.name) {
+                reason.push_str(match policy.gpu {
+                    GpuVendor::Nvidia => " (GPU build for the NVIDIA card)",
+                    _ => " (GPU build for the graphics card)",
+                });
+            }
             let alts: Vec<&str> = acc.iter().skip(1).take(3).map(|v| v.name.as_str()).collect();
             if !alts.is_empty() {
                 reason.push_str(&format!("; preferred over {}", alts.join(", ")));
@@ -413,9 +472,44 @@ mod tests {
     }
 
     #[test]
+    fn gpu_engines_take_the_build_of_the_card() {
+        // Lc0 v0.32.1 on Windows
+        let names: Vec<String> = [
+            "lc0-v0.32.1-android.apk",
+            "lc0-v0.32.1-windows-cpu-dnnl.zip",
+            "lc0-v0.32.1-windows-cpu-openblas.zip",
+            "lc0-v0.32.1-windows-gpu-nvidia-cuda11-nodll.zip",
+            "lc0-v0.32.1-windows-gpu-nvidia-cuda11.zip",
+            "lc0-v0.32.1-windows-gpu-nvidia-cuda12-nodll.zip",
+            "lc0-v0.32.1-windows-gpu-nvidia-cuda12.zip",
+            "lc0-v0.32.1-windows-gpu-nvidia-cudnn-nodll.zip",
+            "lc0-v0.32.1-windows-gpu-nvidia-cudnn.zip",
+            "lc0-v0.32.1-windows-onnx-dml.zip",
+            "lc0-v0.32.1-windows-onnx-trt.zip",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let pick = |gpu| select_with(&names, TargetOs::Windows, AssetPolicy::ccrl().with_gpu(gpu));
+        let s = pick(GpuVendor::Nvidia);
+        assert_eq!(s.chosen.as_deref(), Some("lc0-v0.32.1-windows-gpu-nvidia-cuda12.zip"));
+        assert!(s.reason.contains("NVIDIA"), "{}", s.reason);
+        assert_eq!(pick(GpuVendor::Other).chosen.as_deref(), Some("lc0-v0.32.1-windows-onnx-dml.zip"));
+        // no card: a CPU build
+        let s = pick(GpuVendor::None);
+        assert!(s.chosen.as_deref().is_some_and(|c| c.contains("-cpu-")), "{s:?}");
+        // without a CUDA 12 build: CUDA 11 with its DLLs, before cuDNN and the -nodll ones
+        let older: Vec<String> = names.iter().filter(|n| !n.contains("cuda12")).cloned().collect();
+        assert_eq!(select_with(&older, TargetOs::Windows, AssetPolicy::ccrl().with_gpu(GpuVendor::Nvidia)).chosen.as_deref(), Some("lc0-v0.32.1-windows-gpu-nvidia-cuda11.zip"));
+        // an engine without GPU builds is chosen as before, card or not
+        let cpu_only: Vec<String> = ["e-avx2.exe", "e-bmi2.exe", "e-popcnt.exe"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(select_with(&cpu_only, TargetOs::Windows, AssetPolicy::ccrl().with_gpu(GpuVendor::Nvidia)).chosen.as_deref(), Some("e-avx2.exe"));
+    }
+
+    #[test]
     fn avx512_when_the_cpu_runs_it() {
         let names: Vec<String> = ["e-avx2.exe", "e-avx512.exe", "e-avx512vnni.exe", "e-x86-64-v4.exe", "e-win32.exe"].iter().map(|s| s.to_string()).collect();
-        let cpu = |f, vnni| AssetPolicy { allow_avx512: true, prefer_avx512: true, cpu_avx512: f, cpu_vnni: vnni };
+        let cpu = |f, vnni| AssetPolicy { allow_avx512: true, prefer_avx512: true, cpu_avx512: f, cpu_vnni: vnni, gpu: GpuVendor::None };
         // VNNI when the CPU has it, plain AVX-512 otherwise, AVX2 without AVX-512: all valid for CCRL
         let s = select_with(&names, TargetOs::Windows, cpu(true, true));
         assert_eq!(s.chosen.as_deref(), Some("e-avx512vnni.exe"));

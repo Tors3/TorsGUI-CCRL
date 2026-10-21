@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- **Lc0 and other GPU engines installed from GitHub** took the CPU build even with a graphics
+  card: now an NVIDIA card gets the CUDA build that ships its DLLs (CUDA 12 first), an AMD Radeon
+  or Intel Arc the DirectML (ONNX) build, and a computer without one the CPU build.
+
 ## [0.8.4] - 2026-10-21
 
 ### Fixed
