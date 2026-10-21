@@ -38,16 +38,20 @@ può eliminare (torneo → Elimina).
 TorsGUI include i libri di aperture usati dai tester CCRL, gentilmente forniti da **Graham
 Banks** (CCRL); grazie a lui e agli autori dei libri. *Installa i libri di aperture CCRL* (Per
 iniziare, oppure **Impostazioni → Libri di aperture**) li estrae nella cartella dei libri e, se
-non c'è un libro predefinito, rende predefinito **AVT-Book 2026d** (`AVT2026d.pgn`). I due libri
-AVT equalized li ha inviati il loro autore, **Andres Valverde** (EveAnn): grazie a lui.
+non c'è un libro predefinito, rende predefinito **AVT-Book 2026d** (`AVT2026d.pgn`). I tre libri
+AVT equalized (tante aperture favorevoli al Bianco quante al Nero) li ha inviati il loro autore,
+**Andres Valverde** (EveAnn), che ha dato anche le brevi note su ciascuno: grazie a lui. I selettori
+dei libri (procedura guidata, Impostazioni → Libri di aperture) mostrano i libri in schede: AVT,
+AVT equalized, Partite di grandi maestri, Altri libri e i tuoi libri.
 
 | Libro | Posizioni | Note |
 |---|---|---|
 | AVT-Book 2026d | 16677 | partite ICCF >2200, 12 mosse, mescolate (predefinito) |
 | AVT-Book 2026c | 20319 | partite ICCF >2200, 12 mosse, un po' sbilanciate |
 | AVT-Fringe 2026 | 6292 | partite ICCF >2400, 12 mosse, piuttosto sbilanciate |
-| AVT-Fringe 2026 equalized | 1290 | lo stesso, con tante linee a favore del Bianco quante a favore del Nero |
-| AVT-Book 2026b equalized | 6682 | 8 mosse, ±25–50 cp, tante linee a favore del Bianco quante a favore del Nero |
+| AVT-Book 2026b equalized | 6682 | 8 mosse, ±25–50 cp: bilanciato |
+| AVT-Book 2026d equalized | 3914 | partite ICCF >2200, 12 mosse, ±40–65 cp: meno bilanciato |
+| AVT-Fringe 2026 equalized | 1290 | partite ICCF >2400, 12 mosse, ±60–75 cp: vicino a UHO, ma linee corrette |
 | AVT 8 moves 50-65 | 3745 | partite ICCF >2200, 8 mosse, valutazione in uscita 50–65 cp |
 | AVT ICCF 8 moves more unbalanced | 3745 | partite ICCF >2200, 8 mosse, più sbilanciate |
 | GBSelect 2026 | 1879 | aperture scelte con codici ECO e nomi |
@@ -55,7 +59,7 @@ AVT equalized li ha inviati il loro autore, **Andres Valverde** (EveAnn): grazie
 | LowDraw1000 | 1000 | aperture con poche patte |
 | TopGM 8 moves | 4999 | partite dei migliori GM, 8 mosse |
 
-L'archivio contiene 11 libri **PGN**, che fastchess gioca, e 9 libri **CGB** (il formato di altre
+L'archivio contiene 12 libri **PGN**, che fastchess gioca, e 9 libri **CGB** (il formato di altre
 GUI), installati solo per i tester che usano anche quelle GUI: fastchess non legge i CGB, quindi
 TorsGUI non li propone mai per i tornei. I libri CGB sono 2600+ 8 moves, AVT-Fringe 2026, AVT 8
 moves 50-65, AVT ICCF 8 moves more unbalanced, FOEBOS v20.1, Hert500, IECG Masters, SuperGM 2020

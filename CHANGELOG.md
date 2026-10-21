@@ -3,10 +3,14 @@
 ## [Unreleased]
 
 ### Added
-- **Two equalized AVT books** by Andres Valverde (EveAnn), who sent them: AVT-Book 2026b
-  equalized (6682 lines, 8 moves, ±25–50 cp) and AVT-Fringe 2026 equalized (1290 lines, 12 moves,
-  ±60–75 cp), with as many White-better as Black-better lines. *Install the CCRL opening books*
-  adds them.
+- **Three equalized AVT books** by Andres Valverde (EveAnn), who sent them, with as many
+  White-better as Black-better lines: AVT-Book 2026b equalized (6682 lines, 8 moves, ±25–50 cp,
+  balanced), AVT-Book 2026d equalized (3914 lines, 12 moves, ±40–65 cp, less balanced) and
+  AVT-Fringe 2026 equalized (1290 lines, 12 moves, ±60–75 cp, close to UHO but fair lines).
+  *Install the CCRL opening books* adds them.
+- **Opening books in tabs**: the wizard's book picker and Settings → Opening books group the books
+  (AVT, AVT equalized, Grandmaster games, Other books, your own books), sorted by name, with the
+  author's short note on each book.
 
 ## [0.8.5] - 2026-10-21
 

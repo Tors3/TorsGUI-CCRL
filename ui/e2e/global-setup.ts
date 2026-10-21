@@ -50,7 +50,8 @@ export default async function globalSetup() {
   const fastchess = process.env.TORSGUI_E2E_NO_LIVE ? "" : process.env.FASTCHESS ?? ["/home/user/disservin/fastchess/fastchess"].find(existsSync) ?? "";
   mkdirSync(join(ws, "books"), { recursive: true });
   const bk = book(join(ws, "books"));
-  await call("settings_save", { settings: { ...settings, tester_name: "Francesco Torsello", site: "Milan", fastchess_path: fastchess, default_book: bk, default_factor: 0.86 } });
+  // folders in the workspace: the tests never write into the real books, engines or results folders
+  await call("settings_save", { settings: { ...settings, tester_name: "Francesco Torsello", site: "Milan", fastchess_path: fastchess, books_dir: join(ws, "books"), engines_dir: join(ws, "engines"), output_dir: join(ws, "results"), tablebases_dir: join(ws, "tb"), default_book: bk, default_factor: 0.86 } });
 
   const ref = findRef();
   if (ref) {

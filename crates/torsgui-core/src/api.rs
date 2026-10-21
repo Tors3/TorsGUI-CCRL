@@ -1537,6 +1537,8 @@ impl App {
                 if !s.default_book.is_empty() && Path::new(&s.default_book).exists() && !files.iter().any(|f| f == Path::new(&s.default_book)) {
                     files.push(PathBuf::from(&s.default_book));
                 }
+                // the bundled books give their group and description; the others are the user's
+                let bundled: Vec<crate::bundled::BundledBook> = crate::bundled::books_dir().and_then(|d| crate::bundled::books(&d, Path::new(&s.books_dir)).ok()).unwrap_or_default();
                 let mut v: Vec<Value> = files
                     .into_iter()
                     .filter(|p| matches!(p.extension().map(|x| x.to_string_lossy().to_lowercase()).as_deref(), Some("pgn" | "epd")))
@@ -1544,7 +1546,10 @@ impl App {
                         let text = crate::pgn::read_text(&p).unwrap_or_default();
                         let epd = p.extension().map(|x| x.eq_ignore_ascii_case("epd")).unwrap_or(false);
                         let n = if epd { text.lines().filter(|l| !l.trim().is_empty()).count() } else { text.lines().filter(|l| l.starts_with("[Event ")).count() };
-                        json!({"path": p.to_string_lossy(), "name": p.file_name().unwrap_or_default().to_string_lossy(), "positions": n, "default": p.to_string_lossy() == s.default_book})
+                        let name = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+                        let b = bundled.iter().find(|b| b.file.eq_ignore_ascii_case(&name));
+                        let group = b.map(|b| b.group.clone()).filter(|g| !g.is_empty()).unwrap_or_else(|| "mine".into());
+                        json!({"path": p.to_string_lossy(), "name": name, "positions": n, "default": p.to_string_lossy() == s.default_book, "group": group, "title": b.map(|b| b.name.clone()), "description": b.map(|b| b.description.clone()), "note": b.map(|b| b.note.clone()).filter(|n| !n.is_empty())})
                     })
                     .collect();
                 v.sort_by(|a, b| a["name"].as_str().unwrap_or("").to_lowercase().cmp(&b["name"].as_str().unwrap_or("").to_lowercase()));

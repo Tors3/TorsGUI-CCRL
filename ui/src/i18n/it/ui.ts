@@ -68,6 +68,16 @@ export const ui: Shape<typeof en> = {
     title: "Questa schermata ha avuto un errore",
     retry: "Riprova",
   },
+  bookGroups: {
+    all: "Tutti",
+    avt: "AVT",
+    avtEq: "AVT equalized",
+    gm: "Partite di grandi maestri",
+    other: "Altri libri",
+    mine: "I tuoi libri",
+    noteTip: "Con le parole dell'autore del libro",
+    eqAbout: "Equalized: tante aperture favorevoli al Bianco quante al Nero (Stockfish 18), così nessun colore è avvantaggiato in un match.",
+  },
   folderColor: {
     label: "Colore",
     tip: "Colore della cartella (resta in ogni pagina che la mostra)",

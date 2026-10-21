@@ -150,19 +150,22 @@ test("getting started: live steps and the demo tournament", async ({ page }) => 
 
 test("bundled CCRL opening books: install, then pick one in the wizard", async ({ page }) => {
   const b = await (await page.request.post("/api/books_bundled", { data: {} })).json();
-  expect(b.books.length).toBe(18);
+  expect(b.books.length).toBe(21);
   await page.goto("/#/settings?tab=books");
   const table = page.getByTestId("books-table");
-  await expect(table.locator("tbody tr")).toHaveCount(18);
+  await expect(table.locator("tbody tr")).toHaveCount(21);
   await page.getByTestId("books-install").first().click();
   await expect(table.locator('tr[data-book="AVT2026d.pgn"]')).toHaveAttribute("data-installed", "yes");
   await expect(table.locator('tr[data-book="Hert500.cgb"]')).toHaveAttribute("data-installed", "yes");
   await page.goto("/#/tournaments/new?tab=conditions");
-  const select = page.getByTestId("book-select");
-  await expect(select.locator("option", { hasText: "LowDraw1000.pgn" })).toHaveCount(1);
-  await expect(select.locator("option", { hasText: ".cgb" })).toHaveCount(0);
-  const low = await select.locator("option", { hasText: "LowDraw1000.pgn" }).getAttribute("value");
-  await select.selectOption(low!);
+  // the installed books in tabs by group: LowDraw is with the other books, no CGB book
+  await page.getByTestId("book-pick").click();
+  const picker = page.getByTestId("book-pick-table");
+  await page.getByTestId("book-group-avt-eq").click();
+  await expect(picker.locator('tr[data-book="avt-2026d-eq.pgn"]')).toHaveCount(1);
+  await page.getByTestId("book-group-other").click();
+  await expect(picker.locator("tr", { hasText: ".cgb" })).toHaveCount(0);
+  await picker.locator('tr[data-book="LowDraw1000.pgn"]').click();
   await expect(page.getByTestId("book")).toHaveValue(/LowDraw1000\.pgn$/);
 });
 

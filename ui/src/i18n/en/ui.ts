@@ -66,6 +66,16 @@ export const ui = {
     title: "This screen hit an error",
     retry: "Try again",
   },
+  bookGroups: {
+    all: "All",
+    avt: "AVT",
+    avtEq: "AVT equalized",
+    gm: "Grandmaster games",
+    other: "Other books",
+    mine: "Your books",
+    noteTip: "In the words of the book's author",
+    eqAbout: "Equalized: as many openings better for White as for Black (Stockfish 18), so neither colour is favoured over a match.",
+  },
   folderColor: {
     label: "Colour",
     tip: "Colour of the folder (kept on every page that shows it)",

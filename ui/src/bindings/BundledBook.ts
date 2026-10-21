@@ -7,7 +7,16 @@ export type BundledBook = { file: string, name: string,
 /**
  * "pgn" or "cgb".
  */
-format: string, positions: number | null, 
+format: string, 
+/**
+ * The group of the book pickers: "avt", "avt-eq" (equalized: as many White-better as
+ * Black-better lines), "gm" (grandmaster games) or "other".
+ */
+group: string, 
+/**
+ * The author's word on the book, in short ("balanced", "less balanced"…).
+ */
+note: string, positions: number | null, 
 /**
  * fastchess reads PGN and EPD books; CGB books are for other GUIs.
  */

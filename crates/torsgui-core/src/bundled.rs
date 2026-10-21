@@ -130,6 +130,13 @@ pub struct BundledBook {
     pub name: String,
     /// "pgn" or "cgb".
     pub format: String,
+    /// The group of the book pickers: "avt", "avt-eq" (equalized: as many White-better as
+    /// Black-better lines), "gm" (grandmaster games) or "other".
+    #[serde(default)]
+    pub group: String,
+    /// The author's word on the book, in short ("balanced", "less balanced"…).
+    #[serde(default)]
+    pub note: String,
     pub positions: Option<u32>,
     /// fastchess reads PGN and EPD books; CGB books are for other GUIs.
     pub fastchess: bool,
@@ -216,6 +223,7 @@ mod book_tests {
         assert!(list.iter().any(|b| b.file == DEFAULT_BOOK && b.fastchess));
         for b in &list {
             assert_eq!(b.fastchess, b.format == "pgn", "{}", b.file);
+            assert!(["avt", "avt-eq", "gm", "other"].contains(&b.group.as_str()), "{}: group {}", b.file, b.group);
         }
     }
 

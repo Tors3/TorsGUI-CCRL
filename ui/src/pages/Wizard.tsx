@@ -23,6 +23,7 @@ import { CoresPanel, type CoresValue } from "../components/CoresPanel";
 import { UciOptionsEditor } from "../components/UciOptions";
 import { cmpNum, EloCell, matchesEngine, SortTh, useEngineRatings, type RatingList, type SortDir } from "../components/EngineRatings";
 import { BOOK_FILTERS, PathInput } from "../components/PathInput";
+import { BookPicker, type InstalledBook } from "../components/OpeningBooks";
 import { Empty, ErrorBox, Field, Modal, PageHeader, PageTabs, Panel, Seg, Spinner, Tip, useTabParam, Warn } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { suggestedLanes } from "../lib/cores";
@@ -56,7 +57,7 @@ export function Wizard() {
   const { data: topo } = usePoll<Topology>("topology", {}, 0);
   const { data: settings } = usePoll<Settings>("settings_get", {}, 0);
   const { data: presets } = usePoll<NominalTc[]>("tc_presets", {}, 0);
-  const { data: books } = usePoll<{ path: string; name: string; positions: number; default: boolean }[]>("books_list", {}, 0);
+  const { data: books } = usePoll<InstalledBook[]>("books_list", {}, 0);
 
   const [kind, setKind] = useState<TournamentKind>("gauntlet");
   const [list, setList] = useState("Blitz");
@@ -898,16 +899,7 @@ export function Wizard() {
                 }
               >
                 <div className="flex gap-2">
-                  {variant !== "chess960" && (books ?? []).length > 0 && (
-                    <select className="select !w-[230px] shrink-0" value={(books ?? []).find((b) => b.path === book)?.path ?? ""} onChange={(e) => e.target.value && setBook(e.target.value)} aria-label={t("wizard.cond.installedBooks")} data-testid="book-select">
-                      <option value="">{t("wizard.cond.installedBooksPick")}</option>
-                      {(books ?? []).map((b) => (
-                        <option key={b.path} value={b.path}>
-                          {b.name} ({num(b.positions)})
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                  {variant !== "chess960" && (books ?? []).length > 0 && <BookPicker books={books ?? []} value={book} onPick={setBook} />}
                   <PathInput kind="file" className="flex-1" value={book} onChange={setBook} filters={BOOK_FILTERS} placeholder={variant === "chess960" ? "chess960-all-seed1.epd" : "C:\\CCRL\\books\\AVT2026d.pgn"} testid="book" />
                 </div>
               </Field>

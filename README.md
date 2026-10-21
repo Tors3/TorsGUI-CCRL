@@ -229,8 +229,8 @@ the bench test a 64-bit Stockfish 10 (`SF10`). Missing inputs skip those tests w
 - **Graham Banks**, who provided the CCRL opening books bundled with TorsGUI (AVT, GM2700+,
   LowDraw, TopGM and the others), and the authors of those books (Andres Valverde and the
   others named in Settings → Opening books).
-- **Andres Valverde** (EveAnn), author of the AVT books, who sent the equalized AVT-Book 2026b
-  and AVT-Fringe 2026.
+- **Andres Valverde** (EveAnn), author of the AVT books, who sent the equalized AVT-Book 2026b,
+  AVT-Book 2026d and AVT-Fringe 2026.
 - The whole **CCRL community**: the team and the testers, whose rules, workflow, rating lists
   and advice TorsGUI follows, and who make computer-chess rating lists possible.
 - **Jay Honnold** for [ccrl.live](https://ccrl.live) and its viewer
