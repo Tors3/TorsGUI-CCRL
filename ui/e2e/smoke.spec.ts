@@ -716,7 +716,8 @@ test("settings: notifications, update check, more test suites", async ({ page })
 test("CCRL list row: download the engine from GitHub", async ({ page }) => {
   await page.goto("/#/ccrl");
   await page.getByTestId("ccrl-table").getByRole("row", { name: /Stockfish 19 64-bit/ }).first().click();
-  await expect(page).toHaveURL(/#\/engines/);
+  // the GitHub dialog opens on the list page itself
+  await expect(page).toHaveURL(/#\/ccrl/);
   await expect(page.getByTestId("github-target")).toContainText("official-stockfish/Stockfish");
   await expect(page.getByTestId("github-target")).toContainText("version 19");
   await expect(page.getByTestId("github-url")).toHaveValue("official-stockfish/Stockfish");
