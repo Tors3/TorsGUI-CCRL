@@ -34,7 +34,7 @@ export function CoresPanel(props: {
   const { topo, value, onChange, pair, preview, cards, gpuEngines = [], name = "", others = [] } = props;
   const { nodes, lanes, placement, smt, gpus } = value;
   const laneCpus = Math.max(2, pair[0] + pair[1]);
-  const items: LoadItem[] = [...others, { key: "this", name, nodes, lanes, laneCpus, smt, placement }];
+  const items: LoadItem[] = [...others, { key: "this", name, nodes, lanes, laneCpus, active: Math.max(pair[0], pair[1]), smt, placement }];
   if (!topo) return <Panel title={t("cores.title")}><Spinner /></Panel>;
 
   const multiNode = topo.nodes.length > 1;

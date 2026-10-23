@@ -25,7 +25,7 @@ function topo(nodes: number, cores: number, smt: number): Topology {
     has_bmi2: true,
   };
 }
-const item = (key: string, nodes: number[], lanes: number, laneCpus: number, smt: boolean, placement: LoadItem["placement"] = "node"): LoadItem => ({ key, name: key, nodes, lanes, laneCpus, smt, placement });
+const item = (key: string, nodes: number[], lanes: number, laneCpus: number, smt: boolean, placement: LoadItem["placement"] = "node"): LoadItem => ({ key, name: key, nodes, lanes, laneCpus, active: laneCpus / 2, smt, placement });
 
 describe("cores and games", () => {
   const ryzen = topo(1, 8, 2);
@@ -37,36 +37,39 @@ describe("cores and games", () => {
     expect(suggestedLanes(ryzen, 0, 2, true)).toBe(8);
     expect(suggestedLanes(ryzen, 0, 32, true)).toBe(1);
   });
-  it("the system spreads the threads one per core before the second threads", () => {
+  it("counts the engine that thinks: one per game, one thread per core first", () => {
     const xeon = topo(2, 20, 2);
-    const [m] = loadMap(xeon, [item("mock", [0], 2, 8, true)]);
-    // 16 CPUs: the first thread of 16 cores, the second threads still free
-    expect(m.cores.filter((c) => c.cells[0].item === 0)).toHaveLength(16);
-    expect(m.cores.every((c) => c.cells[1].item == null)).toBe(true);
-    expect(m.cores[8].cells[0].game).toBe(2);
-    // the whole node: every thread
+    // Igel: 8 games of 2 × 4 threads on both sockets, 4 per socket: 16 threads working per socket
+    const [s0, s1] = loadMap(xeon, [item("igel", [0, 1], 4, 8, true)]);
+    expect(s0.cores.filter((c) => c.cells[0].item === 0)).toHaveLength(16);
+    expect(s0.smtUsed).toBe(false);
+    expect(s0.cores[4].cells[0].game).toBe(2);
+    expect(s1.cores[0].cells[0].game).toBe(5);
+    // 10 games: 40 threads on 40 cores, still no second thread
     const [full] = loadMap(xeon, [item("igel", [0, 1], 5, 8, true)]);
-    expect(full.cores.flatMap((c) => c.cells).every((c) => c.item === 0)).toBe(true);
+    expect(full.cores.every((c) => c.cells[0].item === 0 && c.cells[1].item == null)).toBe(true);
+    expect(full.smtUsed).toBe(false);
+  });
+  it("the second threads only when every core is busy", () => {
+    const [m] = loadMap(topo(1, 20, 2), [item("a", [0], 6, 8, true)]);
+    expect(m.cores.every((c) => c.cells[0].item === 0)).toBe(true);
+    expect(m.cores.filter((c) => c.cells[1].item === 0)).toHaveLength(4);
+    expect(m.smtUsed).toBe(true);
   });
   it("fixed CPUs per game take whole cores", () => {
-    const xeon = topo(2, 20, 2);
-    const [s0, s1] = loadMap(xeon, [item("igel", [0, 1], 5, 8, true, "lane")]);
-    expect(s0.cores[0].cells.map((c) => c.game)).toEqual([1, 1]);
-    expect(s0.cores[3].cells.map((c) => c.game)).toEqual([1, 1]);
-    expect(s0.cores[4].cells[0].game).toBe(2);
-    // the second block of openings on socket 1: games 6 to 10
-    expect(s1.cores[0].cells[0].game).toBe(6);
-    expect(s0.cores.flatMap((c) => c.cells).every((c) => c.item === 0)).toBe(true);
-    expect(s0.over).toEqual([]);
+    const [m] = loadMap(topo(1, 20, 2), [item("a", [0], 2, 8, true, "lane")]);
+    expect(m.cores[0].cells.map((c) => c.game)).toEqual([1, 1]);
+    expect(m.cores[2].cells.map((c) => c.game)).toEqual([2, 2]);
+    expect(m.cores[4].cells[0].item).toBeUndefined();
   });
   it("without Hyper-Threading one thread per core, the other left free", () => {
-    const [m] = loadMap(ryzen, [item("a", [0], 2, 4, false)]);
+    const [m] = loadMap(ryzen, [item("a", [0], 2, 8, false)]);
     expect(m.cores[0].cells.map((c) => c.game)).toEqual([1, undefined]);
     expect(m.cores[4].cells[0].game).toBe(2);
     expect(m.over).toEqual([]);
   });
-  it("other tournaments come first; what does not fit is counted", () => {
-    const [m] = loadMap(ryzen, [item("other", [0], 6, 2, true), item("mine", [0], 3, 2, true)]);
+  it("other tournaments come first; threads beyond the CPUs are counted", () => {
+    const [m] = loadMap(ryzen, [item("other", [0], 6, 4, true), item("mine", [0], 3, 4, true)]);
     expect(m.cores.flatMap((c) => c.cells).filter((c) => c.item === 0)).toHaveLength(12);
     expect(m.cores.flatMap((c) => c.cells).filter((c) => c.item === 1)).toHaveLength(4);
     expect(m.over).toEqual([{ item: 1, cpus: 2 }]);
@@ -74,6 +77,7 @@ describe("cores and games", () => {
   it("both opening blocks on one socket", () => {
     const [s0, s1] = loadMap(topo(2, 20, 2), [item("igel", [1, 1], 2, 8, true)]);
     expect(s0.cores.flatMap((c) => c.cells).some((c) => c.item != null)).toBe(false);
-    expect(s1.cores.flatMap((c) => c.cells).filter((c) => c.item === 0)).toHaveLength(32);
+    expect(s1.cores.filter((c) => c.cells[0].item === 0)).toHaveLength(16);
+    expect(s1.smtUsed).toBe(false);
   });
 });

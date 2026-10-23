@@ -5,12 +5,21 @@ import type { TournamentSummary } from "../bindings/TournamentSummary";
 import { useT } from "../i18n";
 import { usePoll } from "../lib/api";
 import { gameShade, loadMap, type LoadCell, type LoadItem } from "../lib/cores";
-import { coresPerLane } from "../lib/cpu";
+import { coresPerLane, heaviestPair } from "../lib/cpu";
 
-/** A tournament's games on the map, from its configuration. */
+/** The engines of a tournament set to ponder (Ponder=true in their options). */
+const pondering = (r: TournamentRecord) => r.config.participants.filter((p) => !p.withdrawn && /^(true|on|1)$/i.test(String(p.options?.Ponder ?? "").trim())).map((p) => p.name);
+
+/**
+ * A tournament's games on the map, from its configuration. With ponder off only the engine to
+ * move thinks; an engine that ponders thinks on the opponent's time too, so its games count
+ * both engines.
+ */
 export function loadItem(r: TournamentRecord): LoadItem {
   const c = r.config;
-  return { key: r.id, name: r.name, nodes: c.nodes.length ? c.nodes : [0], lanes: Math.max(1, c.lanes_per_node), laneCpus: coresPerLane(c.kind, c.participants, c.threads), smt: !!c.use_smt, placement: c.placement };
+  const ponder = pondering(r);
+  const laneCpus = coresPerLane(c.kind, c.participants, c.threads);
+  return { key: r.id, name: r.name, nodes: c.nodes.length ? c.nodes : [0], lanes: Math.max(1, c.lanes_per_node), laneCpus, active: ponder.length ? laneCpus : Math.max(...heaviestPair(c.kind, c.participants, c.threads)), smt: !!c.use_smt, placement: c.placement, ponder };
 }
 
 /** The tournaments whose games are running now (their runner is alive), but `except`. */
@@ -63,6 +72,11 @@ export function LoadMap({ topo, items, focus }: { topo: Topology; items: LoadIte
                 <span key={`x${i}`} className="cpu-cell" style={{ background: "var(--loss)" }} />
               ))}
             </div>
+            {n.smtUsed && missing === 0 && (
+              <div className="text-[11.5px]" style={{ color: "var(--warn)" }} data-testid="load-smt">
+                {t("cores.load.smtUsed")}
+              </div>
+            )}
             {missing > 0 && (
               <div className="text-[11.5px]" style={{ color: "var(--loss)" }} data-testid="load-over">
                 {t("cores.load.over", { cpus: missing })}
@@ -77,7 +91,7 @@ export function LoadMap({ topo, items, focus }: { topo: Topology; items: LoadIte
             {Array.from({ length: Math.min(4, it.lanes * it.nodes.length) }, (_, g) => (
               <span key={g} className="cpu-cell" style={{ background: gameShade(i, g + 1), marginRight: g < 3 ? 1 : 5 }} />
             ))}
-            {t("cores.load.liveItem", { name: it.name, games: it.lanes * it.nodes.length, cpus: it.laneCpus })}
+            {t("cores.load.liveItem", { name: it.name, games: it.lanes * it.nodes.length, threads: it.active })}
           </span>
         ))}
         <span>
@@ -86,6 +100,13 @@ export function LoadMap({ topo, items, focus }: { topo: Topology; items: LoadIte
         </span>
       </div>
       <div className="muted text-[11.5px]">{t("cores.load.shareNote")}</div>
+      {items
+        .filter((it) => it.ponder?.length)
+        .map((it) => (
+          <div key={it.key} className="text-[11.5px]" style={{ color: "var(--warn)" }} data-testid="load-ponder">
+            {t("cores.load.ponder", { name: it.name, engines: it.ponder!.join(", ") })}
+          </div>
+        ))}
     </div>
   );
 }

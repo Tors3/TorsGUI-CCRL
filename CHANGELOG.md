@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.7] - 2026-10-23
+
+### Fixed
+- **The map of the CPUs counted both engines of every game**, as if they thought at the same time,
+  so a 4-thread tournament with 10 games looked like it filled Hyper-Threading. Ponder is off: only
+  the engine to move thinks, so the map now counts the threads working at once (the heavier engine
+  of each game), one per core first, and says so under the map. It warns when some cores run two
+  engine threads (Hyper-Threading) and, in red, when the threads are more than the CPUs.
+- **Ponder on**: an engine set to ponder in a tournament makes both engines of its games think at
+  once: the map counts them and warns that CCRL games are played with ponder off.
+
 ## [0.8.6] - 2026-10-22
 
 ### Added

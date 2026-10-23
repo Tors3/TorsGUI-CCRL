@@ -86,7 +86,7 @@ export function PlacementPanel({ d, refresh }: { d: TournamentDetail; refresh: (
         </Field>
         <LoadMap topo={topo} items={items} focus={items.length - 1} />
         <div className="text-[12.5px] tnum" data-testid="placement-sum">
-          {t("detail.placement.sum", { games: lanes * blocks, cpus: lanes * blocks * draft.laneCpus, busy: lanes * blocks * Math.max(1, Math.round(draft.laneCpus / 2)) })}
+          {t("detail.placement.sum", { games: lanes * blocks, cpus: lanes * blocks * draft.laneCpus, busy: lanes * blocks * draft.active })}
         </div>
         {!sockets.length && <div className="text-[12px]" style={{ color: "var(--loss)" }}>{t("detail.placement.noNode")}</div>}
         {running && <div className="text-[12px]" style={{ color: "var(--warn)" }}>{t("detail.placement.running")}</div>}
