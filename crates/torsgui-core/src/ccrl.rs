@@ -582,6 +582,9 @@ pub fn suggest(
     threads: u32,
     only_installed: bool,
     exclude: &[String],
+    around: Option<f64>,
+    spread: Option<f64>,
+    gpu: bool,
 ) -> Vec<Suggestion> {
     let entries: Vec<&CcrlEntry> = lists
         .iter()
@@ -605,11 +608,17 @@ pub fn suggest(
         }
     }
     let mut v: Vec<&CcrlEntry> = fams.values().copied().collect();
-    v.sort_by(|a, b| b.rating.partial_cmp(&a.rating).unwrap());
+    match around {
+        // the engines nearest an estimated rating (above and below alike), shown strongest first
+        Some(r) => v.sort_by(|a, b| (a.rating - r).abs().partial_cmp(&(b.rating - r).abs()).unwrap().then(b.rating.partial_cmp(&a.rating).unwrap())),
+        None => v.sort_by(|a, b| b.rating.partial_cmp(&a.rating).unwrap()),
+    }
     let ex: Vec<String> = exclude.iter().map(|s| base_key(s)).collect();
+    // engines of the list that play on a graphics card ("Lc0 … RTX2080"): only when asked
+    static GPU: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(rtx|gtx|gpu|cuda|a100|h100|v100|t4)\b|rtx\d").unwrap());
     let mut out = Vec::new();
     for e in v {
-        if ex.contains(&base_key(&e.name)) {
+        if ex.contains(&base_key(&e.name)) || (!gpu && GPU.is_match(&e.name)) {
             continue;
         }
         let inst = installed.iter().find(|i| base_key(&i.display_name) == base_key(&e.name));
@@ -635,9 +644,33 @@ pub fn suggest(
             threads_ok,
             note,
         });
-        if out.len() >= top_n {
+        // spread over a range: every candidate, the range picks
+        if out.len() >= top_n && spread.is_none() {
             break;
         }
+    }
+    if let (Some(r), Some(w)) = (around, spread.filter(|w| *w > 0.0)) {
+        out = spread_over(out, r, w, top_n);
+    }
+    if around.is_some() {
+        out.sort_by(|a, b| b.rating.partial_cmp(&a.rating).unwrap());
+    }
+    out
+}
+
+/// `n` of the candidates spread evenly over `rating ± width`: for each of `n` targets from the
+/// top of the range to the bottom, the nearest candidate not taken yet (a gauntlet wants
+/// opponents above and below the seed, not all at its rating).
+fn spread_over(cands: Vec<Suggestion>, rating: f64, width: f64, n: usize) -> Vec<Suggestion> {
+    let mut left = cands;
+    let mut out = Vec::new();
+    for i in 0..n {
+        if left.is_empty() {
+            break;
+        }
+        let target = if n == 1 { rating } else { rating + width - 2.0 * width * i as f64 / (n - 1) as f64 };
+        let best = (0..left.len()).min_by(|&a, &b| (left[a].rating - target).abs().partial_cmp(&(left[b].rating - target).abs()).unwrap()).unwrap();
+        out.push(left.remove(best));
     }
     out
 }
@@ -989,15 +1022,27 @@ mod tests {
         let l = list();
         let mut motor = crate::engines::EngineEntry { display_name: "Motor 0.9.0".into(), threads_max: Some(1), id: Some(7), ..Default::default() };
         motor.flags.push("single-thread only".into());
-        let s = suggest(&l, "Blitz", 8, 10, &[motor.clone()], 8, false, &[]);
+        let s = suggest(&l, "Blitz", 8, 10, &[motor.clone()], 8, false, &[], None, None, true);
         let names: Vec<&str> = s.iter().map(|x| x.list_name.as_str()).collect();
         assert_eq!(names[0], "Stockfish 19 64-bit 8CPU");
         assert!(names.contains(&"PlentyChess 8.0.0 64-bit 8CPU"));
         assert!(!names.iter().any(|n| n.starts_with("PlentyChess 7")), "only the latest version");
         assert!(!names.iter().any(|n| n.starts_with("Motor")), "single-thread engine filtered for 8 threads");
-        let s = suggest(&l, "Blitz", 1, 10, &[motor], 1, true, &[]);
+        let s = suggest(&l, "Blitz", 1, 10, &[motor.clone()], 1, true, &[], None, None, true);
         assert_eq!(s.len(), 1);
         assert_eq!(s[0].installed_engine_id, Some(7));
+        // around an estimated rating: the nearest ones, above and below, strongest first
+        let all = suggest(&l, "Blitz", 8, 100, &[motor.clone()], 8, false, &[], None, None, true);
+        let mid = all[all.len() / 2].rating;
+        let near = suggest(&l, "Blitz", 8, 3, &[motor.clone()], 8, false, &[], Some(mid), None, true);
+        assert_eq!(near.len(), 3);
+        assert!(near.windows(2).all(|w| w[0].rating >= w[1].rating), "strongest first");
+        let worst = near.iter().map(|x| (x.rating - mid).abs()).fold(0.0, f64::max);
+        assert!(all.iter().filter(|x| (x.rating - mid).abs() < worst).count() <= 3, "the nearest ones");
+        // spread over ± a width: the strongest near the top of the range, the weakest near the bottom
+        let wide = suggest(&l, "Blitz", 8, 3, &[motor], 8, false, &[], Some(mid), Some(200.0), true);
+        assert_eq!(wide.len(), 3);
+        assert!(wide[0].rating - wide[2].rating >= near[0].rating - near[2].rating, "spread wider than the nearest");
     }
 
     #[test]

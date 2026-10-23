@@ -1,6 +1,5 @@
 import { CloudDownload, ClipboardPaste, Download, FileUp, Link2, PackageOpen, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { CcrlList } from "../bindings/CcrlList";
 import type { EngineEntry } from "../bindings/EngineEntry";
@@ -13,6 +12,7 @@ import { Empty, ErrorBox, Field, Modal, PageHeader, Panel, Seg, Spinner, PageTab
 import { call, usePoll } from "../lib/api";
 import { num } from "../lib/format";
 import { useT } from "../i18n";
+import { DownloadQueue } from "../components/DownloadQueue";
 
 const cpusOf = (n: string) => Number(/(\d+)\s*CPU/i.exec(n)?.[1] ?? 1);
 const norm = (s: string) =>
@@ -88,10 +88,11 @@ function ImportDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: b
 export function CcrlLists() {
   const { data: lists, error, refresh } = usePoll<CcrlList[]>("ccrl_lists", {}, 0);
   const { data: sources } = usePoll<ListSource[]>("ccrl_sources", {}, 0);
-  const { data: engines } = usePoll<EngineEntry[]>("engines_list", {}, 0);
+  const { data: engines, refresh: refreshEngines } = usePoll<EngineEntry[]>("engines_list", {}, 0);
+  // an engine of the list to install, here (the GitHub dialog), without going to Engines
+  const [getting, setGetting] = useState<string[]>([]);
   const { data: ts } = usePoll<TournamentSummary[]>("tournaments_list", {}, 0);
   const { data: aliases, refresh: refreshAliases } = usePoll<[string, string, string][]>("aliases_list", {}, 0);
-  const nav = useNavigate();
   const tr = useT();
   const [sel, setSel] = useState<number | null>(null);
   const [tab, setTab] = useTabParam(["lists", "suggest", "match", "threshold"] as const, "lists");
@@ -282,7 +283,7 @@ export function CcrlLists() {
                 {rows.map((e) => {
                   const inst = installed.get(norm(e.name)) ?? (aliasMap.get(norm(e.name)) ? installed.get(norm(aliasMap.get(norm(e.name))!)) : undefined);
                   return (
-                    <tr key={`${e.rank}-${e.name}`} className="clickable" onClick={() => nav(`/engines?github=${encodeURIComponent(e.name)}&list=${encodeURIComponent(cur?.list ?? "Blitz")}`)} title={tr("ccrl.downloadTip")}>
+                    <tr key={`${e.rank}-${e.name}`} className="clickable" onClick={() => setGetting([e.name])} title={tr("ccrl.downloadTip")}>
                       <td className="r tnum muted">{e.rank}</td>
                       <td className="font-medium">{e.name}</td>
                       <td className="r tnum">{num(e.rating)}</td>
@@ -425,6 +426,12 @@ export function CcrlLists() {
         </Panel>
       )}
       <ImportDialog open={imp} setOpen={setImp} onDone={refresh} />
+      <DownloadQueue
+        names={getting}
+        list={cur?.list ?? "Blitz"}
+        onEngine={() => refreshEngines()}
+        onFinish={() => setGetting([])}
+      />
     </div>
   );
 }

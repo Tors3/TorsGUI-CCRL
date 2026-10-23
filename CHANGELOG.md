@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Suggest opponents** (New tournament): enter the seed's estimated rating (from the list when the
+  seed is in it), how many opponents and the range (±150 by default): TorsGUI picks the latest
+  version of each engine of the CCRL list spread evenly over the range, as many stronger as weaker,
+  GPU engines left out unless asked. The ones in the library are selected at once; the missing ones
+  are downloaded one after the other from the same window (install, skip or stop) and selected as
+  they are installed.
+- **CCRL lists**: an engine of the list is installed from the list page itself, without going to
+  Engines.
+- **Engines grouped by Elo**: a tick groups the library in bands of 100 Elo of a CCRL list (the one
+  you sort by, else Blitz), each band folded until you open it, engines without a rating last.
+
 ## [0.8.7] - 2026-10-23
 
 ### Fixed

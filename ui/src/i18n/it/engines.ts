@@ -102,6 +102,11 @@ export const engines: Shape<typeof en> = {
     reportAdded: "{count} motori aggiunti da REPORT.md (solo dati)",
   },
   gh: {
+    queueOf: "{n} di {total}",
+    queueSkip: "Salta",
+    queueStop: "Fermati qui",
+    queueLooking: "Cerco {name} ({n} di {total})…",
+    queueDone: { one: "{count} motore installato", other: "{count} motori installati" },
     title: "Aggiungi un motore da GitHub",
     install: "Scarica, estrai e verifica",
     noTag: "Nessuna release con tag {version}: viene proposta l'ultima.",
@@ -193,6 +198,12 @@ export const engines: Shape<typeof en> = {
     copied: "Copiato",
   },
   looking: "Cerco {name}…",
+  bands: {
+    toggle: "Raggruppa per Elo",
+    tip: "Motori in fasce di 100 Elo della lista CCRL con cui ordini (Blitz se ordini per nome); le fasce si aprono con un clic",
+    band: "CCRL {list} {from}–{to}",
+    none: "Senza rating nella lista CCRL {list}",
+  },
   folders: {
     all: "Tutte le cartelle",
     none: "Senza cartella",

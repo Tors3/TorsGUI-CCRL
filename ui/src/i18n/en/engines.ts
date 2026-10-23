@@ -100,6 +100,11 @@ export const engines = {
     reportAdded: "{count} engines added from REPORT.md (metadata only)",
   },
   gh: {
+    queueOf: "{n} of {total}",
+    queueSkip: "Skip",
+    queueStop: "Stop here",
+    queueLooking: "Looking for {name} ({n} of {total})…",
+    queueDone: { one: "{count} engine installed", other: "{count} engines installed" },
     title: "Add engine from GitHub",
     install: "Download, extract & verify",
     noTag: "No release tagged {version} found: the latest is proposed.",
@@ -191,6 +196,12 @@ export const engines = {
     copied: "Copied",
   },
   looking: "Looking for {name}…",
+  bands: {
+    toggle: "Group by Elo",
+    tip: "Engines in bands of 100 Elo of the CCRL list you sort by (Blitz when sorted by name); the bands open with a click",
+    band: "CCRL {list} {from}–{to}",
+    none: "No rating in the CCRL {list} list",
+  },
   folders: {
     all: "All folders",
     none: "No folder",

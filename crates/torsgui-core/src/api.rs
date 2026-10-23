@@ -1369,7 +1369,7 @@ impl App {
             "ccrl_suggest" => {
                 let lists = store.ccrl_lists()?;
                 let inst = store.engines()?;
-                ok(ccrl::suggest(&lists, &arg::<String>(&a, "list")?, arg(&a, "cpus")?, opt(&a, "top").unwrap_or(30), &inst, opt(&a, "threads").unwrap_or(1), opt(&a, "only_installed").unwrap_or(false), &opt::<Vec<String>>(&a, "exclude").unwrap_or_default()))
+                ok(ccrl::suggest(&lists, &arg::<String>(&a, "list")?, arg(&a, "cpus")?, opt(&a, "top").unwrap_or(30), &inst, opt(&a, "threads").unwrap_or(1), opt(&a, "only_installed").unwrap_or(false), &opt::<Vec<String>>(&a, "exclude").unwrap_or_default(), opt(&a, "around"), opt(&a, "spread"), opt(&a, "gpu").unwrap_or(true)))
             }
             "ccrl_ratings" => {
                 let lists = store.ccrl_lists()?;

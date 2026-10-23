@@ -8,7 +8,6 @@ import type { Participant } from "../bindings/Participant";
 import type { Placement } from "../bindings/Placement";
 import type { RatingLookup } from "../bindings/RatingLookup";
 import type { Settings } from "../bindings/Settings";
-import type { Suggestion } from "../bindings/Suggestion";
 import type { TcResult } from "../bindings/TcResult";
 import type { Topology } from "../bindings/Topology";
 import type { Gpu } from "../bindings/Gpu";
@@ -25,6 +24,7 @@ import { cmpNum, EloCell, matchesEngine, SortTh, useEngineRatings, type RatingLi
 import { BOOK_FILTERS, PathInput } from "../components/PathInput";
 import { BookPicker, type InstalledBook } from "../components/OpeningBooks";
 import { useRunningItems } from "../components/LoadMap";
+import { SuggestOpponents } from "../components/SuggestOpponents";
 import { Empty, ErrorBox, Field, Modal, PageHeader, PageTabs, Panel, Seg, Spinner, Tip, useTabParam, Warn } from "../components/ui";
 import { call, usePoll } from "../lib/api";
 import { suggestedLanes } from "../lib/cores";
@@ -54,7 +54,7 @@ export function Wizard() {
   const keepLanes = useRef(false);
   const [castLichess, setCastLichess] = useState(false);
   const [castCcrl, setCastCcrl] = useState(false);
-  const { data: engines } = usePoll<EngineEntry[]>("engines_list", {}, 0);
+  const { data: engines, refresh: refreshEngines } = usePoll<EngineEntry[]>("engines_list", {}, 0);
   const { data: topo } = usePoll<Topology>("topology", {}, 0);
   const { data: settings } = usePoll<Settings>("settings_get", {}, 0);
   const { data: presets } = usePoll<NominalTc[]>("tc_presets", {}, 0);
@@ -105,7 +105,7 @@ export function Wizard() {
   const [ratings, setRatings] = useState<Record<string, RatingLookup>>({});
   const [preview, setPreview] = useState<WizardPreview>();
   const [busy, setBusy] = useState(false);
-  const [suggest, setSuggest] = useState<Suggestion[]>([]);
+  const [suggesting, setSuggesting] = useState(false);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<["name" | "rating" | "near", SortDir]>(["name", "asc"]);
   const [eloMin, setEloMin] = useState("");
@@ -376,17 +376,6 @@ export function Wizard() {
       toast.error((e as Error).message);
     }
   };
-  const doSuggest = async () => {
-    try {
-      const s = await call<Suggestion[]>("ccrl_suggest", { list, cpus: threads, top: 30, threads, only_installed: true, exclude: seedEngines.map((e) => e.display_name) });
-      setSuggest(s);
-      const ids = s.map((x) => x.installed_engine_id).filter((x): x is number => x != null && !seeds.includes(x));
-      setOpps(ids);
-      toast.success(t("wizard.toast.suggested", { count: ids.length, list, threads }));
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
-  };
   const create = async (mode: "draft" | "queue" | "start") => {
     if (!config) return;
     setBusy(true);
@@ -546,7 +535,7 @@ export function Wizard() {
                 )}
                 {seedMode && (
                   <Tip content={t("wizard.engines.suggestTip", { list, threads })}>
-                    <button className="btn btn-sm" onClick={doSuggest}>
+                    <button className="btn btn-sm" onClick={() => setSuggesting(true)} data-testid="suggest-open">
                       <Sparkles size={13} /> {t("wizard.engines.suggest")}
                     </button>
                   </Tip>
@@ -677,7 +666,6 @@ export function Wizard() {
                 </tbody>
               </table>
             </div>
-            {suggest.length > 0 && <div className="px-3 py-2 muted text-[12px]">{t("wizard.engines.suggestedLine", { list: suggest.map((s) => `${s.rank}. ${s.list_name} (${num(s.rating)})`).join(" · ") })}</div>}
           </Panel>
             </>
           )}
@@ -1174,6 +1162,16 @@ export function Wizard() {
       >
         {optsFor && <UciOptionsEditor key={`${optsFor.id}-${optsRev}`} options={optsFor.options} values={optsDraft} onChange={setOptsDraft} engineId={optsFor.id} dir={optsFor.dir} syzygyPath={syzygy} />}
       </Modal>
+      <SuggestOpponents
+        open={suggesting}
+        setOpen={setSuggesting}
+        list={list}
+        threads={threads}
+        exclude={seedEngines.map((e) => e.display_name)}
+        defaultElo={seedElo}
+        onApply={(ids) => setOpps(ids.filter((i) => !seeds.includes(i)))}
+        refresh={refreshEngines}
+      />
     </div>
   );
 }

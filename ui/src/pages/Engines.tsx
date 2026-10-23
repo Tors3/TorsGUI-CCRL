@@ -1,5 +1,5 @@
-import { CheckCircle2, Copy, FileText, FolderInput, FolderOpen, FolderPlus, Pencil, PackagePlus, RefreshCw, Search, Trash2, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CheckCircle2, ChevronDown, ChevronRight, Copy, FileText, FolderInput, FolderOpen, FolderPlus, Pencil, PackagePlus, RefreshCw, Search, Trash2, XCircle } from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import type { AssetPolicy } from "../bindings/AssetPolicy";
@@ -37,7 +37,11 @@ export function tagForVersion(tags: string[], version: string): string | undefin
   return tags.find((t) => norm(t) === want);
 }
 
-function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpen: (o: boolean) => void; onDone: () => void; target?: GithubTarget | null }) {
+/**
+ * Installs an engine from its GitHub releases. `queue`: one of several engines installed in a
+ * row (CCRL list, suggested opponents): the title says which, and *Skip* goes to the next.
+ */
+export function GithubDialog({ open, setOpen, onDone, target, queue }: { open: boolean; setOpen: (o: boolean) => void; onDone: (e?: EngineEntry) => void; target?: GithubTarget | null; queue?: { n: number; total: number; onSkip: () => void } }) {
   const [url, setUrl] = useState("");
   const [versionNote, setVersionNote] = useState<string>();
   const [data, setData] = useState<ReleasesResp>();
@@ -88,6 +92,7 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
     } else {
       setUrl("");
       setData(undefined);
+      setError(undefined);
       setKq(target.family);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,7 +106,7 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
       // a repository given by hand for an engine of the lists: remembered for the next time
       if (target && !target.repo && url.trim()) call("engine_link_set", { family: target.family, repo: url.trim() }).catch(() => {});
       toast[r.verify.ok ? "success" : "warning"](`${r.engine.display_name}: ${r.engine.verify_status}`);
-      onDone();
+      onDone(r.engine);
       setOpen(false);
     } catch (e) {
       setError((e as Error).message);
@@ -113,13 +118,18 @@ function GithubDialog({ open, setOpen, onDone, target }: { open: boolean; setOpe
     <Modal
       open={open}
       onOpenChange={setOpen}
-      title={tr("engines.gh.title")}
+      title={queue ? `${tr("engines.gh.title")} · ${tr("engines.gh.queueOf", { n: queue.n, total: queue.total })}` : tr("engines.gh.title")}
       width={860}
       footer={
         <>
-          <button className="btn" onClick={() => setOpen(false)}>
-            {tr("app.common.cancel")}
+          <button className="btn" onClick={() => setOpen(false)} data-testid="github-cancel">
+            {queue ? tr("engines.gh.queueStop") : tr("app.common.cancel")}
           </button>
+          {queue && (
+            <button className="btn" onClick={queue.onSkip} disabled={!!busy} data-testid="github-skip">
+              {tr("engines.gh.queueSkip")}
+            </button>
+          )}
           <button className="btn btn-primary" disabled={!asset || !!busy} onClick={install}>
             {busy === "install" ? <Spinner /> : null} {tr("engines.gh.install")}
           </button>
@@ -595,6 +605,36 @@ export function Engines() {
         ? (sort[1] === "asc" ? 1 : -1) * a.display_name.localeCompare(b.display_name, undefined, { numeric: true, sensitivity: "base" })
         : cmpNum(ratings.get(a.id!)?.[sort[0]]?.rating, ratings.get(b.id!)?.[sort[0]]?.rating, sort[1]),
     );
+  // engines in bands of 100 Elo of a CCRL list (the one sorted by, else Blitz), folded at first
+  const [byElo, setByElo] = useState(() => {
+    try {
+      return localStorage.getItem("torsgui-engines-by-elo") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [openBands, setOpenBands] = useState<string[]>([]);
+  const bandList: RatingList = sort[0] === "name" ? "Blitz" : sort[0];
+  const bands = (() => {
+    const m = new Map<string, { key: string; label: string; top: number; engines: EngineEntry[] }>();
+    for (const e of shown) {
+      const r = ratings.get(e.id!)?.[bandList]?.rating;
+      const top = r == null ? -1 : Math.floor(r / 100) * 100;
+      const key = r == null ? "none" : String(top);
+      const label = r == null ? t("engines.bands.none", { list: bandList }) : t("engines.bands.band", { list: bandList, from: top, to: top + 99 });
+      if (!m.has(key)) m.set(key, { key, label, top, engines: [] });
+      m.get(key)!.engines.push(e);
+    }
+    return [...m.values()].sort((a, b) => b.top - a.top);
+  })();
+  const toggleByElo = (on: boolean) => {
+    setByElo(on);
+    try {
+      localStorage.setItem("torsgui-engines-by-elo", on ? "1" : "0");
+    } catch {
+      /* private mode */
+    }
+  };
   const syncCcrl = async () => {
     setSyncing(true);
     try {
@@ -648,6 +688,94 @@ export function Engines() {
       toast.error((err as Error).message);
     }
   };
+  const row = (e: EngineEntry) => (
+    <tr key={e.id} style={e.inactive ? { opacity: 0.6 } : undefined}>
+      <td className="text-center">
+        <input
+          type="checkbox"
+          checked={picked.includes(e.id!)}
+          onChange={(ev) => setPicked(ev.target.checked ? [...picked, e.id!] : picked.filter((x) => x !== e.id))}
+          aria-label={`${t("engines.folders.pickCol")}: ${e.display_name}`}
+          data-testid={`engine-pick-${e.id}`}
+        />
+      </td>
+      <td className="text-center">
+        <input type="checkbox" checked={!e.inactive} onChange={() => setActive([e.id!], !!e.inactive, e.display_name)} aria-label={`${t("engines.activeCol")}: ${e.display_name}`} data-testid={`engine-active-${e.id}`} />
+      </td>
+      <td className="text-center">
+        <input type="checkbox" checked={!!e.gpu} onChange={() => setGpu(e, !e.gpu)} aria-label={`GPU: ${e.display_name}`} data-testid={`engine-gpu-${e.id}`} />
+      </td>
+      <td className="font-medium">
+        {e.release_url ? (
+          <a href={e.release_url} target="_blank" rel="noreferrer" className="hover:underline">
+            {e.display_name}
+          </a>
+        ) : (
+          e.display_name
+        )}
+        {e.chess960 && (
+          <span className="chip chip-accent ml-1.5" title={t("engines.page.chess960Tip")}>
+            960
+          </span>
+        )}
+        {e.gpu && (
+          <span className="chip chip-warn ml-1.5" title={t("engines.gpu.chipTip")}>
+            GPU
+          </span>
+        )}
+        {shownFolder === ALL_FOLDERS && e.folder && (
+          <span className="chip ml-1.5 inline-flex items-center gap-1" data-testid="engine-folder-chip">
+            <FolderIcon size={10} color={colorOf("engines", e.folder)} /> {e.folder}
+          </span>
+        )}
+        <div className="mono muted text-[11px] truncate max-w-[260px]" title={e.asset}>
+          {e.asset}
+        </div>
+      </td>
+      {RATING_LISTS.map((l) => (
+        <td key={l} className="r" data-testid={`elo-${l}-${e.id}`}>
+          <EloCell r={ratings.get(e.id!)?.[l]} />
+        </td>
+      ))}
+      <td className="mono truncate max-w-[180px]" title={e.build}>{e.build || "—"}</td>
+      <td className="mono muted">{e.uci_id || "—"}</td>
+      <td className="r tnum">{e.threads_max ?? "—"}</td>
+      <td>{e.has_syzygy ? t("app.common.yes") : <span className="muted">{t("app.common.no")}</span>}</td>
+      <td>
+        <Tip content={e.verify_detail || t("engines.page.notVerified")}>
+          <span className={`chip ${e.verify_status === "ok" ? "chip-win" : e.verify_status === "failed" ? "chip-loss" : ""}`}>
+            {e.verify_status === "ok" ? <CheckCircle2 size={11} /> : null}
+            {e.verify_status || t("engines.page.unverified")}
+          </span>
+        </Tip>
+      </td>
+      <td className="max-w-[260px]">
+        <div className="flex flex-wrap gap-1">
+          {e.flags.map((f) => (
+            <span key={f} className="chip chip-warn" title={f}>
+              {f.length > 34 ? f.slice(0, 32) + "…" : f}
+            </span>
+          ))}
+        </div>
+      </td>
+      <td className="mono muted" title={e.sha256}>
+        {e.sha256 ? e.sha256.slice(0, 12) + "…" : "—"}
+      </td>
+      <td className="r">
+        <div className="flex justify-end gap-1">
+          <button className="btn btn-sm" onClick={() => verify(e)} disabled={!e.path || busy === e.id} title={t("engines.page.verifyTip")}>
+            {busy === e.id ? <Spinner size={12} /> : <RefreshCw size={12} />} {t("engines.page.verify")}
+          </button>
+          <button className="btn btn-ghost btn-icon btn-sm" aria-label={t("engines.page.edit")} onClick={() => setEdit(e)}>
+            <Pencil size={13} />
+          </button>
+          <button className="btn btn-ghost btn-icon btn-sm" aria-label={t("engines.page.remove")} onClick={() => del(e)}>
+            <Trash2 size={13} />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
   const verified = engines.filter((e) => e.verify_status === "ok").length;
   const flagged = engines.filter((e) => e.flags.length).length;
   return (
@@ -800,6 +928,9 @@ export function Engines() {
                 {t(group === "inactive" ? "engines.allActiveShown" : "engines.allInactiveShown")}
               </button>
             )}
+            <label className="flex items-center gap-1.5 text-[12.5px] whitespace-nowrap" title={t("engines.bands.tip")}>
+              <input type="checkbox" checked={byElo} onChange={(e) => toggleByElo(e.target.checked)} data-testid="engines-by-elo" /> {t("engines.bands.toggle")}
+            </label>
             <Tip content={t("engines.page.ratingsTip", { latest: fetchedAt ? t("engines.page.latest", { date: fetchedAt.slice(0, 10) }) : "" })}>
               <button className="btn btn-sm" onClick={syncCcrl} disabled={syncing} data-testid="engines-ccrl-sync">
                 {syncing ? <Spinner size={12} /> : <RefreshCw size={12} />} {t("engines.page.updateRatings")}
@@ -862,94 +993,24 @@ export function Engines() {
                     </td>
                   </tr>
                 )}
-                {shown.map((e) => (
-                  <tr key={e.id} style={e.inactive ? { opacity: 0.6 } : undefined}>
-                    <td className="text-center">
-                      <input
-                        type="checkbox"
-                        checked={picked.includes(e.id!)}
-                        onChange={(ev) => setPicked(ev.target.checked ? [...picked, e.id!] : picked.filter((x) => x !== e.id))}
-                        aria-label={`${t("engines.folders.pickCol")}: ${e.display_name}`}
-                        data-testid={`engine-pick-${e.id}`}
-                      />
-                    </td>
-                    <td className="text-center">
-                      <input type="checkbox" checked={!e.inactive} onChange={() => setActive([e.id!], !!e.inactive, e.display_name)} aria-label={`${t("engines.activeCol")}: ${e.display_name}`} data-testid={`engine-active-${e.id}`} />
-                    </td>
-                    <td className="text-center">
-                      <input type="checkbox" checked={!!e.gpu} onChange={() => setGpu(e, !e.gpu)} aria-label={`GPU: ${e.display_name}`} data-testid={`engine-gpu-${e.id}`} />
-                    </td>
-                    <td className="font-medium">
-                      {e.release_url ? (
-                        <a href={e.release_url} target="_blank" rel="noreferrer" className="hover:underline">
-                          {e.display_name}
-                        </a>
-                      ) : (
-                        e.display_name
-                      )}
-                      {e.chess960 && (
-                        <span className="chip chip-accent ml-1.5" title={t("engines.page.chess960Tip")}>
-                          960
-                        </span>
-                      )}
-                      {e.gpu && (
-                        <span className="chip chip-warn ml-1.5" title={t("engines.gpu.chipTip")}>
-                          GPU
-                        </span>
-                      )}
-                      {shownFolder === ALL_FOLDERS && e.folder && (
-                        <span className="chip ml-1.5 inline-flex items-center gap-1" data-testid="engine-folder-chip">
-                          <FolderIcon size={10} color={colorOf("engines", e.folder)} /> {e.folder}
-                        </span>
-                      )}
-                      <div className="mono muted text-[11px] truncate max-w-[260px]" title={e.asset}>
-                        {e.asset}
-                      </div>
-                    </td>
-                    {RATING_LISTS.map((l) => (
-                      <td key={l} className="r" data-testid={`elo-${l}-${e.id}`}>
-                        <EloCell r={ratings.get(e.id!)?.[l]} />
-                      </td>
-                    ))}
-                    <td className="mono truncate max-w-[180px]" title={e.build}>{e.build || "—"}</td>
-                    <td className="mono muted">{e.uci_id || "—"}</td>
-                    <td className="r tnum">{e.threads_max ?? "—"}</td>
-                    <td>{e.has_syzygy ? t("app.common.yes") : <span className="muted">{t("app.common.no")}</span>}</td>
-                    <td>
-                      <Tip content={e.verify_detail || t("engines.page.notVerified")}>
-                        <span className={`chip ${e.verify_status === "ok" ? "chip-win" : e.verify_status === "failed" ? "chip-loss" : ""}`}>
-                          {e.verify_status === "ok" ? <CheckCircle2 size={11} /> : null}
-                          {e.verify_status || t("engines.page.unverified")}
-                        </span>
-                      </Tip>
-                    </td>
-                    <td className="max-w-[260px]">
-                      <div className="flex flex-wrap gap-1">
-                        {e.flags.map((f) => (
-                          <span key={f} className="chip chip-warn" title={f}>
-                            {f.length > 34 ? f.slice(0, 32) + "…" : f}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="mono muted" title={e.sha256}>
-                      {e.sha256 ? e.sha256.slice(0, 12) + "…" : "—"}
-                    </td>
-                    <td className="r">
-                      <div className="flex justify-end gap-1">
-                        <button className="btn btn-sm" onClick={() => verify(e)} disabled={!e.path || busy === e.id} title={t("engines.page.verifyTip")}>
-                          {busy === e.id ? <Spinner size={12} /> : <RefreshCw size={12} />} {t("engines.page.verify")}
-                        </button>
-                        <button className="btn btn-ghost btn-icon btn-sm" aria-label={t("engines.page.edit")} onClick={() => setEdit(e)}>
-                          <Pencil size={13} />
-                        </button>
-                        <button className="btn btn-ghost btn-icon btn-sm" aria-label={t("engines.page.remove")} onClick={() => del(e)}>
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {byElo
+                  ? bands.map((b) => {
+                      const open = openBands.includes(b.key);
+                      return (
+                        <Fragment key={b.key}>
+                          <tr className="clickable" onClick={() => setOpenBands(open ? openBands.filter((x) => x !== b.key) : [...openBands, b.key])} data-testid="elo-band">
+                            <td colSpan={16} className="font-medium" style={{ background: "var(--bg-2)" }}>
+                              <span className="inline-flex items-center gap-1.5">
+                                {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                                {b.label} <span className="chip">{b.engines.length}</span>
+                              </span>
+                            </td>
+                          </tr>
+                          {open && b.engines.map(row)}
+                        </Fragment>
+                      );
+                    })
+                  : shown.map(row)}
               </tbody>
             </table>
           </div>
