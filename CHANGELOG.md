@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.8.8] - 2026-10-24
 
 ### Added
 - **Suggest opponents** (New tournament): enter the seed's estimated rating (from the list when the
