@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- **Engines with spaces in their path never played**: fastchess cannot start such an engine (every
+  game failed with "Engine didn't respond to uciok after startup", while the check in Engines
+  passed), so a tournament stopped with those games missing. On Windows TorsGUI now gives fastchess
+  the short 8.3 path of the engine; where the disk keeps no short names, the tournament preview
+  says to rename the file or folder.
+
 ## [0.8.8] - 2026-10-24
 
 ### Added

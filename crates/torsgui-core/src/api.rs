@@ -1983,6 +1983,8 @@ impl App {
         for pp in &cfg.participants {
             if !Path::new(&pp.cmd).exists() {
                 p.warnings.push(msg!("preview.noExe", "{engine}: executable not found ({path})", engine = pp.name, path = pp.cmd));
+            } else if crate::platform::launch_path(&pp.cmd).contains(char::is_whitespace) {
+                p.warnings.push(msg!("preview.exeSpaces", "{engine}: fastchess cannot start an engine whose path has spaces ({path}): rename the file or folder without spaces", engine = pp.name, path = pp.cmd));
             }
         }
         // GPU engines: one game per card at a time

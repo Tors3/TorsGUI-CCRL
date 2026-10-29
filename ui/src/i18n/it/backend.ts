@@ -121,6 +121,7 @@ export const backend: Shape<typeof en> = {
     noBook: "libro di aperture non trovato su questa macchina",
     noChess960: "{engine} non supporta il Chess960 (nessuna opzione UCI_Chess960)",
     noExe: "{engine}: eseguibile non trovato ({path})",
+    exeSpaces: "{engine}: fastchess non avvia un motore con spazi nel percorso ({path}): rinomina il file o la cartella senza spazi",
     noNode: "il nodo NUMA {node} non esiste su questa macchina",
     noneOnNuma: "piazzamento \"nessun limite\" su una macchina con {nodes} nodi NUMA: le partite possono spostarsi da un socket all'altro, lontano dalla loro memoria; bloccale al loro nodo",
     ram: "RAM stimata {needed} MB, oltre l'85 % dei {total} MB installati (fastchess tiene vivi entrambi i motori)",

@@ -59,7 +59,9 @@ fn supports(p: &Participant, opt: &str) -> bool {
 /// `-engine cmd=... name=... dir=... option.K=V...` (run_node.py `engine_args`).
 /// The engine's arguments; `gpu`: the card of this game's lane (GPU engines only).
 pub fn engine_args(p: &Participant, cfg: &TournamentConfig, gpu: Option<u32>) -> Vec<String> {
-    let mut a = vec!["-engine".into(), format!("cmd={}", p.cmd), format!("name={}", p.name), format!("dir={}", p.dir)];
+    let cmd = crate::platform::launch_path(&p.cmd);
+    let dir = crate::platform::launch_path(&p.dir);
+    let mut a = vec!["-engine".into(), format!("cmd={cmd}"), format!("name={}", p.name), format!("dir={dir}")];
     if !p.args.is_empty() {
         a.push(format!("args={}", p.args));
     }

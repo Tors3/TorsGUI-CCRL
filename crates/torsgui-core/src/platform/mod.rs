@@ -257,6 +257,29 @@ pub fn no_window(cmd: &mut Command) {
     let _ = cmd;
 }
 
+/// The path fastchess is given for an engine. fastchess cannot start an engine whose path
+/// has spaces (quoting does not help), so on Windows the 8.3 short path stands in for it;
+/// the path as is when it has no spaces or the volume keeps no short names.
+pub fn launch_path(path: &str) -> String {
+    if !path.contains(char::is_whitespace) {
+        return path.to_string();
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::{OsStrExt, OsStringExt};
+        let wide: Vec<u16> = std::ffi::OsStr::new(path).encode_wide().chain(Some(0)).collect();
+        let mut buf = vec![0u16; 1024];
+        let n = unsafe { windows_sys::Win32::Storage::FileSystem::GetShortPathNameW(wide.as_ptr(), buf.as_mut_ptr(), buf.len() as u32) } as usize;
+        if n > 0 && n < buf.len() {
+            let short = std::ffi::OsString::from_wide(&buf[..n]).to_string_lossy().into_owned();
+            if !short.contains(char::is_whitespace) {
+                return short;
+            }
+        }
+    }
+    path.to_string()
+}
+
 /// Parses "0-3,8,10-11".
 pub fn parse_cpulist(s: &str) -> Vec<u32> {
     let mut v = Vec::new();
@@ -314,6 +337,18 @@ pub fn synthetic_topology(nodes: u32, cores_per_node: u32, smt: u32) -> Topology
 mod tests {
     use super::*;
     use crate::model::Placement as P;
+    #[test]
+    fn launch_path_drops_spaces_when_it_can() {
+        assert_eq!(launch_path("/engines/sf/stockfish"), "/engines/sf/stockfish");
+        let d = tempfile::tempdir().unwrap();
+        let exe = d.path().join("stockfish 7 x64 bmi2.exe");
+        std::fs::write(&exe, b"").unwrap();
+        let p = exe.to_string_lossy().into_owned();
+        let l = launch_path(&p);
+        // the same file under another name, or the path as is (no short names on this volume)
+        assert!(Path::new(&l).exists());
+        assert!(l == p || (cfg!(windows) && !l.contains(char::is_whitespace)), "{l}");
+    }
     #[test]
     fn xeon_mask_is_one_thread_per_core() {
         let t = synthetic_topology(2, 20, 2);
