@@ -41,7 +41,16 @@ tc: string, book: string, book_format: string, book_start: number,
  * One random opening per game (no colour-reversed pairs): fastchess `order=random`
  * with `-srand opening_seed`, so a game keeps its opening when the tournament resumes.
  */
-random_openings?: boolean, opening_seed: number, event: string, site: string, syzygy_path: string, adjudication: Adjudication, extra_args: Array<string>, placement: Placement, 
+random_openings?: boolean, opening_seed: number, 
+/**
+ * How fastchess numbers the book's openings. fastchess reads the `%` comment lines of a
+ * PGN book as moves (each `*` there ends an empty opening, e.g. in the AVT headers), so
+ * TorsGUI gives it a copy without them and opening `i` is the book's `i`-th game.
+ * `None` (tournaments created before 0.8.9): the file as is, numbered as when their games
+ * were played. `Some(n)`: the copy, keeping the numbering of a tournament started with the
+ * file as is and `n` empty openings in front of it (those `n` take openings after its last).
+ */
+book_shift?: number, event: string, site: string, syzygy_path: string, adjudication: Adjudication, extra_args: Array<string>, placement: Placement, 
 /**
  * Count every hardware thread (SMT / Hyper-Threading) as a CPU: the lanes may use
  * both threads of each core instead of one per physical core. Off by default, as on

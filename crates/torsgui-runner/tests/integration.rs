@@ -135,6 +135,7 @@ fn config(e: &Env, name: &str, opps: &[(&str, &str)], games: u32, lanes: u32, mo
         book_start: 1,
         random_openings: false,
         opening_seed: 0,
+        book_shift: None,
         event: format!("Test gauntlet {name}"),
         site: "Test".into(),
         syzygy_path: String::new(),

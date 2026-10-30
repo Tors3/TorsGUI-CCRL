@@ -700,6 +700,7 @@ pub(crate) mod tests {
             book_start: 1,
             random_openings: false,
             opening_seed: 0,
+            book_shift: None,
             event: "Test".into(),
             site: "Here".into(),
             syzygy_path: String::new(),

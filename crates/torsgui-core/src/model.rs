@@ -216,6 +216,15 @@ pub struct TournamentConfig {
     pub random_openings: bool,
     #[serde(default)]
     pub opening_seed: u32,
+    /// How fastchess numbers the book's openings. fastchess reads the `%` comment lines of a
+    /// PGN book as moves (each `*` there ends an empty opening, e.g. in the AVT headers), so
+    /// TorsGUI gives it a copy without them and opening `i` is the book's `i`-th game.
+    /// `None` (tournaments created before 0.8.9): the file as is, numbered as when their games
+    /// were played. `Some(n)`: the copy, keeping the numbering of a tournament started with the
+    /// file as is and `n` empty openings in front of it (those `n` take openings after its last).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub book_shift: Option<u32>,
     pub event: String,
     pub site: String,
     #[serde(default)]

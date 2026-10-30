@@ -533,8 +533,10 @@ impl App {
             }
             "tournament_update" => {
                 let id: String = arg(&a, "id")?;
-                let cfg: TournamentConfig = arg(&a, "config")?;
+                let mut cfg: TournamentConfig = arg(&a, "config")?;
                 let t = store.tournament(&id)?.context("not found")?;
+                // the numbering of the book stays the one its games were played with
+                cfg.book_shift = t.config.book_shift;
                 if runner::is_running(&self.ws.tournament_dir(&id)) {
                     bail!("pause or stop the tournament before editing it");
                 }
@@ -2771,6 +2773,7 @@ impl Default for TournamentRecord {
             book_start: 1,
             random_openings: false,
             opening_seed: 0,
+            book_shift: None,
             event: String::new(),
             site: String::new(),
             syzygy_path: String::new(),

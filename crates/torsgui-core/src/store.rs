@@ -957,7 +957,9 @@ pub fn new_id(name: &str) -> String {
 
 impl TournamentRecord {
     /// A new draft record for `config` (id derived from the name).
-    pub fn new(config: TournamentConfig) -> TournamentRecord {
+    pub fn new(mut config: TournamentConfig) -> TournamentRecord {
+        // a new tournament reads the book without its `%` lines
+        config.book_shift.get_or_insert(0);
         let expected = crate::scheduler::expected_games(&config) as u32;
         TournamentRecord {
             id: new_id(&config.name),

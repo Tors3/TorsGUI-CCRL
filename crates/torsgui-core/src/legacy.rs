@@ -177,6 +177,7 @@ pub fn read(tournament_dir: &Path, results_dir: Option<&Path>) -> Result<LegacyT
         book_start: get("BOOK_START", "1").parse().unwrap_or(1),
         random_openings: false,
         opening_seed: 0,
+        book_shift: None,
         event,
         site: get("SITE", ""),
         syzygy_path: syz,

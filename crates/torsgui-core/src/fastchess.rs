@@ -92,6 +92,42 @@ pub fn engine_args(p: &Participant, cfg: &TournamentConfig, gpu: Option<u32>) ->
 }
 
 /// An option value that means "not set" (UCI's `<empty>` default included).
+/// The book a run gives fastchess: a PGN book with `%` comment lines is copied without them
+/// to `book.pgn` in the tournament folder (fastchess would read them as moves, see
+/// `book_shift`); the file as is otherwise, or for a tournament without `book_shift`.
+pub fn run_book(cfg: &TournamentConfig, tdir: &Path) -> Result<String> {
+    if cfg.book_shift.is_none() || cfg.book_format != "pgn" || cfg.book.is_empty() {
+        return Ok(cfg.book.clone());
+    }
+    let bytes = std::fs::read(&cfg.book).with_context(|| format!("reading {}", cfg.book))?;
+    let escape = |l: &[u8]| l.first() == Some(&b'%');
+    if !bytes.split(|&b| b == b'\n').any(escape) {
+        return Ok(cfg.book.clone());
+    }
+    let mut out = Vec::with_capacity(bytes.len());
+    for l in bytes.split_inclusive(|&b| b == b'\n').filter(|l| !escape(l)) {
+        out.extend_from_slice(l);
+    }
+    let copy = tdir.join("book.pgn");
+    std::fs::write(&copy, out).with_context(|| format!("writing {}", copy.display()))?;
+    Ok(copy.to_string_lossy().into_owned())
+}
+
+/// fastchess `start=` of an opening: `book_shift` n keeps the numbering of the file as is
+/// (opening i was its game i - n), the n empty ones taking the openings after `last`.
+pub fn run_opening(cfg: &TournamentConfig, opening: u32, last: u32) -> u32 {
+    match cfg.book_shift {
+        Some(n) if n > 0 && !cfg.random_openings => {
+            if opening > n {
+                opening - n
+            } else {
+                last.saturating_sub(n) + opening
+            }
+        }
+        _ => opening,
+    }
+}
+
 fn is_unset(v: &str) -> bool {
     let v = v.trim();
     v.is_empty() || v == "<empty>"
@@ -220,6 +256,45 @@ mod tests {
     use super::*;
     use crate::model::{Role, TournamentKind};
     use crate::scheduler::tests::cfg;
+    #[test]
+    fn book_without_escape_lines() {
+        let dir = tempfile::tempdir().unwrap();
+        let book = dir.path().join("avt.pgn");
+        let game = "[Event \"a\"]
+[Result \"*\"]
+
+1. Nf3 Nf6 *
+
+";
+        std::fs::write(&book, format!("% ****** AVT-BOOK ******
+% 1: e4 46.3%
+%*******
+
+{game}{game}")).unwrap();
+        let mut c = cfg(TournamentKind::Gauntlet, &["A"], &["B"], 2, 1, 1);
+        c.book = book.to_string_lossy().into_owned();
+        // a tournament from before keeps the file as is
+        assert_eq!(run_book(&c, dir.path()).unwrap(), c.book);
+        c.book_shift = Some(0);
+        let copy = run_book(&c, dir.path()).unwrap();
+        assert_eq!(std::fs::read_to_string(&copy).unwrap(), format!("
+{game}{game}"));
+        // a book without `%` lines is used as is
+        std::fs::write(&book, game).unwrap();
+        assert_eq!(run_book(&c, dir.path()).unwrap(), c.book);
+    }
+
+    #[test]
+    fn shifted_numbering_of_a_started_tournament() {
+        let mut c = cfg(TournamentKind::Gauntlet, &["A"], &["B"], 2, 1, 1);
+        assert_eq!(run_opening(&c, 1, 100), 1);
+        c.book_shift = Some(0);
+        assert_eq!(run_opening(&c, 1, 100), 1);
+        // played with 2 empty openings in front: 3 was the book's first game
+        c.book_shift = Some(2);
+        assert_eq!([1, 2, 3, 100].map(|o| run_opening(&c, o, 100)), [99, 100, 1, 98]);
+    }
+
     #[test]
     fn args_like_run_node() {
         let mut c = cfg(TournamentKind::Gauntlet, &["Triumviratus 7.0"], &["Stockfish 19"], 30, 1, 2);

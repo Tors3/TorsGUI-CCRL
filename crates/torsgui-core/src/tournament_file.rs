@@ -487,6 +487,7 @@ pub fn build(f: &TournamentFile, env: &Env) -> FileImport {
         random_openings: f.random_openings.unwrap_or(false),
         as_is: f.as_is.unwrap_or(false),
         opening_seed: f.opening_seed.unwrap_or(0),
+        book_shift: None,
         event,
         site: f.site.clone().unwrap_or_else(|| s.site.clone()),
         syzygy_path: f.syzygy.clone().unwrap_or_else(|| s.syzygy_path.clone()),

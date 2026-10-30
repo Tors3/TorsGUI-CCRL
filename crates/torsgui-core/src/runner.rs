@@ -297,7 +297,14 @@ pub fn run_tournament(ws: &Workspace, id: &str, fastchess_override: Option<PathB
 fn run_session(ws: &Workspace, store: &Store, id: &str, cfg: &TournamentConfig, fastchess: &Path, retry: u32) -> Result<(Outcome, String)> {
     let tdir = ws.tournament_dir(id);
     let (index, done, expected) = scan_done(ws, id, cfg);
-    let jobs = scheduler::build_queue_of(known_jobs(&index, cfg), &done);
+    let known = known_jobs(&index, cfg);
+    let last = known.iter().map(|j| j.opening).max().unwrap_or(0);
+    let mut jobs = scheduler::build_queue_of(known, &done);
+    // fastchess numbering of the book (see `book_shift`)
+    for j in jobs.iter_mut() {
+        j.opening = crate::fastchess::run_opening(cfg, j.opening, last);
+    }
+    let book = crate::fastchess::run_book(cfg, &tdir)?;
     if cfg.kind.is_dynamic() {
         let _ = store.update_config(id, cfg, scheduler::expected_with(cfg, &index_results(&index)) as u32);
     }
@@ -346,7 +353,7 @@ fn run_session(ws: &Workspace, store: &Store, id: &str, cfg: &TournamentConfig, 
     for (li, plan) in plans.iter().enumerate() {
         let shared = shared.clone();
         let control = control.clone();
-        let cfg = cfg.clone();
+        let cfg = TournamentConfig { book: book.clone(), ..cfg.clone() };
         let plan = plan.clone();
         let tdir = tdir.clone();
         let fastchess = fastchess.to_path_buf();

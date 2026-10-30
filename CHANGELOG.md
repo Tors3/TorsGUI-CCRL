@@ -1,8 +1,15 @@
 # Changelog
 
-## [Unreleased]
+## [0.8.9] - 2026-10-30
 
 ### Fixed
+- **The first openings of the AVT books were played from the starting position**: fastchess reads
+  the `%` comment lines at the top of a PGN book as moves, and each `*` in them (the AVT headers
+  have two or three) became an empty opening in front of the real ones. So the first one or two
+  rounds of every tournament with such a book (both colours, on the first node) were played
+  without book moves. TorsGUI now gives fastchess a copy of the book without its `%` lines
+  (`book.pgn` in the tournament folder), so opening 1 is the book's first game. Tournaments created
+  before keep the numbering their games were played with.
 - **Engines with spaces in their path never played**: fastchess cannot start such an engine (every
   game failed with "Engine didn't respond to uciok after startup", while the check in Engines
   passed), so a tournament stopped with those games missing. On Windows TorsGUI now gives fastchess
