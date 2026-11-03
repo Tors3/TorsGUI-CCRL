@@ -152,7 +152,7 @@ pub fn check_binary(p: &Path) -> Result<String> {
         Bitness::Unknown => log::warn!("cannot read the binary header of {}", p.display()),
         Bitness::Bits64 => {}
     }
-    let v = crate::engines::verify(p, 1, std::time::Duration::from_secs(20));
+    let v = crate::engines::verify(p, &Default::default(), 1, std::time::Duration::from_secs(20));
     if !v.uciok {
         bail!("{} does not answer uci", p.display());
     }

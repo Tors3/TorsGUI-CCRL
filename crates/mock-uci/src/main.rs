@@ -5,7 +5,7 @@
 //! ```text
 //! mock-uci [--name N] [--strength 0..100] [--movetime MS] [--seed S]
 //!          [--crash-after PLIES] [--hang-after PLIES] [--slow-start MS]
-//!          [--illegal-after PLIES] [--no-syzygy] [--no-960]
+//!          [--illegal-after PLIES] [--no-syzygy] [--no-960] [--needs-evalfile]
 //! ```
 //!
 //! strength 0 plays random moves, 100 always plays the greedy best capture /
@@ -30,12 +30,16 @@ struct Cfg {
     frc: bool,
     /// Declares `UCI_AnalyseMode` (`--analyse`).
     analyse: bool,
+    /// Quits at `go` until `EvalFile` is set, as Ethereal does without its network
+    /// (`--needs-evalfile`, or a copy named `needs-evalfile*`: verification passes no arguments).
+    needs_evalfile: bool,
 }
 
 fn parse_args() -> Cfg {
     // the copy bundled with TorsGUI for the demo tournament introduces itself as such
-    let bundled = std::env::current_exe().ok().and_then(|p| p.file_stem().map(|s| s.to_string_lossy().starts_with("torsgui-demo-engine"))).unwrap_or(false);
-    let mut c = Cfg { name: if bundled { "TorsGUI Demo Engine".into() } else { "MockUCI".into() }, strength: 50, movetime: 5, seed: 1, crash_after: None, hang_after: None, slow_start: 0, illegal_after: None, syzygy: true, frc: true, analyse: false };
+    let stem = std::env::current_exe().ok().and_then(|p| p.file_stem().map(|s| s.to_string_lossy().into_owned())).unwrap_or_default();
+    let bundled = stem.starts_with("torsgui-demo-engine");
+    let mut c = Cfg { name: if bundled { "TorsGUI Demo Engine".into() } else { "MockUCI".into() }, strength: 50, movetime: 5, seed: 1, crash_after: None, hang_after: None, slow_start: 0, illegal_after: None, syzygy: true, frc: true, analyse: false, needs_evalfile: stem.starts_with("needs-evalfile") };
     let a: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
     while i < a.len() {
@@ -51,6 +55,11 @@ fn parse_args() -> Cfg {
             "--illegal-after" => c.illegal_after = v.parse().ok(),
             "--no-960" => {
                 c.frc = false;
+            }
+            "--needs-evalfile" => {
+                c.needs_evalfile = true;
+                i += 1;
+                continue;
             }
             "--analyse" => {
                 c.analyse = true;
@@ -176,6 +185,9 @@ fn main() {
                 if cfg.analyse {
                     let _ = writeln!(out, "option name UCI_AnalyseMode type check default false");
                 }
+                if cfg.needs_evalfile {
+                    let _ = writeln!(out, "option name EvalFile type string default <empty>");
+                }
                 let _ = writeln!(out, "option name Strength type spin default {} min 0 max 100", cfg.strength);
                 let _ = writeln!(out, "option name MoveTime type spin default {} min 1 max 5000", cfg.movetime);
                 let _ = writeln!(out, "uciok");
@@ -186,6 +198,9 @@ fn main() {
             Some("ucinewgame") => board = Board::default(),
             Some("setoption") => {
                 let l = line.to_lowercase();
+                if l.contains("name evalfile value ") && !l.trim_end().ends_with("<empty>") {
+                    cfg.needs_evalfile = false;
+                }
                 if cfg.frc && l.contains("name uci_chess960") {
                     chess960 = l.trim_end().ends_with("value true");
                 }
@@ -227,6 +242,11 @@ fn main() {
             }
             Some("go") => {
                 searched += 1;
+                if cfg.needs_evalfile {
+                    let _ = writeln!(out, "info string NNUE File was not provided");
+                    let _ = out.flush();
+                    std::process::exit(1);
+                }
                 if cfg.crash_after.map(|n| searched > n).unwrap_or(false) {
                     std::process::exit(3);
                 }

@@ -1109,7 +1109,7 @@ impl App {
                 if e.path.is_empty() {
                     bail!("no executable: this entry only holds metadata");
                 }
-                let v = engines::verify(Path::new(&e.path), opt(&a, "depth").unwrap_or(12), std::time::Duration::from_secs(120));
+                let v = engines::verify(Path::new(&e.path), &e.default_options, opt(&a, "depth").unwrap_or(12), std::time::Duration::from_secs(120));
                 engines::apply_verify(&mut e, &v);
                 store.save_engine(&e)?;
                 store.push_event(if v.ok { "success" } else { "error" }, "engine_verified", None, &format!("{}: {}", e.display_name, e.verify_detail))?;
@@ -2411,7 +2411,7 @@ impl App {
                     .filter(|c| !c.in_library)
                     .map(|c| {
                         s.spawn(move || {
-                            let v = engines::verify(Path::new(&c.path), 1, std::time::Duration::from_secs(15));
+                            let v = engines::verify(Path::new(&c.path), &Default::default(), 1, std::time::Duration::from_secs(15));
                             c.ok = v.uciok;
                             c.id_name = v.id_name.clone();
                             c.id_author = v.id_author.clone();
@@ -2460,7 +2460,7 @@ impl App {
         let results: Vec<(PathBuf, engines::VerifyResult)> = std::thread::scope(|s| {
             let mut out = Vec::new();
             for chunk in todo.chunks(4) {
-                let hs: Vec<_> = chunk.iter().map(|p| s.spawn(move || ((*p).clone(), engines::verify(p, 10, std::time::Duration::from_secs(60))))).collect();
+                let hs: Vec<_> = chunk.iter().map(|p| s.spawn(move || ((*p).clone(), engines::verify(p, &Default::default(), 10, std::time::Duration::from_secs(60))))).collect();
                 out.extend(hs.into_iter().filter_map(|h| h.join().ok()));
             }
             out
@@ -2482,7 +2482,7 @@ impl App {
     }
 
     fn add_local(&self, store: &crate::store::Store, path: &Path, engine: Option<String>, version: Option<String>) -> Result<EngineEntry> {
-        let v = engines::verify(path, 12, std::time::Duration::from_secs(120));
+        let v = engines::verify(path, &Default::default(), 12, std::time::Duration::from_secs(120));
         let e = local_entry(path, engine, version, &v);
         let id = store.save_engine(&e)?;
         store.push_event(if v.ok { "success" } else { "warn" }, "engine_added", None, &format!("{} added ({})", e.display_name, e.verify_status))?;
@@ -2529,7 +2529,7 @@ impl App {
         let results: Vec<(crate::cutechess::CuteEngine, Option<engines::VerifyResult>)> = std::thread::scope(|s| {
             let mut out = Vec::new();
             for chunk in todo.chunks(4) {
-                let hs: Vec<_> = chunk.iter().map(|c| s.spawn(move || (c.clone(), c.exists.then(|| engines::verify(Path::new(&c.exe), 10, std::time::Duration::from_secs(60)))))).collect();
+                let hs: Vec<_> = chunk.iter().map(|c| s.spawn(move || (c.clone(), c.exists.then(|| engines::verify(Path::new(&c.exe), &c.options, 10, std::time::Duration::from_secs(60)))))).collect();
                 out.extend(hs.into_iter().filter_map(|h| h.join().ok()));
             }
             out
@@ -2672,7 +2672,7 @@ impl App {
                 extra.push(x.name.clone());
             }
         }
-        let v = engines::verify(&exe, 12, std::time::Duration::from_secs(120));
+        let v = engines::verify(&exe, &Default::default(), 12, std::time::Duration::from_secs(120));
         let ver = crate::names::tag_version(&rel.tag);
         let mut e = EngineEntry {
             display_name: crate::names::display_name(&r.repo, &ver),

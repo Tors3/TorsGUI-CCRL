@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.0] - 2026-11-03
+
+### Fixed
+- **Engines whose network is a file of its own failed their verification** (e.g. Ethereal 14.25,
+  whose NNUE file is set with `EvalFile`): the check started the engine without the options of its
+  entry, so it quit at the first `go` and was reported as "no legal bestmove (timeout)", and a
+  tournament with it could not start. The check now sends the options of the entry (the ones sent
+  in tournaments, also those imported from Cute Chess), and an engine that quits says why ("the
+  engine quit at go: NNUE File was not provided").
+
 ## [0.8.9] - 2026-10-30
 
 ### Fixed

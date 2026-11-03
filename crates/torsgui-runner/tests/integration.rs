@@ -219,6 +219,20 @@ fn fastchess_procs_in(dir: &Path) -> usize {
 }
 
 #[test]
+fn verify_sends_the_options_of_the_entry() {
+    // like Ethereal 14.25, whose network comes in a file of its own (EvalFile)
+    let dir = tempfile::tempdir().unwrap();
+    let exe = dir.path().join(if cfg!(windows) { "needs-evalfile.exe" } else { "needs-evalfile" });
+    std::fs::copy(mock(), &exe).unwrap();
+    let none = torsgui_core::engines::verify(&exe, &Default::default(), 4, std::time::Duration::from_secs(20));
+    assert!(!none.ok);
+    assert_eq!(none.error.as_deref(), Some("the engine quit at go: NNUE File was not provided"), "{none:?}");
+    let opts = std::collections::BTreeMap::from([("EvalFile".to_string(), "net.nnue".to_string())]);
+    let with = torsgui_core::engines::verify(&exe, &opts, 4, std::time::Duration::from_secs(20));
+    assert!(with.ok, "{with:?}");
+}
+
+#[test]
 fn full_run_completes_without_duplicates() {
     let _ = need_fastchess!();
     let e = env().unwrap();

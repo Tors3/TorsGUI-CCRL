@@ -371,8 +371,10 @@ pub struct VerifyResult {
     pub bitness: String,
 }
 
-/// `uci` -> `isready` -> `go depth N` from the start position -> `quit`.
-pub fn verify(exe: &Path, depth: u32, timeout: Duration) -> VerifyResult {
+/// `uci` -> the entry's `options` -> `isready` -> `go depth N` from the start position -> `quit`.
+/// The options are those sent in tournaments too: an engine whose network comes in a file of
+/// its own (e.g. Ethereal's `EvalFile`) quits at `go` without it.
+pub fn verify(exe: &Path, options: &BTreeMap<String, String>, depth: u32, timeout: Duration) -> VerifyResult {
     let mut res = VerifyResult { sha256: sha256_file(exe).unwrap_or_default(), ..Default::default() };
     res.bitness = format!("{:?}", binary_bitness(exe));
     let dir = exe.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
@@ -402,6 +404,8 @@ pub fn verify(exe: &Path, depth: u32, timeout: Duration) -> VerifyResult {
         }
     });
     let mut lines: Vec<String> = Vec::new();
+    // the engine closed its output (it quit or crashed)
+    let closed = std::cell::Cell::new(false);
     let wait_for = |prefix: &str, secs: u64, lines: &mut Vec<String>| -> Option<String> {
         let end = Instant::now() + Duration::from_secs(secs);
         while Instant::now() < end {
@@ -414,7 +418,10 @@ pub fn verify(exe: &Path, depth: u32, timeout: Duration) -> VerifyResult {
                     }
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => continue,
-                Err(_) => return None,
+                Err(_) => {
+                    closed.set(true);
+                    return None;
+                }
             }
         }
         None
@@ -425,6 +432,9 @@ pub fn verify(exe: &Path, depth: u32, timeout: Duration) -> VerifyResult {
     };
     send("uci");
     res.uciok = wait_for("uciok", 30, &mut lines).is_some();
+    for (k, v) in options.iter().filter(|(_, v)| !v.contains("${")) {
+        send(&format!("setoption name {k} value {v}"));
+    }
     send("isready");
     res.readyok = wait_for("readyok", 60, &mut lines).is_some();
     send("position startpos");
@@ -432,9 +442,11 @@ pub fn verify(exe: &Path, depth: u32, timeout: Duration) -> VerifyResult {
     send(&format!("go depth {depth}"));
     let bm = wait_for("bestmove", timeout.as_secs().max(5), &mut lines);
     res.seconds = (t0.elapsed().as_secs_f64() * 10.0).round() / 10.0;
-    if let Some(bm) = bm {
+    if let Some(bm) = &bm {
         res.bestmove = bm.split_whitespace().nth(1).unwrap_or("?").to_string();
     }
+    // the engine quit by itself (crash, missing network...) rather than thinking too long
+    let quit_at_go = bm.is_none() && closed.get();
     send("quit");
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
@@ -461,6 +473,11 @@ pub fn verify(exe: &Path, depth: u32, timeout: Duration) -> VerifyResult {
             "no uciok".into()
         } else if !res.readyok {
             "no readyok".into()
+        } else if quit_at_go {
+            match lines.last().and_then(|l| l.strip_prefix("info string ")) {
+                Some(why) => format!("the engine quit at go: {why}"),
+                None => "the engine quit at go".into(),
+            }
         } else {
             format!("no legal bestmove ({})", if res.bestmove.is_empty() { "timeout" } else { &res.bestmove })
         });
@@ -687,7 +704,7 @@ pub fn rebuild_from_report(report: &str, uci_dir: Option<&Path>) -> Vec<EngineEn
 
 /// Launches the engine with `uci` only and returns the id name (quick check).
 pub fn quick_id(exe: &Path) -> Result<String> {
-    let v = verify(exe, 1, Duration::from_secs(10));
+    let v = verify(exe, &Default::default(), 1, Duration::from_secs(10));
     if !v.uciok {
         bail!("{}", v.error.unwrap_or_else(|| "no uciok".into()));
     }
