@@ -274,7 +274,8 @@ test("CCRL export and forum post", async ({ page }) => {
   const t = list.find((x: any) => x.record.name.includes("Triumviratus"));
   await page.goto(`/#/export?id=${encodeURIComponent(t.record.id)}`);
   await expect(page.getByTestId("forum-post")).toContainText("Result: [b]+32 =831 −7 (51.4%)[/b]");
-  await expect(page.getByTestId("forum-post")).toContainText("Stockfish 19             0  30   0   15.0/30");
+  // a gauntlet: one row per engine, each opponent with its own score (30 draws: 15/30, +0.0)
+  await expect(page.getByTestId("forum-post")).toContainText(/Stockfish 19\s+15\.0\/30\s+50\.0\s+\+0\.0\s+\S+\s+\+0-0=30/);
   // every player with the name CCRL uses in its list
   await expect(page.getByTestId("export-names")).toContainText("as in the CCRL Blitz list");
   await expect(page.getByTestId("export-names")).toContainText("Triumviratus 7.0 64-bit 8CPU");
