@@ -1,7 +1,7 @@
 //! BBCode forum posts (English, short). The default "finished" template
 //! reproduces the reference post of the build brief (§8).
 
-use crate::stats::Standings;
+use crate::stats::{Row, Standings};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -42,6 +42,9 @@ pub struct PostContext {
     /// (`{table}`, `{result}` = the winner) instead of the seed against its opponents.
     #[serde(default)]
     pub all_play: bool,
+    /// The tournament's event (the summary line under a gauntlet's table).
+    #[serde(default)]
+    pub event: String,
 }
 
 pub const TEMPLATE_FINISHED: &str = "[b]{seed} – {kind} finished[/b]\n\n{conditions}\n\nResult: [b]{result}[/b]\n\n[code]\n{table}\n[/code]\n\n{closing}\n";
@@ -89,6 +92,27 @@ pub fn table(st: &Standings) -> String {
     lines.join("\n")
 }
 
+/// A gauntlet as Gabor Szots posts it: the seed and every opponent with its own score, Elo and
+/// W-L-D, then `480/480 games, 30% draws, time control:90+1, book:..., event: ...`.
+pub fn gauntlet_table(st: &Standings, c: &PostContext) -> String {
+    let seed = Row { name: c.seed_export.clone(), ..st.total.clone() };
+    // the rows hold the seed's score against each opponent: the opponents' own is the reverse
+    let opps: Vec<Row> = st
+        .rows
+        .iter()
+        .map(|r| Row { wins: r.losses, losses: r.wins, score: r.games as f64 - r.score, pct: if r.games > 0 { 100.0 - r.pct } else { 0.0 }, elo: r.elo.map(|e| -e), ..r.clone() })
+        .collect();
+    let t = &st.total;
+    let draws = if t.games > 0 { 100.0 * t.draws as f64 / t.games as f64 } else { 0.0 };
+    let mut line = format!("{}/{} games, {draws:.0}% draws, time control:{}, book:{}", c.total_games, c.expected_games.max(c.total_games), c.tc, c.book);
+    if !c.event.is_empty() {
+        line.push_str(&format!(", event: {}", c.event));
+    }
+    format!("{}
+
+{line}", crate::crosstable::gauntlet_table(&seed, &opps))
+}
+
 pub fn conditions(c: &PostContext) -> String {
     if c.all_play {
         return format!(
@@ -131,7 +155,7 @@ pub fn variables(st: &Standings, c: &PostContext) -> BTreeMap<String, String> {
     m.insert("kind".into(), c.kind_label.clone());
     m.insert("conditions".into(), conditions(c));
     m.insert("result".into(), if c.all_play { format!("winner {}", winner_line(st)) } else { result_line(st) });
-    m.insert("table".into(), if c.all_play { ranking_table(st) } else { table(st) });
+    m.insert("table".into(), if c.all_play { ranking_table(st) } else { gauntlet_table(st, c) });
     m.insert("closing".into(), closing(c));
     m.insert("games".into(), c.expected_games.to_string());
     m.insert("done".into(), c.total_games.to_string());
@@ -205,6 +229,7 @@ mod tests {
             engines: vec!["A".into(), "B".into(), "C".into()],
             random_openings: false,
             all_play: true,
+            event: String::new(),
         };
         let p = post(PostKind::Finished, None, &st, &c);
         assert!(p.starts_with("[b]3 engines 8CPU – round robin finished[/b]"), "{p}");

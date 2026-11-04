@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.9.1] - 2026-11-04
+
+### Changed
+- **A gauntlet's table is one row per engine** (asked by Gabor Szots, laid out as in his CCRL
+  posts): the seed first, then its opponents by their own points, each with Points, %, Elo, +/-
+  and W-L-D, and a line with the games, the draws, the time control, the book and the event. It is
+  the `{table}` of the forum posts of a gauntlet and the crosstable text of a gauntlet (the
+  opponents never meet, so the full matrix was mostly empty); round robins keep the matrix.
+
 ## [0.9.0] - 2026-11-03
 
 ### Fixed

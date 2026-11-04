@@ -2287,6 +2287,7 @@ impl App {
             engines: t.config.opponents().iter().map(|p| p.name.clone()).collect(),
             random_openings: t.config.random_openings,
             all_play: false,
+            event: t.config.event.clone(),
         };
         let mut c = c;
         if matches!(t.config.kind, TournamentKind::RoundRobin | TournamentKind::Swiss) {

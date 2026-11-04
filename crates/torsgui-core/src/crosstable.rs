@@ -7,6 +7,7 @@
 //! [`RESULTS_UP_TO`] games, else the score (`8.5/10`).
 
 use crate::pgn::Game;
+use crate::stats::Row;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -148,8 +149,11 @@ pub fn cell_text(ct: &Crosstable, i: usize, j: usize) -> String {
 }
 
 /// Fixed-width text: rank, player, rating, score, %, the matrix (columns numbered by rank),
-/// S-B and performance.
+/// S-B and performance; a gauntlet gets one row per engine instead ([`gauntlet_table`]).
 pub fn to_text(ct: &Crosstable) -> String {
+    if let Some(seed) = gauntlet_seed(ct) {
+        return gauntlet_text(ct, seed);
+    }
     let n = ct.players.len();
     let name_w = ct.players.iter().map(|p| p.name.chars().count()).max().unwrap_or(6).max(6);
     let has_rating = ct.players.iter().any(|p| p.rating.is_some());
@@ -196,6 +200,66 @@ pub fn to_text(ct: &Crosstable) -> String {
     out.push(String::new());
     out.push(format!("{} games · {}", ct.games, if ct.show_results { "1 = win, = draw, 0 = loss, in the order played" } else { "points / games against each opponent" }));
     out.join("\n") + "\n"
+}
+
+/// The rows of a gauntlet as Gabor Szots posts them (Myracle's layout): the seed first, then
+/// its opponents by points, each with its own score, Elo from it with its 95% margin and W-L-D.
+/// A full matrix makes no sense there: the opponents never meet.
+pub fn gauntlet_table(seed: &Row, opponents: &[Row]) -> String {
+    let mut opps: Vec<&Row> = opponents.iter().collect();
+    opps.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.name.cmp(&b.name)));
+    let rows: Vec<&Row> = std::iter::once(seed).chain(opps).collect();
+    let name_w = rows.iter().map(|r| r.name.chars().count()).max().unwrap_or(4).max(4);
+    let rank_w = rows.len().to_string().len();
+    let points = |r: &Row| format!("{:.1}/{}", r.score, r.games);
+    let pts_w = rows.iter().map(|r| points(r).len()).max().unwrap_or(6).max(6);
+    let elo = |r: &Row| r.elo.map(|e| format!("{e:+.1}")).unwrap_or_else(|| "-".into());
+    let err = |r: &Row| r.elo_err.map(|e| format!("{e:.1}")).unwrap_or_else(|| "-".into());
+    let head = format!("{:>rank_w$}  {:<name_w$}  {:>pts_w$}  {:>5}  {:>7}  {:>6}  W-L-D", "#", "Name", "Points", "%", "Elo", "+/-");
+    let mut out = vec![head.clone(), "-".repeat(head.chars().count() + 8)];
+    for (i, r) in rows.iter().enumerate() {
+        out.push(format!(
+            "{:>rank_w$}  {:<name_w$}  {:>pts_w$}  {:>5.1}  {:>7}  {:>6}  +{}-{}={}",
+            i + 1, r.name, points(r), r.pct, elo(r), err(r), r.wins, r.losses, r.draws
+        ));
+    }
+    out.join("
+")
+}
+
+/// The row of a player for [`gauntlet_table`] (from its own point of view).
+pub fn player_row(p: &CtPlayer) -> Row {
+    let results: Vec<f64> = std::iter::repeat_n(1.0, p.wins as usize).chain(std::iter::repeat_n(0.5, p.draws as usize)).chain(std::iter::repeat_n(0.0, p.losses as usize)).collect();
+    Row::from_results(&p.name, &results)
+}
+
+/// The seed of a gauntlet (three players or more, one of them meeting all the others, who never
+/// meet each other): its index in the ranking.
+pub fn gauntlet_seed(ct: &Crosstable) -> Option<usize> {
+    let n = ct.players.len();
+    if n < 3 {
+        return None;
+    }
+    let seed = (0..n).find(|&i| (0..n).all(|j| j == i || ct.cells[i][j].games > 0))?;
+    (0..n).all(|i| (0..n).all(|j| i == j || i == seed || j == seed || ct.cells[i][j].games == 0)).then_some(seed)
+}
+
+/// A gauntlet's table and its summary line (`480 games, 30% draws`).
+fn gauntlet_text(ct: &Crosstable, seed: usize) -> String {
+    let rows: Vec<Row> = ct.players.iter().map(player_row).collect();
+    let opps: Vec<Row> = rows.iter().enumerate().filter(|(i, _)| *i != seed).map(|(_, r)| r.clone()).collect();
+    let draws: u32 = rows[seed].draws;
+    let mut out = Vec::new();
+    if !ct.title.is_empty() {
+        out.push(ct.title.clone());
+        out.push(String::new());
+    }
+    out.push(gauntlet_table(&rows[seed], &opps));
+    out.push(String::new());
+    out.push(format!("{} games, {:.0}% draws", ct.games, if ct.games > 0 { 100.0 * draws as f64 / ct.games as f64 } else { 0.0 }));
+    out.join("
+") + "
+"
 }
 
 /// For the forum: the text in `[code]`.
@@ -288,6 +352,28 @@ mod tests {
         assert!(t.contains("1.  B") && t.contains("2.5/4") && t.contains("S-B"), "{t}");
         assert!(to_bbcode(&ct).starts_with("[code]\nTest"));
         assert!(to_html(&ct).contains("<td class=\"l\" title=\"0=\">0=</td>"));
+    }
+
+    #[test]
+    fn a_gauntlet_is_one_row_per_engine() {
+        let mut rows = Vec::new();
+        for _ in 0..2 {
+            rows.push(("Seed", "X", "1-0"));
+            rows.push(("X", "Seed", "1/2-1/2"));
+            rows.push(("Seed", "Y", "0-1"));
+            rows.push(("Y", "Seed", "1-0"));
+        }
+        let ct = build("", &games(&rows), &|_| None);
+        assert_eq!(gauntlet_seed(&ct).map(|i| ct.players[i].name.as_str()), Some("Seed"));
+        let t = to_text(&ct);
+        let l: Vec<&str> = t.lines().collect();
+        assert_eq!(l[0], "#  Name  Points      %      Elo     +/-  W-L-D");
+        assert!(l[2].starts_with("1  Seed   3.0/8   37.5"), "{t}");
+        assert!(l[3].starts_with("2  Y      4.0/4  100.0") && l[3].ends_with("+4-0=0"), "the opponents by their own points: {t}");
+        assert!(l[4].starts_with("3  X      1.0/4   25.0") && l[4].ends_with("+0-2=2"), "{t}");
+        assert_eq!(l.last(), Some(&"8 games, 25% draws"));
+        // two players: a match keeps the matrix
+        assert_eq!(gauntlet_seed(&build("", &games(&[("A", "B", "1-0")]), &|_| None)), None);
     }
 
     #[test]

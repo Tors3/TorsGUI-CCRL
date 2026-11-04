@@ -21,4 +21,8 @@ random_openings: boolean,
  * Round robin / Swiss: everyone plays everyone, no seed. The post ranks every engine
  * (`{table}`, `{result}` = the winner) instead of the seed against its opponents.
  */
-all_play: boolean, };
+all_play: boolean, 
+/**
+ * The tournament's event (the summary line under a gauntlet's table).
+ */
+event: string, };
