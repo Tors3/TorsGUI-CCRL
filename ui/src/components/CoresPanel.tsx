@@ -39,7 +39,9 @@ export function CoresPanel(props: {
 
   const multiNode = topo.nodes.length > 1;
   const unit = (count: number) => t(smt ? "cores.unit.threads" : "cores.unit.cores", { count });
-  const cpuSuggested = suggestedLanes(topo, nodes[0] ?? 0, laneCpus, smt);
+  // fixed CPUs: a core for each engine of a game; otherwise only the engine to move works
+  const perGame = placement === "lane" ? laneCpus : Math.max(1, pair[0], pair[1]);
+  const cpuSuggested = suggestedLanes(topo, nodes[0] ?? 0, perGame, smt);
   // GPU engines: one game per card at a time
   const gpuLanes = Math.max(1, Math.floor(Math.max(1, gpus.length) / Math.max(1, nodes.length)));
   const suggested = gpuEngines.length ? Math.min(cpuSuggested, gpuLanes) : cpuSuggested;
@@ -47,6 +49,9 @@ export function CoresPanel(props: {
   const busy = preview?.busy_threads ?? 0;
   const budget = preview?.cpu_budget ?? 0;
   const over = budget > 0 && busy > budget;
+  // fixed CPUs per game: the games past those that fit have no CPUs of their own
+  const laneFit = placement === "lane" && budget > 0 ? Math.floor(budget / Math.max(1, laneCpus)) : Infinity;
+  const laneShort = !over && (preview?.concurrent_games ?? 0) > laneFit;
 
   return (
     <Panel title={t("cores.title")}>
@@ -87,7 +92,7 @@ export function CoresPanel(props: {
           <div className="flex items-center gap-2">
             <input className="input tnum" style={{ width: 90 }} type="number" min={1} value={lanes} onChange={(e) => onChange({ lanes: Math.max(1, +e.target.value) })} data-testid="cores-lanes" />
             {suggested !== lanes && (
-              <button type="button" className="btn btn-sm" onClick={() => onChange({ lanes: suggested })} title={t("cores.games.suggestedTip", { budget: nodeBudget, unit: unit(nodeBudget), threads: laneCpus })} data-testid="cores-use-suggested">
+              <button type="button" className="btn btn-sm" onClick={() => onChange({ lanes: suggested })} title={t("cores.games.suggestedTip", { budget: nodeBudget, unit: unit(nodeBudget), threads: perGame })} data-testid="cores-use-suggested">
                 {t("cores.games.useSuggested", { n: suggested })}
               </button>
             )}
@@ -148,7 +153,9 @@ export function CoresPanel(props: {
               })()}
             </div>
             <div className="muted">{t("cores.sum.ponder")}</div>
-            <div style={{ color: over ? "var(--loss)" : "var(--win)" }}>{over ? t("cores.sum.over", { over: busy - budget, unit: unit(busy - budget) }) : t("cores.sum.ok", { unit: unit(2) })}</div>
+            <div style={{ color: over ? "var(--loss)" : laneShort ? "var(--warn)" : "var(--win)" }}>
+              {over ? t("cores.sum.over", { over: busy - budget, unit: unit(busy - budget) }) : laneShort ? t("cores.sum.laneShort", { per: laneCpus, unit: unit(laneCpus), fit: laneFit }) : t("cores.sum.ok", { unit: unit(2) })}
+            </div>
             {smt && !over && busy > preview.physical_cores && <div style={{ color: "var(--warn)" }}>{t("cores.sum.smtShare")}</div>}
           </div>
         )}

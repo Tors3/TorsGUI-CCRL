@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- **A misleading warning about the CPUs**: with the games shared on the CPUs (the default) the
+  tournament summary warned that "hash and startup overlap" as soon as the games times both engines
+  outnumbered the cores, although only the engine to move thinks and every engine had a core. The
+  warning now comes only with fixed CPUs per game, where every game takes a core for each engine,
+  and says how many games get none of their own and how many fit. "In short" says so too instead of
+  "every engine has its own cores", and with the games shared "Use N" counts the engine to move
+  only (8 games of 1 thread on 8 cores, no longer 4).
+
 ## [0.9.1] - 2026-11-04
 
 ### Changed

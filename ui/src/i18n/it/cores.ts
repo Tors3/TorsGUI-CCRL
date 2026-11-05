@@ -65,6 +65,7 @@ export const cores: Shape<typeof en> = {
     line: "{games} partite contemporanee × {threads} {threadsUnit} del motore che muove = {busy} {unit} occupati su {budget}",
     ponder: "Il ponder è spento: in ogni partita pensa solo il motore che deve muovere, l'altro aspetta.",
     ok: "Ogni motore ha i suoi {unit}.",
+    laneShort: "Con CPU fisse ogni partita prende {per} {unit}, uno per motore: solo {fit} partite hanno CPU proprie, le altre le dividono tutte. Gioca {fit} partite alla volta, oppure scegli Condivise.",
     over: "{over} {unit} di troppo: i motori si aspetterebbero a vicenda e giocherebbero peggio. Meno partite contemporanee, o meno thread.",
     smtShare: "Alcuni motori dividono un core fisico con un altro motore: calcolano più lentamente che da soli.",
   },

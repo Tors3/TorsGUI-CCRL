@@ -63,6 +63,7 @@ export const cores = {
     line: "{games} games at the same time × {threads} {threadsUnit} of the engine to move = {busy} of {budget} {unit} busy",
     ponder: "Ponder is off: in each game only the engine to move thinks, the other waits.",
     ok: "Every engine has its own {unit}.",
+    laneShort: "With fixed CPUs every game takes {per} {unit}, one for each engine: only {fit} games get CPUs of their own, the others share them all. Play {fit} at the same time, or choose Shared.",
     over: "{over} {unit} too many: engines would wait for each other and play weaker. Fewer games at the same time, or fewer threads.",
     smtShare: "Some engines share a physical core with another engine: they search slower than alone.",
   },

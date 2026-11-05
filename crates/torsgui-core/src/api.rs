@@ -1946,12 +1946,16 @@ impl App {
         if cfg.use_smt && p.logical_cpus > 0 && p.logical_cpus == p.physical_cores {
             p.warnings.push(msg!("preview.smtNoSiblings", "SMT / Hyper-Threading is on but this CPU has one thread per core (or SMT is disabled in the BIOS): nothing changes"));
         }
-        if p.cpu_budget > 0 && p.concurrent_games * p.lane_threads > p.cpu_budget {
+        // fixed CPUs per game: every game takes a core for each of its engines; the games past
+        // those that fit get none of their own and run on all the CPUs of the node
+        if cfg.placement == Placement::Lane && p.cpu_budget > 0 && p.concurrent_games * p.lane_threads > p.cpu_budget {
             let (games, lane, total, budget) = (p.concurrent_games, p.lane_threads, p.concurrent_games * p.lane_threads, p.cpu_budget);
+            let fit = budget / lane.max(1);
+            let extra = games.saturating_sub(fit);
             p.warnings.push(if cfg.use_smt {
-                msg!("preview.laneOverlapSmt", "{games} games x {threads} threads (the two engines of a game) = {total} threads for {budget} logical CPUs (SMT on) (ponder is off: one engine thinks at a time, but hash and startup overlap)", games = games, threads = lane, total = total, budget = budget)
+                msg!("preview.laneOverlapSmt", "Fixed CPUs per game: each game takes {threads} logical CPUs (one for each engine thread), so {games} games need {total} and there are {budget}: {extra} of them get no CPUs of their own and share them all with the others. Play {fit} at the same time, or choose Shared", games = games, threads = lane, total = total, budget = budget, extra = extra, fit = fit)
             } else {
-                msg!("preview.laneOverlap", "{games} games x {threads} threads (the two engines of a game) = {total} threads for {budget} physical cores (ponder is off: one engine thinks at a time, but hash and startup overlap)", games = games, threads = lane, total = total, budget = budget)
+                msg!("preview.laneOverlap", "Fixed CPUs per game: each game takes {threads} physical cores (one for each engine thread), so {games} games need {total} and there are {budget}: {extra} of them get no cores of their own and share them all with the others. Play {fit} at the same time, or choose Shared", games = games, threads = lane, total = total, budget = budget, extra = extra, fit = fit)
             });
         }
         if p.cpu_budget > 0 && p.busy_threads > p.cpu_budget {
