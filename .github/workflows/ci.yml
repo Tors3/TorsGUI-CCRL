@@ -78,7 +78,7 @@ jobs:
 
   ui:
     name: UI (typecheck, component tests, build, Playwright smoke)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # Playwright has no chromium for ubuntu-latest (26.04) yet
     steps:
       - uses: actions/checkout@v4
       - name: Reference data (CCRL_ScirptsTests)
