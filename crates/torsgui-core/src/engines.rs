@@ -89,6 +89,14 @@ pub struct EngineEntry {
 /// Files of `dir` (and its subfolders, 3 levels) that may be engines: executables (`.exe` on
 /// Windows, files with the execute bit elsewhere), without installers, uninstallers, updaters,
 /// TorsGUI's own programs and fastchess.
+/// A path typed or pasted by the user, as the library keeps it: without the spaces and quotes
+/// around it (Windows' *Copy as path* adds quotes) and absolute. A relative path would point
+/// elsewhere later: games run from the tournament's folder, not from where it was typed.
+pub fn user_path(s: &str) -> PathBuf {
+    let p = PathBuf::from(s.trim().trim_matches(['"', '\'']).trim());
+    std::path::absolute(&p).unwrap_or(p)
+}
+
 pub fn folder_candidates(dir: &Path) -> Vec<std::path::PathBuf> {
     let skip = regex::Regex::new(r"(?i)(unins|setup|install|update|vcredist|crashpad|helper|torsgui|fastchess|cutechess|7z|gzip|tar\.exe)").unwrap();
     let mut out = Vec::new();
@@ -752,6 +760,13 @@ pub fn ensure_exists(p: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn a_typed_path_is_kept_clean_and_absolute() {
+        let p = user_path("  \"C:\\Engines\\My Engine\\x.exe\"  ");
+        assert!(p.is_absolute() && p.to_string_lossy().ends_with("x.exe") && !p.to_string_lossy().contains('"'), "{p:?}");
+        assert_eq!(user_path("engines/x"), std::env::current_dir().unwrap().join("engines/x"));
+    }
+
     #[test]
     fn parse_options() {
         let t = "id name Coda 0.9.3\noption name Threads type spin default 1 min 1 max 256\noption name OwnBook type check default true\noption name Ponder type check default false\noption name SyzygyPath type string default <empty>\noption name Style type combo default A var A var B\n";

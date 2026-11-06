@@ -1,8 +1,17 @@
 # Changelog
 
-## [Unreleased]
+## [0.9.2] - 2026-11-06
+
+### Added
+- **Hard positions (Eduard Nemeth)**: a new built-in test suite, the 256 hard positions collected
+  by Eduard Nemeth (2023 edition): ERET, Arasan 21, HTC 108, ACT and TTT tests, studies,
+  fortresses and zugzwangs.
 
 ### Fixed
+- **Engines imported from a folder typed by hand could look missing afterwards**: the folder (or
+  the file of *Add a local engine*) was kept as typed, so a relative path pointed elsewhere once a
+  tournament ran from its own folder, and a path pasted with *Copy as path* kept its quotes. The
+  path is now kept absolute and without quotes.
 - **A misleading warning about the CPUs**: with the games shared on the CPUs (the default) the
   tournament summary warned that "hash and startup overlap" as soon as the games times both engines
   outnumbered the cores, although only the engine to move thinks and every engine had a core. The

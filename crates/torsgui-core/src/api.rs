@@ -1132,14 +1132,14 @@ impl App {
             "cutechess_import" => ok(self.cutechess_import(&store, &a)?),
             // a folder of engines: probe every executable with UCI, import the chosen ones
             "engines_folder_scan" => {
-                let dir: PathBuf = arg(&a, "dir")?;
+                let dir = engines::user_path(&arg::<String>(&a, "dir")?);
                 ok(self.folder_scan(&store, &dir)?)
             }
             "engines_folder_import" => {
-                let paths: Vec<PathBuf> = arg(&a, "paths")?;
+                let paths: Vec<PathBuf> = arg::<Vec<String>>(&a, "paths")?.iter().map(|p| engines::user_path(p)).collect();
                 let r = self.folder_import(&store, &paths)?;
                 // remember the folder: Refresh imports what is added to it later
-                if let Some(dir) = opt::<String>(&a, "remember").filter(|d| !d.trim().is_empty()) {
+                if let Some(dir) = opt::<String>(&a, "remember").filter(|d| !d.trim().is_empty()).map(|d| engines::user_path(&d).to_string_lossy().into_owned()) {
                     let mut s = store.settings()?;
                     if !s.engine_folders.iter().any(|f| f.eq_ignore_ascii_case(&dir)) {
                         s.engine_folders.push(dir);
@@ -1160,7 +1160,7 @@ impl App {
                 ok(r)
             }
             "engine_add_local" => {
-                let path: PathBuf = arg(&a, "path")?;
+                let path = engines::user_path(&arg::<String>(&a, "path")?);
                 ok(self.add_local(&store, &path, opt(&a, "engine"), opt(&a, "version"))?)
             }
             "engines_report" => {

@@ -99,8 +99,8 @@ Open source (GPL-3.0-or-later); nothing is specific to one machine.
 - **Game analysis** with an engine of the library: live lines (MultiPV), evaluation graph,
   inaccuracies / mistakes / blunders, accuracy and ACPL per side.
 - **Test suites** (`bm`, `am`, `dm`) on several engines: WAC, ECM GCP, IQ4, BT-2630, LCT II,
-  endgame tests and Arasan 2026 from the Arasan collection, mates, hard tactics and endgames from
-  the lichess puzzles, or any EPD file.
+  endgame tests and Arasan 2026 from the Arasan collection, Eduard Nemeth's 256 hard positions,
+  mates, hard tactics and endgames from the lichess puzzles, or any EPD file.
 - A **Database** of your own games, engine or human, and positions, in folders and subfolders:
   import PGN files or folders, search, move, export, open in the viewer or in Game analysis.
 - **Play against any engine** of the library (clock, strength, take-backs).
@@ -248,6 +248,7 @@ the bench test a 64-bit Stockfish 10 (`SF10`). Missing inputs skip those tests w
   provides the complete WAC, ECM GCP, IQ4, BT-2630 (Bednorz & Tönissen), LCT II (Frédéric
   Louguet), the pawn endgame test, the Eigenmann Endgame Test (Walter Eigenmann) and the
   Arasan 2026 suite bundled with TorsGUI.
+- **Eduard Nemeth**, who collected the 256 *Hard positions* (2023) bundled as a test suite.
 - The [lichess puzzle database](https://database.lichess.org/#puzzles) (CC0), from which the
   *Lichess mates*, *hard tactics* and *endgames* suites are selected
   ([suites/LICENSE-lichess.txt](crates/torsgui-core/suites/LICENSE-lichess.txt)).

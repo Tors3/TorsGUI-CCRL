@@ -595,7 +595,8 @@ quanto richiesto (`dm`, matto in N: vale anche un altro matto altrettanto corto)
 - Posizioni: suite incluse — *Mate finding* (matti da 1 a 7) e le prime 20 posizioni di *Win at
   Chess* (controllate con Stockfish 10), più, dalla raccolta di test del motore Arasan di Jon
   Dart (licenza MIT), il WAC completo (300, rivisto), ECM GCP, IQ4, BT-2630, LCT II, un test di
-  finali di pedoni, l'Eigenmann Endgame Test e Arasan 2026; tre selezioni dal database dei
+  finali di pedoni, l'Eigenmann Endgame Test e Arasan 2026; le 256 *Hard positions* raccolte da
+  Eduard Nemeth (2023: ERET, Arasan 21, HTC, ACT, studi); tre selezioni dal database dei
   problemi di lichess (CC0): *Lichess mates* (matti da 2 a 5 mosse), *Lichess hard tactics*
   (rating 2700+) e *Lichess endgames* (rating 2300+) — qualsiasi file EPD (STS, Arasan, raccolte di
   matti…) o righe incollate. Le righe che non si riescono a leggere vengono elencate e saltate.

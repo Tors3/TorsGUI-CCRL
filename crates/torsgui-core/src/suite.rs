@@ -189,6 +189,8 @@ pub const BUILTIN: &[BuiltinSuite] = &[
     BuiltinSuite { id: "lct2", name: "LCT II", about: "Louguet Chess Test II by Frédéric Louguet: positional, tactical and endgame positions (Arasan's collection).", text: include_str!("../suites/lapuce2.epd") },
     BuiltinSuite { id: "pet", name: "Pawn endgame test", about: "Pawn endgame test positions (Arasan's collection).", text: include_str!("../suites/pet.epd") },
     BuiltinSuite { id: "eet", name: "Eigenmann Endgame Test", about: "Endgames of every kind by Walter Eigenmann (Arasan's collection).", text: include_str!("../suites/eet.epd") },
+    // collected by Eduard Nemeth and sent to TorsGUI for the engine tests
+    BuiltinSuite { id: "hard-positions-256", name: "Hard positions (Eduard Nemeth)", about: "256 hard positions collected by Eduard Nemeth (2023): ERET, Arasan 21, HTC 108, ACT and TTT tests, studies, fortresses and zugzwangs.", text: include_str!("../suites/hard-positions-256.epd") },
     BuiltinSuite { id: "arasan2026", name: "Arasan 2026", about: "Jon Dart's own test suite for the Arasan engine: 200 hard positions from recent games (MIT licence).", text: include_str!("../suites/arasan2026.epd") },
     // selections from the lichess puzzle database (CC0, suites/LICENSE-lichess.txt): popular,
     // well-rated puzzles with a single solution

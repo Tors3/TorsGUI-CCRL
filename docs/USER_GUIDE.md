@@ -558,7 +558,8 @@ another mate that short counts too).
 - Positions: built-in suites — *Mate finding* (mates in 1 to 7) and the first 20 *Win at
   Chess* positions (checked with Stockfish 10), plus, from the test collection of the Arasan
   engine by Jon Dart (MIT licence), the complete WAC (300, revised), ECM GCP, IQ4, BT-2630,
-  LCT II, a pawn endgame test, the Eigenmann Endgame Test and Arasan 2026; three selections from
+  LCT II, a pawn endgame test, the Eigenmann Endgame Test and Arasan 2026; the 256 *Hard
+  positions* collected by Eduard Nemeth (2023: ERET, Arasan 21, HTC, ACT, studies); three selections from
   the lichess puzzle database (CC0): *Lichess mates* (mate in 2 to 5), *Lichess hard tactics*
   (rated 2700+) and *Lichess endgames* (rated 2300+) — any EPD file (STS, Arasan, mate
   collections…) or pasted lines. Lines that cannot be read are listed and skipped.
