@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- **Deleting a tournament asks twice and says what goes**: first whether to remove it from the
+  list only (its games, configuration and logs stay in its folder) or to delete its files too, then
+  a second confirmation naming it (in red when the files go: it cannot be undone).
+
+### Added
+- **Restore**: the tournaments removed from the list whose folder is still on disk are listed under
+  *Tournaments → Restore* and come back as they were (state, folder of the list, games), ready to
+  resume. A tournament removed before this version is found from its configuration.
+
 ## [0.9.2] - 2026-11-06
 
 ### Added

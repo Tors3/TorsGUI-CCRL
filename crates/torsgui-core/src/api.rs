@@ -774,11 +774,31 @@ impl App {
                 if runner::is_running(&self.ws.tournament_dir(&id)) {
                     bail!("stop the tournament first");
                 }
+                let t = store.tournament(&id)?;
+                let dir = self.ws.tournament_dir(&id);
+                let with_files = opt::<bool>(&a, "delete_files").unwrap_or(false);
+                if !with_files {
+                    // its folder stays: the record is kept next to it so that Restore brings the
+                    // tournament back as it was (state, folder of the list)
+                    if let Some(t) = &t {
+                        let _ = std::fs::write(dir.join("record.json"), serde_json::to_string_pretty(t)?);
+                    }
+                }
                 store.delete_tournament(&id)?;
-                if opt::<bool>(&a, "delete_files").unwrap_or(false) {
-                    let _ = std::fs::remove_dir_all(self.ws.tournament_dir(&id));
+                let name = t.map(|t| t.name).unwrap_or_else(|| id.clone());
+                if with_files {
+                    let _ = std::fs::remove_dir_all(&dir);
+                    store.push_event("warn", "tournament_deleted", Some(&id), &format!("{name} deleted with its games"))?;
+                } else {
+                    store.push_event("info", "tournament_removed", Some(&id), &format!("{name} removed from the list (its games are kept: Tournaments → Restore)"))?;
                 }
                 ok(true)
+            }
+            // tournaments removed from the list whose folder is still there
+            "tournaments_removed" => ok(self.removed_tournaments(&store)?),
+            "tournament_restore" => {
+                let id: String = arg(&a, "id")?;
+                ok(self.restore_tournament(&store, &id)?)
             }
             "tournament_start" => {
                 let id: String = arg(&a, "id")?;
@@ -2355,6 +2375,57 @@ impl App {
         Ok(out)
     }
 
+    /// The tournament folders with a configuration but no record (removed from the list), newest
+    /// first: id, name and the games in their PGNs.
+    fn removed_tournaments(&self, store: &crate::store::Store) -> Result<Vec<Value>> {
+        let known: std::collections::HashSet<String> = store.tournaments()?.into_iter().map(|t| t.id).collect();
+        let mut out: Vec<(Option<std::time::SystemTime>, Value)> = Vec::new();
+        let Ok(rd) = std::fs::read_dir(self.ws.root.join("tournaments")) else { return Ok(Vec::new()) };
+        for e in rd.flatten() {
+            let id = e.file_name().to_string_lossy().to_string();
+            if known.contains(&id) {
+                continue;
+            }
+            let Some(cfg) = folder_config(&e.path()) else { continue };
+            let (_, done, _) = runner::scan_done(&self.ws, &id, &cfg);
+            let modified = e.metadata().and_then(|m| m.modified()).ok();
+            out.push((modified, json!({"id": id, "name": cfg.name, "done": done.len(), "expected": scheduler::expected_games(&cfg)})));
+        }
+        out.sort_by(|a, b| b.0.cmp(&a.0));
+        Ok(out.into_iter().map(|(_, v)| v).collect())
+    }
+
+    /// Puts a removed tournament back in the list: its record as it was when removed, else one
+    /// made from its configuration (stopped, or completed when every game is there).
+    fn restore_tournament(&self, store: &crate::store::Store, id: &str) -> Result<TournamentRecord> {
+        if store.tournament(id)?.is_some() {
+            bail!("{id} is already in the list");
+        }
+        let dir = self.ws.tournament_dir(id);
+        let cfg = folder_config(&dir).with_context(|| format!("{}: no configuration", dir.display()))?;
+        let saved = std::fs::read_to_string(dir.join("record.json")).ok().and_then(|t| serde_json::from_str::<TournamentRecord>(&t).ok());
+        let mut rec = saved.unwrap_or_else(|| TournamentRecord::new(cfg.clone()));
+        rec.id = id.to_string();
+        rec.config = cfg;
+        let (_, done, _) = runner::scan_done(&self.ws, id, &rec.config);
+        rec.expected_games = scheduler::expected_games(&rec.config) as u32;
+        rec.done_games = done.len() as u32;
+        rec.runner_pid = None;
+        rec.heartbeat = None;
+        rec.queue_pos = None;
+        if rec.done_games >= rec.expected_games && rec.expected_games > 0 {
+            rec.state = TState::Completed;
+            rec.desired = Desired::Run;
+        } else if rec.done_games > 0 || !matches!(rec.state, TState::Draft) {
+            rec.state = TState::Stopped;
+            rec.desired = Desired::Stop;
+        }
+        store.insert_tournament(&rec)?;
+        let _ = std::fs::remove_file(dir.join("record.json"));
+        store.push_event("info", "tournament_restored", Some(id), &format!("{} restored: {} / {} games", rec.name, rec.done_games, rec.expected_games))?;
+        Ok(store.tournament(id)?.unwrap_or(rec))
+    }
+
     fn import_legacy(&self, store: &crate::store::Store, dir: &Path, results: Option<&Path>) -> Result<TournamentRecord> {
         let lt = crate::legacy::read(dir, results)?;
         let mut rec = TournamentRecord::new(lt.config.clone());
@@ -2574,6 +2645,15 @@ impl App {
 }
 
 /// A library entry for an executable on disk, from its verification.
+/// The configuration of a tournament folder: its `config.json`, else the one in the record kept
+/// when it was removed from the list.
+fn folder_config(dir: &Path) -> Option<TournamentConfig> {
+    let read = |f: &str| std::fs::read_to_string(dir.join(f)).ok();
+    read("config.json")
+        .and_then(|t| serde_json::from_str::<TournamentConfig>(&t).ok())
+        .or_else(|| read("record.json").and_then(|t| serde_json::from_str::<TournamentRecord>(&t).ok()).map(|r| r.config))
+}
+
 fn local_entry(path: &Path, engine: Option<String>, version: Option<String>, v: &engines::VerifyResult) -> EngineEntry {
     {
         let id_name = v.id_name.clone();

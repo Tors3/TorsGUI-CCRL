@@ -1,4 +1,4 @@
-import { FileCode2, FolderInput, FolderPlus, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArchiveRestore, FileCode2, FolderInput, FolderPlus, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cpuLabel } from "../lib/cpu";
@@ -13,6 +13,128 @@ import { duration } from "../lib/format";
 import { useT, type Key } from "../i18n";
 
 type Importable = { name: string; dir: string; results: string | null; imported: boolean };
+type Removed = { id: string; name: string; done: number; expected: number };
+
+/**
+ * Delete a tournament in two steps: first what goes (only the entry of the list, its games kept
+ * and restorable, or its folder too), then a second confirmation naming it.
+ */
+function DeleteDialog({ t, onClose, onDone }: { t: TournamentSummary | null; onClose: () => void; onDone: () => void }) {
+  const tr = useT();
+  const [files, setFiles] = useState(false);
+  const [sure, setSure] = useState(false);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    setFiles(false);
+    setSure(false);
+  }, [t]);
+  if (!t) return null;
+  const go = async () => {
+    setBusy(true);
+    try {
+      await call("tournament_delete", { id: t.record.id, delete_files: files });
+      toast.success(tr(files ? "tournaments.delete.doneFiles" : "tournaments.delete.doneList", { name: t.record.name }));
+      onDone();
+      onClose();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={tr("tournaments.delete.title", { name: t.record.name })}
+      width={560}
+      footer={
+        <>
+          {sure && (
+            <button className="btn mr-auto" onClick={() => setSure(false)}>
+              {tr("tournaments.delete.back")}
+            </button>
+          )}
+          <button className="btn" onClick={onClose}>
+            {tr("tournaments.delete.cancel")}
+          </button>
+          {!sure ? (
+            <button className="btn" style={{ color: "var(--loss)" }} onClick={() => setSure(true)} data-testid="delete-next">
+              <Trash2 size={13} /> {tr("tournaments.delete.next")}
+            </button>
+          ) : (
+            <button className="btn" style={{ background: "var(--loss)", color: "white", borderColor: "var(--loss)" }} disabled={busy} onClick={go} data-testid="delete-confirm">
+              {busy ? <Spinner size={13} /> : <Trash2 size={13} />} {tr(files ? "tournaments.delete.confirmFiles" : "tournaments.delete.confirmList")}
+            </button>
+          )}
+        </>
+      }
+    >
+      {!sure ? (
+        <div className="flex flex-col gap-2 text-[12.5px]" data-testid="delete-choice">
+          <label className="flex gap-2 items-start p-2 rounded-md" style={{ border: "1px solid var(--border)" }}>
+            <input type="radio" name="del-what" checked={!files} onChange={() => setFiles(false)} data-testid="delete-list-only" />
+            <span>
+              <b>{tr("tournaments.delete.listOnly")}</b>
+              <br />
+              <span className="muted">{tr("tournaments.delete.listOnlyAbout")}</span>
+            </span>
+          </label>
+          <label className="flex gap-2 items-start p-2 rounded-md" style={{ border: "1px solid var(--border)" }}>
+            <input type="radio" name="del-what" checked={files} onChange={() => setFiles(true)} data-testid="delete-with-files" />
+            <span>
+              <b>{tr("tournaments.delete.withFiles")}</b>
+              <br />
+              <span className="muted">{tr("tournaments.delete.withFilesAbout")}</span>
+            </span>
+          </label>
+        </div>
+      ) : (
+        <div className="text-[13px]" style={{ color: files ? "var(--loss)" : undefined }} data-testid="delete-sure">
+          {tr(files ? "tournaments.delete.sureFiles" : "tournaments.delete.sureList", { name: t.record.name, done: t.progress.done })}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+/** Tournaments removed from the list whose folder is still on disk, each put back in one click. */
+function RestoreDialog({ open, setOpen, items, onDone }: { open: boolean; setOpen: (o: boolean) => void; items: Removed[]; onDone: () => void }) {
+  const tr = useT();
+  const [busy, setBusy] = useState<string | null>(null);
+  const restore = async (r: Removed) => {
+    setBusy(r.id);
+    try {
+      await call("tournament_restore", { id: r.id });
+      toast.success(tr("tournaments.restore.done", { name: r.name, done: r.done, expected: r.expected }));
+      onDone();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <Modal open={open} onOpenChange={setOpen} title={tr("tournaments.restore.title")} width={720}>
+      <div className="flex flex-col gap-2 text-[12.5px]">
+        <div className="muted">{tr("tournaments.restore.about")}</div>
+        {items.length === 0 && <Empty>{tr("tournaments.restore.none")}</Empty>}
+        {items.map((r) => (
+          <div key={r.id} className="flex items-center gap-2 p-2 rounded-md" style={{ border: "1px solid var(--border)" }} data-testid="restore-row">
+            <div className="flex-1 min-w-0">
+              <div className="font-medium truncate">{r.name}</div>
+              <div className="muted mono text-[11px] truncate">{r.id}</div>
+            </div>
+            <div className="tnum muted">{tr("tournaments.restore.games", { done: r.done, expected: r.expected })}</div>
+            <button className="btn btn-sm" disabled={busy != null} onClick={() => restore(r)} data-testid="restore-one">
+              {busy === r.id ? <Spinner size={12} /> : <ArchiveRestore size={12} />} {tr("tournaments.restore.one")}
+            </button>
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
+}
 
 export function ImportDialog({ open, setOpen, onDone }: { open: boolean; setOpen: (o: boolean) => void; onDone: () => void }) {
   const [root, setRoot] = useState(() => localStorage.getItem("torsgui-import-root") ?? "");
@@ -146,14 +268,20 @@ export function Tournaments() {
     refresh();
   };
   const count = (f: string) => (data ?? []).filter((t) => (f === ALL ? true : f === NONE ? !t.record.folder : t.record.folder === f)).length;
-  const del = async (t: TournamentSummary) => {
-    if (!confirm(tr("tournaments.confirmDelete", { name: t.record.name }))) return;
-    try {
-      await call("tournament_delete", { id: t.record.id });
-      refresh();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+  const [toDelete, setToDelete] = useState<TournamentSummary | null>(null);
+  const del = (t: TournamentSummary) => setToDelete(t);
+  const [removed, setRemoved] = useState<Removed[]>([]);
+  const [restoring, setRestoring] = useState(false);
+  const loadRemoved = () =>
+    call<Removed[]>("tournaments_removed", {})
+      .then(setRemoved)
+      .catch(() => setRemoved([]));
+  useEffect(() => {
+    loadRemoved();
+  }, []);
+  const changed = () => {
+    refresh();
+    loadRemoved();
   };
   return (
     <div className="flex flex-col gap-3 fade-in">
@@ -163,6 +291,11 @@ export function Tournaments() {
         actions={
           <>
             <Seg value={filter} onChange={setFilter} options={[{ value: "all", label: tr("tournaments.filter.all") }, { value: "active", label: tr("tournaments.filter.active") }, { value: "done", label: tr("tournaments.filter.done") }]} />
+            {removed.length > 0 && (
+              <button className="btn" onClick={() => setRestoring(true)} title={tr("tournaments.restore.tip")} data-testid="restore-open">
+                <ArchiveRestore size={14} /> {tr("tournaments.restore.button", { count: removed.length })}
+              </button>
+            )}
             <button className="btn" onClick={() => setImp(true)} title={tr("tournaments.importOldTip")}>
               <FolderInput size={14} /> {tr("tournaments.importOld")}
             </button>
@@ -318,6 +451,8 @@ export function Tournaments() {
         onClose={() => setNaming(null)}
       />
       <ImportDialog open={imp} setOpen={setImp} onDone={refresh} />
+      <DeleteDialog t={toDelete} onClose={() => setToDelete(null)} onDone={changed} />
+      <RestoreDialog open={restoring} setOpen={setRestoring} items={removed} onDone={changed} />
       <TournamentFileDialog open={tfile} setOpen={setTfile} onDone={refresh} />
     </div>
   );

@@ -233,6 +233,29 @@ fn verify_sends_the_options_of_the_entry() {
 }
 
 #[test]
+fn a_tournament_removed_from_the_list_is_restored_as_it_was() {
+    let _ = need_fastchess!();
+    let e = env().unwrap();
+    let id = create(&e, config(&e, "removed", &[("Opp A", "")], 4, 2, 5), false);
+    assert!(runner_cmd(&e, &id).output().unwrap().status.success());
+    let app = torsgui_core::api::App::new(e.ws.root.clone()).unwrap();
+    app.call("tournaments_set_folder", serde_json::json!({"ids": [id], "folder": "Mine"})).unwrap();
+    // removed from the list only: its folder stays and Restore brings it back with its games
+    app.call("tournament_delete", serde_json::json!({"id": id})).unwrap();
+    assert!(e.ws.open().unwrap().tournament(&id).unwrap().is_none());
+    let removed = app.call("tournaments_removed", serde_json::json!({})).unwrap();
+    assert_eq!(removed[0]["id"], id.as_str());
+    assert_eq!((removed[0]["done"].as_u64(), removed[0]["expected"].as_u64()), (Some(4), Some(4)));
+    let rec = app.call("tournament_restore", serde_json::json!({"id": id})).unwrap();
+    assert_eq!((rec["state"].as_str(), rec["done_games"].as_u64(), rec["folder"].as_str()), (Some("completed"), Some(4), Some("Mine")));
+    assert_eq!(app.call("tournaments_removed", serde_json::json!({})).unwrap().as_array().map(|a| a.len()), Some(0));
+    // with its files: nothing is left to restore
+    app.call("tournament_delete", serde_json::json!({"id": id, "delete_files": true})).unwrap();
+    assert!(!e.ws.tournament_dir(&id).exists());
+    assert_eq!(app.call("tournaments_removed", serde_json::json!({})).unwrap().as_array().map(|a| a.len()), Some(0));
+}
+
+#[test]
 fn full_run_completes_without_duplicates() {
     let _ = need_fastchess!();
     let e = env().unwrap();
