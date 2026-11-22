@@ -7,7 +7,7 @@ export const games = {
   count: "{games} games",
   files: " · {count} files",
   removeLabel: "Remove from the archive",
-  empty: "No games yet. Games of your tournaments appear here; you can also add old PGN files or folders (for example the tournaments of CCRL_ScirptsTests).",
+  empty: "No games yet. Games of your tournaments appear here; you can also add old PGN files or folders (for example the tournaments played with the old CCRL scripts).",
   sources: "Sources",
   search: "Search",
   searchLabel: "Search sources",

@@ -50,7 +50,12 @@ random_openings?: boolean, opening_seed: number,
  * were played. `Some(n)`: the copy, keeping the numbering of a tournament started with the
  * file as is and `n` empty openings in front of it (those `n` take openings after its last).
  */
-book_shift?: number, event: string, site: string, syzygy_path: string, adjudication: Adjudication, extra_args: Array<string>, placement: Placement, 
+book_shift?: number, 
+/**
+ * Start even if the build of an engine looks unsupported by this CPU (AVX-512, AVX-VNNI):
+ * the user overrules the check, e.g. for a build TorsGUI reads wrongly from its name.
+ */
+skip_cpu_check?: boolean, event: string, site: string, syzygy_path: string, adjudication: Adjudication, extra_args: Array<string>, placement: Placement, 
 /**
  * Count every hardware thread (SMT / Hyper-Threading) as a CPU: the lanes may use
  * both threads of each core instead of one per physical core. Off by default, as on

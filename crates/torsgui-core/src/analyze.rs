@@ -255,6 +255,9 @@ pub struct LiveAnalysis {
     /// The best lines, first line first; scores from White's view, PVs in SAN.
     pub lines: Vec<Info>,
     pub error: Option<String>,
+    /// The engine ended the search by itself (its maximum depth): the lines stay as they were.
+    #[serde(default)]
+    pub ended: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, ts_rs::TS)]
@@ -323,7 +326,7 @@ impl LiveAnalyzer {
                 let board = crate::chess960::parse_fen(&req.fen);
                 {
                     let mut s = state.lock().unwrap();
-                    *s = LiveAnalysis { running: true, engine_id: req.engine_id, engine: entry.display_name.clone(), fen: req.fen.clone(), multipv: req.multipv, lines: vec![], error: None };
+                    *s = LiveAnalysis { running: true, engine_id: req.engine_id, engine: entry.display_name.clone(), fen: req.fen.clone(), multipv: req.multipv, lines: vec![], error: None, ended: false };
                 }
                 let Ok(board) = board else {
                     state.lock().unwrap().error = Some("not a legal position".into());
@@ -352,9 +355,18 @@ impl LiveAnalyzer {
                     s.lines.push(i);
                     s.lines.sort_by_key(|x| x.multipv);
                 });
-                if let Err(err) = r {
-                    state.lock().unwrap().error = Some(format!("{err:#}"));
-                    eng = None;
+                match r {
+                    Err(err) => {
+                        state.lock().unwrap().error = Some(format!("{err:#}"));
+                        eng = None;
+                    }
+                    // `go infinite` answered without a stop: the engine searched as deep as it can
+                    Ok(_) if !cancel.load(Ordering::Relaxed) => {
+                        let mut s = state.lock().unwrap();
+                        s.running = false;
+                        s.ended = true;
+                    }
+                    Ok(_) => {}
                 }
             }
             if let Some((e, _)) = eng.take() {

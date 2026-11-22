@@ -44,6 +44,11 @@ AVT equalized (tante aperture favorevoli al Bianco quante al Nero) li ha inviati
 dei libri (procedura guidata, Impostazioni → Libri di aperture) mostrano i libri in schede: AVT,
 AVT equalized, Partite di grandi maestri, Altri libri e i tuoi libri.
 
+**I tuoi libri**: *Aggiungi libro…* (nel selettore dei libri della procedura guidata, oppure in
+**Impostazioni → Libri di aperture → I tuoi libri**) copia un libro PGN o EPD, o tutti i libri di
+una cartella, nella cartella dei libri. Compaiono anche i file PGN ed EPD copiati lì a mano (anche
+in una sottocartella). Per Chess960 / DFRC il selettore mostra i libri EPD.
+
 | Libro | Posizioni | Note |
 |---|---|---|
 | AVT-Book 2026d | 16677 | partite ICCF >2200, 12 mosse, mescolate (predefinito) |
@@ -559,9 +564,11 @@ console e delle partite (ultimi 96 KB, aggiornati).
 stessa mossa). Incolla un PGN, solo le mosse (`1. e4 e5 2. Cf3…`) o una FEN, oppure parti dalla
 posizione iniziale. Scegli un motore della libreria, i suoi thread e l'hash.
 
-- **Motore in diretta**: il motore analizza la posizione mostrata, con 1–5 linee (MultiPV); le
+- **Analisi infinita**: il motore analizza la posizione mostrata senza limite di tempo, finché
+  non premi **Ferma analisi**, con 1–5 linee (MultiPV), la profondità e il tempo già cercato; le
   mosse migliori vengono disegnate come frecce e ti seguono mentre ti muovi nella partita (`←`
-  `→` `Home` `Fine`, `f` gira la scacchiera).
+  `→` `Home` `Fine`, `f` gira la scacchiera). Un motore che arriva alla sua profondità massima
+  conclude la ricerca da solo: TorsGUI lo dice e tiene le sue linee finali.
 - **Analizza la partita**: ogni posizione viene analizzata per il tempo scelto (0,1–10 s). Il
   grafico mostra la valutazione (dal lato del Bianco; clicca per saltare), ogni mossa riceve la
   sua valutazione e le mosse che perdono possibilità di vittoria vengono segnate **?!**

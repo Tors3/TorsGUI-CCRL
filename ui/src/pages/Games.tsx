@@ -170,7 +170,7 @@ export function Games() {
       </Modal>
       <Modal open={adding} onOpenChange={setAdding} title={t("games.addTitle")} footer={<button className="btn btn-primary" onClick={add} disabled={!path.trim()}>{t("games.addBtn")}</button>}>
         <p className="muted text-[12.5px] mb-2">{t("games.addAbout")}</p>
-        <input className="input mono" value={path} onChange={(e) => setPath(e.target.value)} placeholder="C:\CCRL\CCRL_ScirptsTests\tournaments\Triumviratus_7.0_8CPU\pgn" data-testid="archive-path" />
+        <input className="input mono" value={path} onChange={(e) => setPath(e.target.value)} placeholder="C:\CCRL\tournaments\Triumviratus_7.0_8CPU\pgn" data-testid="archive-path" />
       </Modal>
     </div>
   );

@@ -5,4 +5,8 @@ export type LiveAnalysis = { running: boolean, engine_id: number, engine: string
 /**
  * The best lines, first line first; scores from White's view, PVs in SAN.
  */
-lines: Array<Info>, error: string | null, };
+lines: Array<Info>, error: string | null, 
+/**
+ * The engine ended the search by itself (its maximum depth): the lines stay as they were.
+ */
+ended: boolean, };

@@ -178,6 +178,7 @@ pub fn read(tournament_dir: &Path, results_dir: Option<&Path>) -> Result<LegacyT
         random_openings: false,
         opening_seed: 0,
         book_shift: None,
+        skip_cpu_check: None,
         event,
         site: get("SITE", ""),
         syzygy_path: syz,

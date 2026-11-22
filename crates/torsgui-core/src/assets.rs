@@ -110,11 +110,40 @@ pub fn build_level(build: &str) -> &'static str {
         ""
     } else if head.starts_with("avx512") || head.starts_with("x86-64-v4") {
         "avx512"
-    } else if head.starts_with("avx2") || head.starts_with("x86-64-v3") || head.starts_with("bmi2") || head.starts_with("pext") {
+    } else if head.starts_with("avx2") || head.starts_with("avx-vnni") || head.starts_with("x86-64-v3") || head.starts_with("bmi2") || head.starts_with("pext") {
         "avx2"
     } else {
         "other"
     }
+}
+
+/// AVX-VNNI (the 256-bit VEX form: Alder Lake and later, Zen 5) on the running CPU. It is not
+/// AVX-512 VNNI: an i7-12700K has AVX-VNNI and no AVX-512 at all.
+pub fn cpu_avx_vnni() -> bool {
+    if std::env::var_os("TORSGUI_NO_AVX512").is_some() {
+        return false;
+    }
+    #[cfg(target_arch = "x86_64")]
+    {
+        // CPUID leaf 7 sub-leaf 1, EAX bit 4 (with AVX2 and the OS saving the YMM registers);
+        // `unsafe` for the older compilers, where __cpuid is not safe yet
+        if !std::arch::is_x86_feature_detected!("avx2") {
+            return false;
+        }
+        #[allow(unused_unsafe)]
+        let (max, leaf) = unsafe { (std::arch::x86_64::__cpuid(0).eax, std::arch::x86_64::__cpuid_count(7, 1).eax) };
+        max >= 7 && leaf & (1 << 4) != 0
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        false
+    }
+}
+
+/// An AVX-VNNI build name ("avxvnni", "avx-vnni", "avx2-vnni"): VNNI without 512.
+pub fn is_avx_vnni(name: &str) -> bool {
+    let n = name.to_lowercase();
+    Regex::new(r"avx2?[-_]?vnni").unwrap().is_match(&n) && !n.contains("512")
 }
 
 /// (AVX-512F+BW, AVX-512 VNNI) support of the running CPU.
@@ -193,8 +222,9 @@ pub fn classify_with(name: &str, os: TargetOs, policy: AssetPolicy) -> AssetVerd
     if has(r"(?i)(source|src)[-_.]|^source|\.src\.", &n) || n == "source code" {
         return reject(v, "source archive (TorsGUI never compiles engines)");
     }
-    let avx512 = has(r"(?i)(avx-?512|avx512|vnni|x86[-_]?64[-_]v4|(^|[-_.])v4([-_.]|$)|zen4|zen5|icelake|sapphire|cascadelake|skylake-?x)", &n)
-        || has(r"(?i)[-_]512([-_.]|$)", &n);
+    let avx_vnni = is_avx_vnni(&n);
+    let avx512 = !avx_vnni
+        && (has(r"(?i)(avx-?512|avx512|vnni|x86[-_]?64[-_]v4|(^|[-_.])v4([-_.]|$)|zen4|zen5|icelake|sapphire|cascadelake|skylake-?x)", &n) || has(r"(?i)[-_]512([-_.]|$)", &n));
     if avx512 && !policy.allow_avx512 {
         return reject(v, "AVX-512/VNNI/x86-64-v4 build: AVX2 only (Settings → Engines)");
     }
@@ -249,6 +279,21 @@ pub fn classify_with(name: &str, os: TargetOs, policy: AssetPolicy) -> AssetVerd
     let vendor = has(r"(?i)[-_](intel|amd|zen\d?)([-_.]|$)", &n);
     let popcnt = has(r"(?i)(popcnt|sse4|modern|sse3|ssse3|sse41|sse42)", &n);
     let universal = has(r"(?i)universal", &n);
+    if avx_vnni {
+        // AVX2 plus the VEX VNNI instructions: an AVX2-class build, it needs AVX-VNNI to run
+        v.tier = 1;
+        v.build = "avx-vnni".into();
+        if !cpu_avx_vnni() {
+            v.reason = "AVX-VNNI build: this CPU has no AVX-VNNI (the engine would crash here)".into();
+            return v;
+        }
+        v.accepted = true;
+        v.reason = "AVX-VNNI build (AVX2 class; this CPU supports it)".into();
+        if v.is_archive {
+            v.reason.push_str(" (archive: contents are checked after extraction)");
+        }
+        return v;
+    }
     v.accepted = true;
     if avx2 && !bmi2 && !vendor && !nopext {
         v.tier = 0;
@@ -531,6 +576,16 @@ mod tests {
         assert_eq!(select_with(&only, TargetOs::Windows, cpu(true, false)).chosen.as_deref(), Some("e-avx512.exe"));
         assert!(select_with(&only, TargetOs::Windows, cpu(false, false)).chosen.is_none());
         assert_eq!(classify_with("Obsidian160-vnni512.exe", TargetOs::Windows, cpu(true, true)).build, "avx512-vnni");
+        // AVX-VNNI (Alder Lake, no AVX-512) is not AVX-512 VNNI
+        for f in ["DeepSjeng_3.6_a86-avxvnni.exe", "engine-avx-vnni.exe", "engine-avx2-vnni.exe"] {
+            assert!(is_avx_vnni(f), "{f}");
+            let c = classify_with(f, TargetOs::Windows, cpu(false, false));
+            assert_eq!(c.build, "avx-vnni", "{f}");
+            assert_eq!(build_level(&c.build), "avx2", "{f}");
+            assert_eq!(c.accepted, cpu_avx_vnni(), "{f}: {}", c.reason);
+        }
+        assert!(!is_avx_vnni("Halogen-16.0.0-windows-x86_64-avx512vnni.exe"));
+        assert!(!is_avx_vnni("Obsidian160-vnni512.exe"));
         assert_eq!(classify_with("coda-0.9.3-windows-x86-64-v4.exe", TargetOs::Windows, cpu(true, true)).build, "x86-64-v4");
         for (b, l) in [("avx2", "avx2"), ("avx2-popcnt", "avx2"), ("x86-64-v3", "avx2"), ("avx2 (variant)", "avx2"), ("avx2-bmi2", "avx2"), ("avx512", "avx512"), ("avx512-vnni", "avx512"), ("x86-64-v4", "avx512"), ("bmi2", "avx2"), ("pext", "avx2"), ("popcnt", "other"), ("universal", "other"), ("generic x86-64", "other"), ("", ""),
             // free-text builds of an engine report: the note after the name does not count

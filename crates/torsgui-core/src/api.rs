@@ -204,7 +204,15 @@ pub struct LiveLane {
 impl App {
     pub fn new(root: PathBuf) -> Result<App> {
         let ws = Workspace::new(root);
-        ws.open()?; // creates the database
+        let store = ws.open()?; // creates the database
+        // AVX-VNNI builds ("avxvnni") recorded before 0.9.3 as AVX-512 VNNI
+        if let Ok(list) = store.engines() {
+            for mut e in list.into_iter().filter(|e| e.build == "avx512-vnni" && crate::assets::is_avx_vnni(&engine_file(e))) {
+                e.build = "avx-vnni".into();
+                let _ = store.save_engine(&e);
+            }
+        }
+        drop(store);
         // files left in use by the previous update
         if crate::updater::install_kind() != crate::updater::InstallKind::Unknown {
             if let Some(dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(|p| p.to_path_buf())) {
@@ -1552,10 +1560,25 @@ impl App {
                 store.push_event("success", "books_installed", None, &format!("{} opening books installed in {}", installed.len(), s.books_dir))?;
                 ok(json!({"installed": installed, "default_book": s.default_book, "default_set": default_set}))
             }
-            "books_list" => {
-                // books usable by fastchess in the books folder (and the default book)
+            "books_add" => {
+                // the user's books (PGN / EPD files, or the ones in a folder) copied into the books folder
                 let s = store.settings()?;
-                let mut files: Vec<PathBuf> = std::fs::read_dir(&s.books_dir).map(|rd| rd.flatten().map(|e| e.path()).collect()).unwrap_or_default();
+                let dir = PathBuf::from(&s.books_dir);
+                let paths: Vec<PathBuf> = arg::<Vec<String>>(&a, "paths")?.iter().map(|p| engines::user_path(p)).collect();
+                ok(json!({"added": add_books(&dir, &paths)?, "dir": dir}))
+            }
+            "books_list" => {
+                // books usable by fastchess in the books folder, its subfolders (and the default book)
+                let s = store.settings()?;
+                let mut files: Vec<PathBuf> = Vec::new();
+                for e in std::fs::read_dir(&s.books_dir).into_iter().flatten().flatten() {
+                    let p = e.path();
+                    if p.is_dir() {
+                        files.extend(std::fs::read_dir(&p).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.is_file()));
+                    } else {
+                        files.push(p);
+                    }
+                }
                 if !s.default_book.is_empty() && Path::new(&s.default_book).exists() && !files.iter().any(|f| f == Path::new(&s.default_book)) {
                     files.push(PathBuf::from(&s.default_book));
                 }
@@ -2037,7 +2060,12 @@ impl App {
         if let Ok(store) = self.ws.open() {
             // CCRL builds: AVX2 or AVX-512 only — the disclaimer comes first
             let (errs, disclaimer) = ccrl_build_disclaimer(&store, cfg);
-            p.errors.extend(errs.into_iter().map(Msg::plain));
+            if cfg.skip_cpu_check == Some(true) {
+                // the user knows better (the engine runs here): a warning, the tournament starts
+                p.warnings.extend(errs.into_iter().map(|e| msg!("preview.cpuCheckSkipped", "{error} (CPU check overruled: the tournament starts anyway)", error = e)));
+            } else {
+                p.errors.extend(errs.into_iter().map(|e| msg!("preview.cpuCheck", "{error}", error = e)));
+            }
             if let Some(d) = disclaimer {
                 p.warnings.insert(0, d);
             }
@@ -2859,6 +2887,7 @@ impl Default for TournamentRecord {
             random_openings: false,
             opening_seed: 0,
             book_shift: None,
+            skip_cpu_check: None,
             event: String::new(),
             site: String::new(),
             syzygy_path: String::new(),
@@ -2891,9 +2920,68 @@ fn request_policy(s: &crate::store::Settings, a: &Value) -> crate::assets::Asset
     p.with_gpu(crate::gpu::vendor(&crate::gpu::gpus(false)))
 }
 
+/// A PGN or EPD book by its extension.
+fn is_book(p: &Path) -> bool {
+    matches!(p.extension().map(|x| x.to_string_lossy().to_lowercase()).as_deref(), Some("pgn" | "epd"))
+}
+
+/// Copies books into `dir`: PGN / EPD files, or those of a folder. A file already there is left
+/// as is; another file with the same name gets a free name ("book (2).pgn"). Returns the copies.
+pub fn add_books(dir: &Path, paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+    for p in paths {
+        if p.is_dir() {
+            let mut v: Vec<PathBuf> = std::fs::read_dir(p)?.flatten().map(|e| e.path()).filter(|f| f.is_file() && is_book(f)).collect();
+            v.sort();
+            if v.is_empty() {
+                bail!("no PGN or EPD book in {}", p.display());
+            }
+            files.extend(v);
+        } else if !p.is_file() {
+            bail!("not found: {}", p.display());
+        } else if !is_book(p) {
+            bail!("{}: not a PGN or EPD book", p.display());
+        } else {
+            files.push(p.clone());
+        }
+    }
+    std::fs::create_dir_all(dir)?;
+    let mut out = Vec::new();
+    for f in files {
+        let name = f.file_name().context("no file name")?.to_string_lossy().into_owned();
+        let mut to = dir.join(&name);
+        // the book is already in the books folder
+        if to.canonicalize().ok().is_some_and(|t| f.canonicalize().ok().as_ref() == Some(&t)) || std::fs::read(&to).ok().is_some_and(|b| std::fs::read(&f).ok().as_ref() == Some(&b)) {
+            out.push(to);
+            continue;
+        }
+        let (stem, ext) = (Path::new(&name).file_stem().unwrap_or_default().to_string_lossy().into_owned(), Path::new(&name).extension().unwrap_or_default().to_string_lossy().into_owned());
+        let mut i = 2;
+        while to.exists() {
+            to = dir.join(format!("{stem} ({i}).{ext}"));
+            i += 1;
+        }
+        std::fs::copy(&f, &to).with_context(|| format!("copying {} into {}", f.display(), dir.display()))?;
+        out.push(to);
+    }
+    Ok(out)
+}
+
+/// The file name of an engine entry (its asset, else its executable).
+fn engine_file(e: &crate::engines::EngineEntry) -> String {
+    if !e.asset.is_empty() {
+        return e.asset.clone();
+    }
+    Path::new(&e.path).file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default()
+}
+
 /// The build of one engine for CCRL: (error, "not AVX2/AVX-512" entry, "unknown" entry).
-/// CCRL accepts AVX2 or AVX-512 builds; an AVX-512 build must also run on this CPU.
+/// CCRL accepts AVX2 or AVX-512 builds; an AVX-512 or AVX-VNNI build must also run on this CPU.
 pub fn build_check(name: &str, build: &str) -> (Option<String>, Option<String>, Option<String>) {
+    if build.trim().to_lowercase().starts_with("avx-vnni") {
+        let err = (!crate::assets::cpu_avx_vnni()).then(|| format!("{name}: {build} build, but this CPU has no AVX-VNNI: the engine would crash"));
+        return (err, None, None);
+    }
     match crate::assets::build_level(build) {
         "avx512" => {
             let (avx512, vnni) = crate::assets::cpu_avx512();
@@ -2917,7 +3005,9 @@ pub fn ccrl_build_disclaimer(store: &crate::store::Store, cfg: &TournamentConfig
         if e.is_demo() {
             continue;
         }
-        let (err, o, u) = build_check(&p.name, &e.build);
+        // an "avxvnni" file recorded as AVX-512 VNNI by an older version
+        let build = if e.build.contains("vnni") && crate::assets::is_avx_vnni(&engine_file(&e)) { "avx-vnni".to_string() } else { e.build.clone() };
+        let (err, o, u) = build_check(&p.name, &build);
         errors.extend(err);
         other.extend(o);
         unknown.extend(u);
@@ -3035,6 +3125,32 @@ mod build_check_tests {
     use super::build_check;
 
     #[test]
+    fn books_are_added_to_the_books_folder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (src, dir) = (tmp.path().join("mine"), tmp.path().join("books"));
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(src.join("dfrc.epd"), "bqnb1rkr/pp3ppp/3ppn2/2p5/5P2/P2P4/NPP1P1PP/BQ1BNRKR w HFhf - 0 9
+").unwrap();
+        std::fs::write(src.join("gm.pgn"), "[Event \"a\"]
+
+1. e4 e5 *
+").unwrap();
+        std::fs::write(src.join("notes.txt"), "x").unwrap();
+        // a folder: its books, not the other files
+        let added = super::add_books(&dir, std::slice::from_ref(&src)).unwrap();
+        assert_eq!(added, vec![dir.join("dfrc.epd"), dir.join("gm.pgn")]);
+        // the same file again stays one copy; another file with its name gets a free name
+        assert_eq!(super::add_books(&dir, &[src.join("gm.pgn")]).unwrap(), vec![dir.join("gm.pgn")]);
+        std::fs::write(src.join("gm.pgn"), "[Event \"b\"]
+
+1. d4 d5 *
+").unwrap();
+        assert_eq!(super::add_books(&dir, &[src.join("gm.pgn")]).unwrap(), vec![dir.join("gm (2).pgn")]);
+        assert!(super::add_books(&dir, &[src.join("notes.txt")]).is_err());
+        assert!(super::add_books(&dir, &[src.join("missing.pgn")]).is_err());
+    }
+
+    #[test]
     fn builds_in_a_tournament() {
         // the same on every machine: a universal binary never needs AVX-512, and is not AVX2/AVX-512
         let (e, o, u) = build_check("Stockfish 19", "universal (dispatch runtime → **x86-64-avx512** su questa CPU)");
@@ -3044,5 +3160,8 @@ mod build_check_tests {
         assert_eq!(build_check("X", "").2.as_deref(), Some("X (build unknown)"));
         // an AVX-512 build: an error only where the CPU lacks AVX-512
         assert_eq!(build_check("Y", "avx512").0.is_none(), crate::assets::cpu_avx512().0);
+        // an AVX-VNNI build needs AVX-VNNI, not AVX-512
+        assert_eq!(build_check("Deep Sjeng 3.6", "avx-vnni").0.is_none(), crate::assets::cpu_avx_vnni());
+        assert_eq!(build_check("Deep Sjeng 3.6", "avx-vnni").1, None);
     }
 }

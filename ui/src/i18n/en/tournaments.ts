@@ -3,7 +3,7 @@ export const tournaments = {
   title: "Tournaments",
   sub: "Gauntlets, multi-seed gauntlets, round robins and matches",
   filter: { all: "All", active: "Active", done: "Finished" },
-  importOldTip: "Tournaments played with the old scripts (CCRL_ScirptsTests)",
+  importOldTip: "Tournaments played with the old CCRL scripts",
   importOld: "Import old tournaments",
   importFile: "Import file",
   newTournament: "New tournament",

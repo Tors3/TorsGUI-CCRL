@@ -1,6 +1,14 @@
 # Changelog
 
-## [Unreleased]
+## [0.9.3] - 2026-11-23
+
+### Fixed
+- **AVX-VNNI builds were taken for AVX-512 VNNI**: a build named `avxvnni` (e.g. Deep Sjeng 3.6
+  `a86-avxvnni`) was recorded as AVX-512 VNNI, so on a CPU with AVX-VNNI and no AVX-512 (Alder
+  Lake and later, such as an i7-12700K) a tournament with it could not start ("the engine would
+  crash"). AVX-VNNI is now its own build, of the AVX2 class, checked against the AVX-VNNI of the
+  CPU; the engines recorded wrongly are corrected when TorsGUI starts.
+- The texts of *Games* and *Tournaments* named the folder of the old scripts with a typo.
 
 ### Changed
 - **Deleting a tournament asks twice and says what goes**: first whether to remove it from the
@@ -11,6 +19,18 @@
 - **Restore**: the tournaments removed from the list whose folder is still on disk are listed under
   *Tournaments → Restore* and come back as they were (state, folder of the list, games), ready to
   resume. A tournament removed before this version is found from its configuration.
+- **Infinite analysis**: in *Analysis* the live engine is now an **Infinite analysis** button: the
+  engine searches the position shown with no time limit until **Stop analysis**, with the time
+  searched so far next to the depth. An engine that ends the search by itself at its maximum
+  depth is shown as such, with its final lines, instead of a spinner that never ends.
+- **Start anyway**: when the CPU check blocks a tournament (a build this CPU seems unable to run),
+  the wizard offers *Start anyway: the engine runs on this CPU*. The error becomes a warning and the
+  tournament starts, for a build TorsGUI reads wrongly from its file name.
+- **Add your own opening books**: *Add book…* in the book picker of the wizard and in
+  *Settings → Opening books → Your books* copies a PGN or EPD book, or every book of a folder, into
+  the books folder. The settings now list your own books too (with *Use as default*), books in a
+  subfolder of the books folder are found, and the wizard shows the EPD books for Chess960 / DFRC
+  (before, its book picker was hidden there).
 
 ## [0.9.2] - 2026-11-06
 

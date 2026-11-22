@@ -10,7 +10,7 @@ export const games: Shape<typeof en> = {
   count: "{games} partite",
   files: " · {count} file",
   removeLabel: "Togli dall'archivio",
-  empty: "Ancora nessuna partita. Qui compaiono le partite dei tuoi tornei; puoi anche aggiungere vecchi file PGN o cartelle (per esempio i tornei di CCRL_ScirptsTests).",
+  empty: "Ancora nessuna partita. Qui compaiono le partite dei tuoi tornei; puoi anche aggiungere vecchi file PGN o cartelle (per esempio i tornei giocati con i vecchi script CCRL).",
   sources: "Fonti",
   search: "Cerca",
   searchLabel: "Cerca tra le fonti",

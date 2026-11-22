@@ -109,6 +109,8 @@ export const backend: Shape<typeof en> = {
     busySmt: "{busy} thread occupati superano le {budget} CPU logiche (SMT attivo) dei nodi scelti",
     chess960Book: "Il Chess960 richiede un libro di posizioni di partenza (.epd): generane uno (tutte le 960 posizioni, un insieme casuale o doppio Chess960)",
     chess960Unknown: "{engine}: opzioni UCI non note (verifica il motore): supporto Chess960 non confermato",
+    cpuCheck: "{error}",
+    cpuCheckSkipped: "{error} (controllo della CPU scavalcato: il torneo parte comunque)",
     gpuMissing: "la scheda video {card} non esiste su questa macchina",
     gpuNone: "motori GPU ({list}) ma su questa macchina non è stata trovata nessuna scheda video",
     gpuShared: "{games} partite contemporanee, schede video: {cards}. I motori GPU dividono una scheda e calcolano più lentamente; una partita per scheda dà risultati ripetibili",

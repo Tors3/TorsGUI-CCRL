@@ -5,7 +5,7 @@ export const tournaments: Shape<typeof en> = {
   title: "Tornei",
   sub: "Gauntlet, gauntlet a più seed, gironi all'italiana e match",
   filter: { all: "Tutti", active: "Attivi", done: "Finiti" },
-  importOldTip: "Tornei giocati con i vecchi script (CCRL_ScirptsTests)",
+  importOldTip: "Tornei giocati con i vecchi script CCRL",
   importOld: "Importa vecchi tornei",
   importFile: "Importa file",
   newTournament: "Nuovo torneo",

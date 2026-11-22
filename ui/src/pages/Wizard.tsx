@@ -58,7 +58,7 @@ export function Wizard() {
   const { data: topo } = usePoll<Topology>("topology", {}, 0);
   const { data: settings } = usePoll<Settings>("settings_get", {}, 0);
   const { data: presets } = usePoll<NominalTc[]>("tc_presets", {}, 0);
-  const { data: books } = usePoll<InstalledBook[]>("books_list", {}, 0);
+  const { data: books, refresh: refreshBooks } = usePoll<InstalledBook[]>("books_list", {}, 0);
   const runningOthers = useRunningItems(editId);
 
   const [kind, setKind] = useState<TournamentKind>("gauntlet");
@@ -84,6 +84,7 @@ export function Wizard() {
   const [placement, setPlacement] = useState<Placement>("node");
   const [showInactive, setShowInactive] = useState(false);
   const [smt, setSmt] = useState(false);
+  const [skipCpu, setSkipCpu] = useState(false);
   // graphics cards for the GPU engines: one game per card at a time
   const [cards, setCards] = useState<Gpu[]>();
   const [gpus, setGpus] = useState<number[] | null>(null);
@@ -193,6 +194,7 @@ export function Wizard() {
         setLanes(c.lanes_per_node);
         setPlacement(c.placement);
         setSmt(c.use_smt ?? false);
+        setSkipCpu(c.skip_cpu_check ?? false);
         if (c.gpus?.length) setGpus(c.gpus);
         setBook(c.book);
         setBookStart(c.book_start);
@@ -345,6 +347,7 @@ export function Wizard() {
         extra_args: extra.split(/\s+/).filter(Boolean),
         placement,
         use_smt: smt,
+        ...(skipCpu ? { skip_cpu_check: true } : {}),
         gpus: gpuEngines.length ? gpuList : [],
         log_level: "info",
         ccrl_list: list,
@@ -889,7 +892,7 @@ export function Wizard() {
                 }
               >
                 <div className="flex gap-2">
-                  {variant !== "chess960" && (books ?? []).length > 0 && <BookPicker books={books ?? []} value={book} onPick={setBook} />}
+                  <BookPicker books={(books ?? []).filter((b) => variant !== "chess960" || b.name.toLowerCase().endsWith(".epd"))} value={book} onPick={setBook} onAdded={() => refreshBooks()} />
                   <PathInput kind="file" className="flex-1" value={book} onChange={setBook} filters={BOOK_FILTERS} placeholder={variant === "chess960" ? "chess960-all-seed1.epd" : "C:\\CCRL\\books\\AVT2026d.pgn"} testid="book" />
                 </div>
               </Field>
@@ -1033,6 +1036,16 @@ export function Wizard() {
                   {preview.errors.map((e, i) => (
                     <ErrorBox key={i} error={tm(e)} />
                   ))}
+                  {(skipCpu || preview.errors.some((e) => e.code === "preview.cpuCheck")) && (
+                    <label className="flex items-start gap-2 text-[12px]" data-testid="skip-cpu-check">
+                      <input type="checkbox" className="mt-0.5" checked={skipCpu} onChange={(e) => setSkipCpu(e.target.checked)} />
+                      <span>
+                        <b>{t("wizard.sum.skipCpu")}</b>
+                        <br />
+                        <span className="muted">{t("wizard.sum.skipCpuAbout")}</span>
+                      </span>
+                    </label>
+                  )}
                   {preview.warnings.map((w, i) => (
                     <Warn key={i}>{tm(w)}</Warn>
                   ))}

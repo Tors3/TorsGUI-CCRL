@@ -701,6 +701,7 @@ pub(crate) mod tests {
             random_openings: false,
             opening_seed: 0,
             book_shift: None,
+            skip_cpu_check: None,
             event: "Test".into(),
             site: "Here".into(),
             syzygy_path: String::new(),

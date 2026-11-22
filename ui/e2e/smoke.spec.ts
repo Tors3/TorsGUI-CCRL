@@ -2,8 +2,9 @@ import { expect, test } from "@playwright/test";
 import { fileURLToPath as __f2p } from "node:url";
 const __dirname = __f2p(new URL(".", import.meta.url));
 
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 const hasRef = () => !!(process.env.CCRL_REF || existsSync(resolve(__dirname, "../../../CCRL_ScirptsTests/tournaments")));
 
 test("dashboard loads with health and events", async ({ page }) => {
@@ -167,6 +168,20 @@ test("bundled CCRL opening books: install, then pick one in the wizard", async (
   await expect(picker.locator("tr", { hasText: ".cgb" })).toHaveCount(0);
   await picker.locator('tr[data-book="LowDraw1000.pgn"]').click();
   await expect(page.getByTestId("book")).toHaveValue(/LowDraw1000\.pgn$/);
+});
+
+test("the user's own book is added and listed, an EPD one also for Chess960", async ({ page }) => {
+  const dir = mkdtempSync(join(tmpdir(), "torsgui-book-"));
+  const file = join(dir, "my-dfrc.epd");
+  writeFileSync(file, "bqnb1rkr/pp3ppp/3ppn2/2p5/5P2/P2P4/NPP1P1PP/BQ1BNRKR w HFhf - 0 9
+");
+  await page.goto("/#/settings?tab=books");
+  await page.getByTestId("my-books").getByTestId("books-add").click();
+  await page.getByTestId("books-add-path").fill(file);
+  await page.getByTestId("books-add-confirm").click();
+  await expect(page.getByTestId("my-books").locator('tr[data-book="my-dfrc.epd"]')).toHaveCount(1);
+  const books = await (await page.request.post("/api/books_list", { data: {} })).json();
+  expect(books.some((b: any) => b.name === "my-dfrc.epd" && b.group === "mine" && b.positions === 1)).toBe(true);
 });
 
 test("a draft is edited in the tournament wizard", async ({ page }) => {
@@ -577,11 +592,11 @@ test("game analysis: pasted game, review and live engine", async ({ page }) => {
   await expect(page.getByTestId("review-summary")).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId("review-start")).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId("analysis-moves").locator("button .ev").last()).toHaveText(/M1/);
-  await page.getByTestId("analysis-live").check();
+  await page.getByTestId("analysis-live").click();
   await page.keyboard.press("Home");
   await expect(page.getByTestId("analysis-lines")).toContainText(/[a-h1-8]/);
   await expect(page.getByTestId("analysis-lines").locator(".mono").first()).not.toBeEmpty();
-  await page.getByTestId("analysis-live").uncheck();
+  await page.getByTestId("analysis-live").click();
   // a game of the archive opens here from the viewer
   const sources = await (await page.request.post("/api/archive_sources", { data: {} })).json();
   const src = sources.find((x: any) => x.games > 0);

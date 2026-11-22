@@ -43,6 +43,11 @@ equalized AVT books (as many openings better for White as for Black) were sent b
 pickers (wizard, Settings → Opening books) show the books in tabs: AVT, AVT equalized,
 Grandmaster games, Other books and your own books.
 
+**Your own books**: *Add book…* (in the book picker of the wizard, or **Settings → Opening
+books → Your books**) copies a PGN or EPD book, or every book of a folder, into the books folder.
+PGN and EPD files copied there by hand (also in a subfolder) are listed too. For Chess960 / DFRC
+the picker shows the EPD books.
+
 | Book | Positions | Notes |
 |---|---|---|
 | AVT-Book 2026d | 16677 | ICCF games >2200, 12 moves, shuffled (default) |
@@ -524,9 +529,11 @@ event log and every runner, console and per-game log (last 96 KB, refreshed).
 the same move). Paste a PGN, bare moves (`1. e4 e5 2. Nf3…`) or a FEN, or start from the initial
 position. Pick an engine of the library, its threads and hash.
 
-- **Live engine**: the engine analyses the position shown, with 1–5 lines (MultiPV); the best
-  moves are drawn as arrows and follow you as you move through the game (`←` `→` `Home` `End`,
-  `f` flip).
+- **Infinite analysis**: the engine analyses the position shown with no time limit, until you
+  press **Stop analysis**, with 1–5 lines (MultiPV), the depth and the time searched so far; the
+  best moves are drawn as arrows and follow you as you move through the game (`←` `→` `Home`
+  `End`, `f` flip). An engine that reaches its maximum depth ends the search by itself: TorsGUI
+  says so and keeps its final lines.
 - **Analyse the game**: every position is searched for the time chosen (0.1–10 s). The graph
   shows the evaluation (White's view; click to jump), each move gets its evaluation and the
   moves that lose winning chances are marked **?!** inaccuracy, **?** mistake, **??** blunder

@@ -136,6 +136,7 @@ fn config(e: &Env, name: &str, opps: &[(&str, &str)], games: u32, lanes: u32, mo
         random_openings: false,
         opening_seed: 0,
         book_shift: None,
+        skip_cpu_check: None,
         event: format!("Test gauntlet {name}"),
         site: "Test".into(),
         syzygy_path: String::new(),
@@ -776,6 +777,17 @@ fn test_suites_and_game_analysis_with_the_mock_engine() {
             break;
         }
         assert!(std::time::Instant::now() < end, "no live lines: {s}");
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    // the mock answers `go infinite` at once: the search ended by itself, its lines stay
+    loop {
+        let s = app.call("analysis_live_get", serde_json::json!({})).unwrap();
+        if s["ended"] == true {
+            assert_eq!(s["running"], false, "{s}");
+            assert!(!s["lines"].as_array().unwrap().is_empty(), "{s}");
+            break;
+        }
+        assert!(std::time::Instant::now() < end, "the end of the search is not shown: {s}");
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
     app.call("analysis_live_stop", serde_json::json!({})).unwrap();

@@ -107,6 +107,8 @@ export const backend = {
     "busySmt": "{busy} busy threads exceed the {budget} logical CPUs (SMT on) of the selected nodes",
     "chess960Book": "Chess960 needs a book of start positions (.epd): generate one (all 960 positions, a random set or double Chess960)",
     "chess960Unknown": "{engine}: UCI options unknown (verify the engine): Chess960 support not confirmed",
+    "cpuCheck": "{error}",
+    "cpuCheckSkipped": "{error} (CPU check overruled: the tournament starts anyway)",
     "exeSpaces": "{engine}: fastchess cannot start an engine whose path has spaces ({path}): rename the file or folder without spaces",
     "gpuMissing": "graphics card {card} does not exist on this machine",
     "gpuNone": "GPU engines ({list}) but no graphics card was found on this machine",

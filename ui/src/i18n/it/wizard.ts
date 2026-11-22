@@ -160,6 +160,8 @@ export const wizard: Shape<typeof en> = {
     estGame: "Durata di una partita",
     event: "Evento: {event}",
     ready: "Pronto",
+    skipCpu: "Avvia comunque: il motore gira su questa CPU",
+    skipCpuAbout: "TorsGUI legge la build dal nome del file e può sbagliare. Spunta solo se il motore ha già giocato qui senza crash: altrimenti perde per crash ogni partita che gioca.",
     broadcast: "Trasmetti in diretta:",
     saveStart: "Salva e avvia",
     createStart: "Crea e avvia",

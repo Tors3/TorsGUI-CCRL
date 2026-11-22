@@ -1,6 +1,6 @@
 import { UciOptionsEditor } from "../components/UciOptions";
 import { SaveToDatabaseButton } from "../components/SaveToDatabase";
-import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, Copy, FlipVertical2, Microscope, Play, Save, SlidersHorizontal, Square, Upload } from "lucide-react";
+import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, Copy, FlipVertical2, Infinity as InfinityIcon, Microscope, Play, Save, SlidersHorizontal, Square, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -23,6 +23,14 @@ import { useT, type Key } from "../i18n";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const TIMES = [100, 300, 1000, 3000, 10000];
+
+/** Time searched so far: 42s, 3:07, 1:02:15. */
+function clockText(ms: number) {
+  const s = Math.floor(ms / 1000);
+  const [h, m, r] = [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60];
+  if (s < 60) return `${s}s`;
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}` : `${m}:${String(r).padStart(2, "0")}`;
+}
 const MARK: Record<string, string> = { inaccuracy: "?!", mistake: "?", blunder: "??" };
 const LINE_ARROWS: Arrow["brush"][] = ["green", "paleGreen", "paleBlue", "paleGrey", "paleGrey"];
 
@@ -392,9 +400,16 @@ export function AnalysisPage() {
                   <SaveToDatabaseButton getText={pgnText} testid="analysis-db-save" />
                 </span>
               )}
-              <label className="ml-auto flex items-center gap-2 text-[12.5px]">
-                <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} disabled={engineId == null} data-testid="analysis-live" /> {tr("analysis.live")}
-              </label>
+              <button
+                className={`btn btn-sm ml-auto ${live ? "btn-danger" : "btn-primary"}`}
+                onClick={() => setLive((l) => !l)}
+                disabled={engineId == null}
+                aria-pressed={live}
+                title={tr("analysis.liveTip")}
+                data-testid="analysis-live"
+              >
+                {live ? <Square size={12} /> : <InfinityIcon size={14} />} {tr(live ? "analysis.liveStop" : "analysis.live")}
+              </button>
             </div>
             {curJ?.tag && (
               <div className="text-[12.5px]" data-testid="analysis-judgement">
@@ -415,12 +430,19 @@ export function AnalysisPage() {
                 <div className="flex items-center gap-2 muted text-[11.5px]">
                   {liveState?.running && liveState.fen === fen ? <Spinner size={11} /> : null}
                   {liveState?.engine || tr("analysis.starting")}
+                  {liveState?.fen === fen && !liveState.ended && liveState.running && <span>· {tr("analysis.liveInfinite")}</span>}
                   {lines[0] && (
                     <span className="ml-auto tnum">
                       {tr("analysis.depthLine", { depth: lines[0].depth, sel: lines[0].seldepth ? `/${lines[0].seldepth}` : "", nodes: num(lines[0].nodes), nps: nps(lines[0].nps) })}
+                      {lines[0].time_ms != null && ` · ${clockText(Number(lines[0].time_ms))}`}
                     </span>
                   )}
                 </div>
+                {liveState?.ended && liveState.fen === fen && (
+                  <div className="muted" data-testid="analysis-ended">
+                    {tr("analysis.liveEnded", { depth: lines[0]?.depth ?? 0 })}
+                  </div>
+                )}
                 {liveState?.error && liveState.fen === fen && <div className="muted">{liveState.error}</div>}
                 {lines.map((l) => (
                   <div key={l.multipv} className="flex gap-2 min-w-0">

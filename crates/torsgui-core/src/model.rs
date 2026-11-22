@@ -225,6 +225,11 @@ pub struct TournamentConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub book_shift: Option<u32>,
+    /// Start even if the build of an engine looks unsupported by this CPU (AVX-512, AVX-VNNI):
+    /// the user overrules the check, e.g. for a build TorsGUI reads wrongly from its name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub skip_cpu_check: Option<bool>,
     pub event: String,
     pub site: String,
     #[serde(default)]

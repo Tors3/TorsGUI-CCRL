@@ -148,6 +148,7 @@ pub fn tournament(engine: &Path, ids: &[Option<i64>], variant: Variant, book: &P
         random_openings: false,
         opening_seed: 0,
         book_shift: None,
+        skip_cpu_check: None,
         event: format!("CCRL {list} gauntlet {seed} 1CPU"),
         site: String::new(),
         syzygy_path: String::new(),

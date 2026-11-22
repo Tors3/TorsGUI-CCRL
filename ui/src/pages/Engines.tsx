@@ -1044,7 +1044,7 @@ export function Engines() {
       </Modal>
       <Modal open={imp} onOpenChange={setImp} title={t("engines.rebuild.title")} footer={<button className="btn btn-primary" onClick={importReport} disabled={!impPath}>{t("engines.rebuild.import")}</button>}>
         <Field label={t("engines.rebuild.folder")} hint={t("engines.rebuild.folderHint")}>
-          <PathInput kind="folder" value={impPath} onChange={setImpPath} placeholder="…/CCRL_ScirptsTests/engines" />
+          <PathInput kind="folder" value={impPath} onChange={setImpPath} placeholder="…/CCRL/engines" />
         </Field>
       </Modal>
       <Modal

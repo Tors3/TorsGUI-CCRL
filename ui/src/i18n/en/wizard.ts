@@ -158,6 +158,8 @@ export const wizard = {
     estGame: "Est. game",
     event: "Event: {event}",
     ready: "Ready",
+    skipCpu: "Start anyway: the engine runs on this CPU",
+    skipCpuAbout: "TorsGUI reads the build from the file name and may be wrong. Tick this only if the engine has already played here without crashing: otherwise every game it plays is lost by crash.",
     broadcast: "Broadcast live:",
     saveStart: "Save and start",
     createStart: "Create and start",
