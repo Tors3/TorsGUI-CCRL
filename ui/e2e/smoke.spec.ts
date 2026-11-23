@@ -173,8 +173,7 @@ test("bundled CCRL opening books: install, then pick one in the wizard", async (
 test("the user's own book is added and listed, an EPD one also for Chess960", async ({ page }) => {
   const dir = mkdtempSync(join(tmpdir(), "torsgui-book-"));
   const file = join(dir, "my-dfrc.epd");
-  writeFileSync(file, "bqnb1rkr/pp3ppp/3ppn2/2p5/5P2/P2P4/NPP1P1PP/BQ1BNRKR w HFhf - 0 9
-");
+  writeFileSync(file, "bqnb1rkr/pp3ppp/3ppn2/2p5/5P2/P2P4/NPP1P1PP/BQ1BNRKR w HFhf - 0 9\n");
   await page.goto("/#/settings?tab=books");
   await page.getByTestId("my-books").getByTestId("books-add").click();
   await page.getByTestId("books-add-path").fill(file);
