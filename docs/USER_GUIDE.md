@@ -529,6 +529,9 @@ event log and every runner, console and per-game log (last 96 KB, refreshed).
 the same move). Paste a PGN, bare moves (`1. e4 e5 2. Nf3…`) or a FEN, or start from the initial
 position. Pick an engine of the library, its threads and hash.
 
+- **Move the pieces**: drag (or click) a piece on the board. The next move of the game just goes
+  forward; another move starts a new line from that position, and **Back to the game** returns
+  to the game as it was loaded.
 - **Infinite analysis**: the engine analyses the position shown with no time limit, until you
   press **Stop analysis**, with 1–5 lines (MultiPV), the depth and the time searched so far; the
   best moves are drawn as arrows and follow you as you move through the game (`←` `→` `Home`

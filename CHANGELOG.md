@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Move the pieces in Analysis**: the analysis board takes moves (drag or click, with the choice
+  of piece on promotion). The next move of the game just goes forward; another move starts a new
+  line from that position, which the infinite analysis follows, and **Back to the game** returns to
+  the game as it was loaded, where the line left it.
+
 ## [0.9.3] - 2026-11-23
 
 ### Fixed

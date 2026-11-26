@@ -1,6 +1,7 @@
+import type { Key as Sq } from "chessground/types";
 import { UciOptionsEditor } from "../components/UciOptions";
 import { SaveToDatabaseButton } from "../components/SaveToDatabase";
-import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, Copy, FlipVertical2, Infinity as InfinityIcon, Microscope, Play, Save, SlidersHorizontal, Square, Upload } from "lucide-react";
+import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, Copy, FlipVertical2, Undo2, Infinity as InfinityIcon, Microscope, Play, Save, SlidersHorizontal, Square, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -8,6 +9,7 @@ import type { EngineEntry } from "../bindings/EngineEntry";
 import type { GameAnalysisProgress } from "../bindings/GameAnalysisProgress";
 import type { LiveAnalysis } from "../bindings/LiveAnalysis";
 import type { MoveJudgement } from "../bindings/MoveJudgement";
+import type { PositionMoves } from "../bindings/PositionMoves";
 import type { Score } from "../bindings/Score";
 import type { Settings } from "../bindings/Settings";
 import type { ViewerGame } from "../bindings/ViewerGame";
@@ -44,6 +46,14 @@ export function AnalysisPage() {
   const { data: engines } = usePoll<EngineEntry[]>("engines_list", {}, 0);
   const { data: settings } = usePoll<Settings>("settings_get", {}, 0);
   const [game, setGame] = useState<ViewerGame>();
+  // the game as loaded, while the moves played on the board make another line
+  const [original, setOriginal] = useState<ViewerGame>();
+  const loadGame = (g: ViewerGame) => {
+    setGame(g);
+    setOriginal(undefined);
+  };
+  const [moves, setMoves] = useState<PositionMoves>();
+  const [promo, setPromo] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [loadErr, setLoadErr] = useState<string>();
   const [ply, setPly] = useState(0);
@@ -105,7 +115,7 @@ export function AnalysisPage() {
     setText(text);
     call<ViewerGame>("analysis_load_text", { text })
       .then((g) => {
-        setGame(g);
+        loadGame(g);
         setPly(g.plies.length);
       })
       .catch((e) => setLoadErr(e.message));
@@ -117,7 +127,7 @@ export function AnalysisPage() {
     if (!source || index == null) return;
     call<ViewerGame>("game_get", { source, index: Number(index) })
       .then((g) => {
-        setGame(g);
+        loadGame(g);
         setPly(Number(params.get("ply") ?? g.plies.length));
       })
       .catch((e) => setLoadErr(e.message));
@@ -127,7 +137,7 @@ export function AnalysisPage() {
     setLoadErr(undefined);
     try {
       const g = await call<ViewerGame>("analysis_load_text", { text });
-      setGame(g);
+      loadGame(g);
       setPly(0);
       setReview(undefined);
     } catch (e) {
@@ -140,6 +150,45 @@ export function AnalysisPage() {
   const fen = ply > 0 ? plies[ply - 1].fen : game?.start_fen || START;
   const cur = ply > 0 ? plies[ply - 1] : undefined;
   const h = useMemo(() => Object.fromEntries(game?.headers ?? []), [game]);
+
+  // the pieces move on the board: the next move of the game, or a new line from here
+  useEffect(() => {
+    if (!game) return;
+    let gone = false;
+    setMoves(undefined);
+    call<PositionMoves>("position_moves", { fen })
+      .then((m) => !gone && setMoves(m))
+      .catch(() => {});
+    return () => {
+      gone = true;
+    };
+  }, [fen, game]);
+  const playMove = async (uci: string) => {
+    if (!game) return;
+    if (plies[ply]?.uci === uci) {
+      setPly(ply + 1);
+      return;
+    }
+    try {
+      const m = await call<{ san: string; uci: string; fen: string }>("position_move", { fen, uci });
+      if (plies[ply]?.uci === m.uci) {
+        setPly(ply + 1);
+        return;
+      }
+      const info = { book: false, eval: null, mate: null, depth: null, seldepth: null, time_s: null, time_left_s: null, nodes: null, nps: null, note: null };
+      if (!original) setOriginal(game);
+      setGame({ ...game, plies: [...plies.slice(0, ply), { san: m.san, uci: m.uci, fen: m.fen, info, eval_cp: null }], result: "*" });
+      setPly(ply + 1);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+  const onBoardMove = (o: Sq, d: Sq) => {
+    if (moves?.promotions.includes(`${o}${d}`)) setPromo(`${o}${d}`);
+    else playMove(`${o}${d}`);
+  };
+  const whiteToMove = fen.split(" ")[1] !== "b";
+  const movable = useMemo(() => (game && moves ? { color: (whiteToMove ? "white" : "black") as "white" | "black", dests: new Map(Object.entries(moves.legal) as [Sq, Sq[]][]) } : null), [game, moves, whiteToMove]);
 
   // keyboard navigation
   useEffect(() => {
@@ -208,7 +257,7 @@ export function AnalysisPage() {
     }
   };
   // a review belongs to the game shown when it has as many positions
-  const result = review?.result && review.result.positions.length === n + 1 ? review.result : undefined;
+  const result = !original && review?.result && review.result.positions.length === n + 1 ? review.result : undefined;
   const judgement = (i: number): MoveJudgement | null | undefined => result?.moves[i];
 
   const arrows: Arrow[] = useMemo(() => {
@@ -286,7 +335,7 @@ export function AnalysisPage() {
               <button
                 className="btn btn-ghost"
                 onClick={() => {
-                  setGame({ headers: [], start_fen: START, plies: [], result: "*", error: null });
+                  loadGame({ headers: [], start_fen: START, plies: [], result: "*", error: null });
                   setPly(0);
                 }}
               >
@@ -374,7 +423,7 @@ export function AnalysisPage() {
             )}
             <div className="flex gap-2 items-stretch">
               <EvalBar cp={shownScore?.cp} mate={shownScore?.mate} orientation={flip ? "black" : "white"} />
-              <Board fen={fen} lastMove={cur?.uci} check={isCheck(cur?.san)} orientation={flip ? "black" : "white"} arrows={arrows} className="flex-1" />
+              <Board fen={fen} lastMove={cur?.uci} check={isCheck(cur?.san)} orientation={flip ? "black" : "white"} arrows={arrows} className="flex-1" interactive movable={movable} onMove={onBoardMove} />
             </div>
             <div className="flex items-center gap-1">
               <button className="btn btn-icon" aria-label={tr("analysis.start")} onClick={() => setPly(0)}>
@@ -395,6 +444,23 @@ export function AnalysisPage() {
               <span className="muted text-[12px] ml-2 tnum">
                 {ply}/{n}
               </span>
+              {original && (
+                <button
+                  className="btn btn-sm ml-2"
+                  title={tr("analysis.backToGameTip")}
+                  onClick={() => {
+                    // back where the line left the game
+                    let back = 0;
+                    while (back < plies.length && back < original.plies.length && plies[back].uci === original.plies[back].uci) back++;
+                    setGame(original);
+                    setOriginal(undefined);
+                    setPly(back);
+                  }}
+                  data-testid="analysis-back-to-game"
+                >
+                  <Undo2 size={12} /> {tr("analysis.backToGame")}
+                </button>
+              )}
               {n > 0 && (
                 <span className="ml-2">
                   <SaveToDatabaseButton getText={pgnText} testid="analysis-db-save" />
@@ -564,6 +630,24 @@ export function AnalysisPage() {
           </div>
         </div>
       )}
+      <Modal open={!!promo} onOpenChange={(o) => !o && setPromo(null)} title={tr("analysis.promote")} width={320}>
+        <div className="grid grid-cols-4 gap-2" data-testid="analysis-promotion">
+          {(["q", "r", "b", "n"] as const).map((p) => (
+            <button
+              key={p}
+              className="btn justify-center h-12 text-[22px]"
+              onClick={() => {
+                const u = `${promo}${p}`;
+                setPromo(null);
+                playMove(u);
+              }}
+              aria-label={p}
+            >
+              {{ q: whiteToMove ? "♕" : "♛", r: whiteToMove ? "♖" : "♜", b: whiteToMove ? "♗" : "♝", n: whiteToMove ? "♘" : "♞" }[p]}
+            </button>
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 }

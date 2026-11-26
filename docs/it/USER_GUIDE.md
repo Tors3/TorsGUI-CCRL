@@ -564,6 +564,9 @@ console e delle partite (ultimi 96 KB, aggiornati).
 stessa mossa). Incolla un PGN, solo le mosse (`1. e4 e5 2. Cf3…`) o una FEN, oppure parti dalla
 posizione iniziale. Scegli un motore della libreria, i suoi thread e l'hash.
 
+- **Muovi i pezzi**: trascina (o clicca) un pezzo sulla scacchiera. La mossa successiva della
+  partita va semplicemente avanti; un'altra mossa apre una nuova linea da quella posizione, e
+  **Torna alla partita** riporta alla partita com'era quando l'hai caricata.
 - **Analisi infinita**: il motore analizza la posizione mostrata senza limite di tempo, finché
   non premi **Ferma analisi**, con 1–5 linee (MultiPV), la profondità e il tempo già cercato; le
   mosse migliori vengono disegnate come frecce e ti seguono mentre ti muovi nella partita (`←`

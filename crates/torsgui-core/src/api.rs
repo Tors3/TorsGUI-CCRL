@@ -691,6 +691,12 @@ impl App {
                 ok(self.play.state())
             }
             "play_state" => ok(self.play.state()),
+            // a board the user moves pieces on (Analysis)
+            "position_moves" => ok(crate::play::position_moves(&arg::<String>(&a, "fen")?)?),
+            "position_move" => {
+                let (san, uci, fen) = crate::play::position_move(&arg::<String>(&a, "fen")?, &arg::<String>(&a, "uci")?)?;
+                ok(json!({"san": san, "uci": uci, "fen": fen}))
+            }
             "play_move" => {
                 self.play.human_move(&arg::<String>(&a, "uci")?)?;
                 ok(self.play.state())

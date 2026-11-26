@@ -119,6 +119,31 @@ pub fn game_end(b: &Board, history: &[Board]) -> Option<(String, String)> {
     None
 }
 
+/// The moves of a position for a board the user moves pieces on (Analysis): per square its
+/// targets, and the "e7e8" pairs that promote.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
+pub struct PositionMoves {
+    pub legal: BTreeMap<String, Vec<String>>,
+    pub promotions: Vec<String>,
+}
+
+pub fn position_moves(fen: &str) -> Result<PositionMoves> {
+    let b = crate::chess960::parse_fen(fen)?;
+    let (legal, promotions) = legal_map(&b);
+    Ok(PositionMoves { legal, promotions })
+}
+
+/// Plays `uci` on `fen`: the move in SAN and UCI, and the position after it.
+pub fn position_move(fen: &str, uci_move: &str) -> Result<(String, String, String)> {
+    let mut b = crate::chess960::parse_fen(fen)?;
+    let mv = parse_uci_move(&b, uci_move).ok().filter(|m| b.is_legal(*m)).with_context(|| format!("illegal move {uci_move}"))?;
+    let san = uci::san(&b, mv);
+    let u = display_uci_move(&b, mv).to_string();
+    b.play(mv);
+    Ok((san, u, b.to_string()))
+}
+
 fn legal_map(b: &Board) -> (BTreeMap<String, Vec<String>>, Vec<String>) {
     let mut map: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut promos = Vec::new();
@@ -501,6 +526,14 @@ mod tests {
         assert_eq!(game_end(&b("8/8/4k3/8/8/3RK3/8/8 w - - 100 80"), &[]).unwrap().1, "fifty-move rule");
         let s = Board::default();
         assert_eq!(game_end(&s, &[s.clone(), s.clone(), s.clone()]).unwrap().1, "threefold repetition");
+        // a position of Analysis: its moves, then one played
+        let m = position_moves("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
+        assert_eq!(m.legal["g1"], vec!["f3".to_string(), "h3".to_string()]);
+        let (san, u, fen) = position_move("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "g1f3").unwrap();
+        assert_eq!((san.as_str(), u.as_str()), ("Nf3", "g1f3"));
+        assert!(fen.starts_with("rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq"), "{fen}");
+        assert!(position_move("8/8/8/8/8/8/8/4K2k w - - 0 1", "e1e3").is_err());
+        assert_eq!(position_move("8/4P1k1/8/8/8/8/8/4K3 w - - 0 1", "e7e8q").unwrap().0, "e8=Q");
         let (legal, promos) = legal_map(&b("8/4P1k1/8/8/8/8/8/4K2R w K - 0 1"));
         assert!(legal["e1"].contains(&"g1".to_string()), "castling in standard notation: {legal:?}");
         assert_eq!(promos, vec!["e7e8".to_string()]);
