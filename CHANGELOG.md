@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.9.4] - 2026-11-26
 
 ### Added
 - **Move the pieces in Analysis**: the analysis board takes moves (drag or click, with the choice
